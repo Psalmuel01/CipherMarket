@@ -2,53 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  --cm-bg: #080c14;
-  --cm-panel: #101722;
-  --cm-surface: #121a25;
-  --cm-line: rgba(255, 255, 255, 0.08);
-  --cm-text: #e7eef7;
-  --cm-muted: #8b98ad;
-  --cm-teal: #4fffd4;
-  --cm-success: #35d07f;
-  --cm-warning: #e2a93b;
-  --cm-danger: #e46363;
+@layer base {
+  :root {
+    /* Base Colors - HSL for modern control */
+    --background: 220 40% 4%;
+    --foreground: 210 20% 98%;
+
+    --card: 220 25% 6%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 220 40% 4%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 165 100% 65%;
+    --primary-foreground: 220 40% 4%;
+
+    --secondary: 220 20% 12%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 220 15% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 165 100% 65%;
+    --accent-foreground: 210 20% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 217 24% 15%;
+    --input: 217 24% 18%;
+    --ring: 165 100% 65%;
+
+    --radius: 1rem;
+
+    /* Custom CipherMarket Tokens */
+    --cm-teal: 165 100% 65%;
+    --cm-glass: rgba(16, 23, 34, 0.65);
+    --cm-glass-border: rgba(255, 255, 255, 0.08);
+  }
 }
 
-* {
-  box-sizing: border-box;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/20;
+    background-image:
+      radial-gradient(circle at 0% 0%, hsla(var(--cm-teal) / 0.12), transparent 40%),
+      radial-gradient(circle at 100% 100%, hsla(220, 100%, 15%, 0.1), transparent 40%);
+    background-attachment: fixed;
+  }
 }
 
-html,
-body {
-  min-height: 100%;
-  background:
-    radial-gradient(circle at top left, rgba(79, 255, 212, 0.08), transparent 24%),
-    linear-gradient(180deg, #0b111a 0%, #080c14 100%);
-  color: var(--cm-text);
+@layer components {
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-xl border border-white/5 shadow-2xl;
+  }
+
+  .interactive-glow {
+    @apply relative overflow-hidden;
+    &::after {
+      content: '';
+      @apply absolute inset-0 opacity-0 transition-opacity duration-500 pointer-events-none;
+      background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(79, 255, 212, 0.15), transparent 40%);
+    }
+    &:hover::after {
+      @apply opacity-100;
+    }
+  }
 }
 
-body {
-  margin: 0;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-
-::selection {
-  background: rgba(79, 255, 212, 0.22);
-}
-
+/* Hide floating third-party UI */
 [class^='fnx-'],
 [class*=' fnx-'] {
   display: none !important;

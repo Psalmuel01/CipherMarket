@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { ExternalLink, Users, Calendar, ArrowRight } from 'lucide-react';
 import LifecycleBadge from '@/components/markets/LifecycleBadge';
 import { formatAmount, formatRelativeExpiry } from '@/lib/formatters';
 import type { MarketSummary } from '@/types/market';
@@ -12,51 +13,73 @@ export interface MarketCardProps {
 export default function MarketCard({ index, market }: MarketCardProps): JSX.Element {
   return (
     <motion.article
-      className="rounded-2xl border border-line bg-surface/72 p-5 shadow-panel"
+      className="glass-card group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_40px_rgba(79,255,212,0.1)]"
       initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, delay: index * 0.06 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.4, delay: index * 0.05 }}
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
               {market.category}
             </p>
-            <h2 className="text-lg font-medium text-text">{market.title}</h2>
+            <h2 className="text-xl font-bold leading-tight tracking-tight text-foreground transition-colors group-hover:text-primary">
+              {market.title}
+            </h2>
           </div>
           <LifecycleBadge status={market.status} />
         </div>
-        <p className="font-mono text-sm text-muted">{market.type}</p>
-      </div>
-
-      <div className="mt-6 grid grid-cols-2 gap-4 border-t border-line pt-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted">Liquidity</p>
-          <p className="mt-2 font-mono text-xl text-text">{formatAmount(market.totalLiquidity)}</p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted">Expiry</p>
-          <p className="mt-2 font-mono text-xl text-text">{formatRelativeExpiry(market.expiryTime)}</p>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.03] text-muted-foreground group-hover:text-primary transition-colors">
+          <ExternalLink className="h-5 w-5" />
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between">
-        <div className="flex flex-wrap gap-2">
+      <div className="mt-8 grid grid-cols-2 gap-6 border-t border-white/5 pt-6">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <Users className="h-3 w-3" />
+            <span>Liquidity</span>
+          </div>
+          <p className="text-2xl font-black tracking-tight text-foreground">
+            {formatAmount(market.totalLiquidity)}
+          </p>
+        </div>
+        <div className="space-y-1.5 text-right">
+          <div className="flex items-center justify-end gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            <span>Ends In</span>
+          </div>
+          <p className="text-2xl font-black tracking-tight text-foreground">
+            {formatRelativeExpiry(market.expiryTime)}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-8 flex items-end justify-between gap-4">
+        <div className="flex -space-x-2">
           {market.outcomes.slice(0, 3).map((outcome) => (
-            <span
+            <div
               key={outcome.id}
-              className="rounded-md border border-line px-2 py-1 font-mono text-xs text-muted"
+              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-card text-[10px] font-bold text-foreground ring-1 ring-white/5"
+              title={`${outcome.label}: ${outcome.impliedShare}%`}
             >
-              {outcome.label} {outcome.impliedShare}%
-            </span>
+              {outcome.label[0]}
+            </div>
           ))}
+          {market.outcomeCount > 3 && (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-bold text-muted-foreground ring-1 ring-white/5">
+              +{market.outcomeCount - 3}
+            </div>
+          )}
         </div>
         <Link
-          className="font-mono text-xs uppercase tracking-[0.18em] text-teal"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-all hover:scale-105 active:scale-95"
           href={`/markets/${market.address}`}
         >
-          Open →
+          Explore
+          <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
     </motion.article>

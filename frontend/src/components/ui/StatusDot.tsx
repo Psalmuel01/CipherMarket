@@ -10,13 +10,13 @@ export default function StatusDot({ status }: StatusDotProps): JSX.Element {
     <span
       aria-label={status}
       className={clsx(
-        'inline-flex h-2.5 w-2.5 rounded-full',
-        status === 'ACTIVE' && 'bg-teal animate-pulseDot',
-        status === 'FINALIZED' && 'bg-success',
-        status === 'PROPOSED' && 'bg-warning',
-        status === 'DISPUTED' && 'bg-danger',
-        status === 'EXPIRED' && 'bg-white/25',
-        status === 'CANCELLED' && 'bg-danger/60',
+        'inline-flex h-2 w-2 rounded-full ring-2 ring-offset-1 ring-offset-background',
+        status === 'ACTIVE' && 'bg-primary ring-primary/20 animate-pulse-glow',
+        status === 'FINALIZED' && 'bg-emerald-500 ring-emerald-500/20',
+        status === 'PROPOSED' && 'bg-amber-500 ring-amber-500/20',
+        status === 'DISPUTED' && 'bg-rose-500 ring-rose-500/20',
+        status === 'EXPIRED' && 'bg-zinc-500 ring-zinc-500/20',
+        status === 'CANCELLED' && 'bg-zinc-700 ring-zinc-700/20',
       )}
     />
   );

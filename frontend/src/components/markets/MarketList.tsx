@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { Search, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import clsx from 'clsx';
 import MarketCard from '@/components/markets/MarketCard';
 import Button from '@/components/ui/Button';
 import Skeleton from '@/components/ui/Skeleton';
 import useMarkets from '@/hooks/useMarkets';
 import useAppStore from '@/store/useAppStore';
-import { formatAmount, formatRelativeExpiry } from '@/lib/formatters';
+import { formatAmount } from '@/lib/formatters';
 import type { MarketSummary } from '@/types/market';
 
 type SortKey = 'liquidity' | 'expiry' | 'outcomes';
@@ -15,10 +16,7 @@ type SortKey = 'liquidity' | 'expiry' | 'outcomes';
 function sortMarkets(markets: MarketSummary[], sortKey: SortKey): MarketSummary[] {
   return [...markets].sort((left, right) => {
     if (sortKey === 'liquidity') {
-      if (left.totalLiquidity === right.totalLiquidity) {
-        return 0;
-      }
-
+      if (left.totalLiquidity === right.totalLiquidity) return 0;
       return left.totalLiquidity > right.totalLiquidity ? -1 : 1;
     }
 
@@ -40,87 +38,117 @@ export default function MarketList({ description, heading }: MarketListProps): J
   const activeStatusFilter = useAppStore((state) => state.activeStatusFilter);
   const setActiveStatusFilter = useAppStore((state) => state.setActiveStatusFilter);
   const [sortKey, setSortKey] = useState<SortKey>('liquidity');
-  const sortedMarkets = sortMarkets(data, sortKey);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredMarkets = data.filter(market => 
+    market.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    market.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedMarkets = sortMarkets(filteredMarkets, sortKey);
 
   return (
-    <section className="space-y-8">
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-        <div className="max-w-3xl space-y-3">
-          <h2 className="text-3xl font-medium text-text">{heading}</h2>
-          <p className="text-sm leading-6 text-muted">{description}</p>
+    <section className="space-y-10">
+      <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+        <div className="max-w-3xl space-y-4">
+          <h2 className="text-4xl font-black tracking-tight text-foreground lg:text-5xl">
+            {heading}
+          </h2>
+          <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
+            {description}
+          </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {availableStatuses.map((status) => (
-            <Button
-              key={status}
-              onClick={() => setActiveStatusFilter(status)}
-              size="sm"
-              type="button"
-              variant={activeStatusFilter === status ? 'primary' : 'ghost'}
-            >
-              {status}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-line bg-panel/72">
-        <div className="grid grid-cols-[2fr,1fr,1fr,1fr] border-b border-line px-4 py-3 text-[11px] uppercase tracking-[0.18em] text-muted">
-          <span>Market</span>
-          {(['liquidity', 'expiry', 'outcomes'] as SortKey[]).map((value) => (
-            <button
-              key={value}
-              className={clsx(
-                'flex items-center justify-end gap-2 text-right',
-                sortKey === value ? 'text-teal' : 'text-muted',
-              )}
-              onClick={() => setSortKey(value)}
-              type="button"
-            >
-              <span>{value}</span>
-              <span className={clsx('transition-transform', sortKey === value && 'rotate-180')}>⌃</span>
-            </button>
-          ))}
-        </div>
-
-        {isLoading ? (
-          <div className="space-y-3 p-4">
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+            <input
+              type="text"
+              placeholder="Search markets..."
+              className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] pl-10 pr-4 text-sm text-foreground outline-none ring-primary/20 transition-all focus:border-primary/50 focus:ring-4 sm:w-64"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        ) : null}
-
-        {isError && error ? (
-          <div className="p-4 text-sm text-danger">{error.message}</div>
-        ) : null}
-
-        {!isLoading && !isError ? (
-          <div className="divide-y divide-line">
-            {sortedMarkets.map((market) => (
-              <div
-                key={market.address}
-                className="grid grid-cols-[2fr,1fr,1fr,1fr] px-4 py-4 text-sm text-text"
+          <div className="flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
+            {availableStatuses.map((status) => (
+              <button
+                key={status}
+                onClick={() => setActiveStatusFilter(status)}
+                className={clsx(
+                  'px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all rounded-lg',
+                  activeStatusFilter === status
+                    ? 'bg-primary text-primary-foreground shadow-lg'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                )}
               >
-                <div>
-                  <p className="font-medium">{market.title}</p>
-                  <p className="mt-1 font-mono text-xs text-muted">{market.category}</p>
-                </div>
-                <p className="text-right font-mono">{formatAmount(market.totalLiquidity)}</p>
-                <p className="text-right font-mono text-muted">{formatRelativeExpiry(market.expiryTime)}</p>
-                <p className="text-right font-mono text-muted">{market.outcomeCount}</p>
-              </div>
+                {status}
+              </button>
             ))}
           </div>
-        ) : null}
+        </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-3">
-        {sortedMarkets.map((market, index) => (
-          <MarketCard key={market.address} index={index} market={market} />
-        ))}
+      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+        <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+          <SlidersHorizontal className="h-4 w-4 text-primary" />
+          <span>{sortedMarkets.length} Markets Found</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Sort By</span>
+          <div className="flex gap-2">
+            {(['liquidity', 'expiry', 'outcomes'] as SortKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setSortKey(key)}
+                className={clsx(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-black uppercase tracking-widest transition-all',
+                  sortKey === key
+                    ? 'border-primary/50 bg-primary/10 text-primary'
+                    : 'border-white/5 bg-white/[0.02] text-muted-foreground hover:border-white/20 hover:text-foreground'
+                )}
+              >
+                {key}
+                <ArrowUpDown className="h-3 w-3" />
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {isLoading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-64 w-full rounded-2xl" />
+          ))}
+        </div>
+      ) : null}
+
+      {isError && error ? (
+        <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive-foreground">
+          {error.message}
+        </div>
+      ) : null}
+
+      {!isLoading && !isError ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {sortedMarkets.map((market, index) => (
+            <MarketCard key={market.address} index={index} market={market} />
+          ))}
+        </div>
+      ) : null}
+
+      {!isLoading && sortedMarkets.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+          <div className="h-16 w-16 rounded-full bg-white/[0.02] flex items-center justify-center border border-white/5">
+            <Search className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <p className="text-lg font-medium text-muted-foreground">No markets found matching your criteria</p>
+          <Button variant="ghost" onClick={() => { setSearchQuery(''); setActiveStatusFilter(availableStatuses[0]); }}>
+            Clear all filters
+          </Button>
+        </div>
+      )}
     </section>
   );
 }
