@@ -1,0 +1,37 @@
+import type { HardhatUserConfig } from 'hardhat/config';
+import '@nomicfoundation/hardhat-toolbox';
+import 'cofhe-hardhat-plugin';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const config: HardhatUserConfig = {
+  solidity: {
+    version: '0.8.24',
+    settings: {
+      evmVersion: 'cancun',
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
+  defaultNetwork: 'hardhat',
+  cofhe: {
+    logMocks: false,
+    gasWarning: true,
+  },
+  networks: {
+    'eth-sepolia': {
+      url: process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com',
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 11155111,
+      gasMultiplier: 1.2,
+      timeout: 60000,
+      httpHeaders: {},
+    },
+  },
+};
+
+export default config;
+

@@ -1,0 +1,15 @@
+{
+  "name": "ciphermarket",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.14.2",
+  "scripts": {
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "test:contracts": "pnpm --filter contracts test",
+    "lint:frontend": "pnpm --filter frontend lint"
+  }
+}
+
