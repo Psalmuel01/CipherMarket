@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, CheckCircle2, FlaskConical, ListChecks, Settings2, FileCheck2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, CheckCircle2, FlaskConical, ListChecks, Settings2, FileCheck2, Loader2, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import { useDemoFlow } from '@/hooks/useDemoFlow';
 import clsx from 'clsx';
 
 const STEPS = [
@@ -19,6 +21,47 @@ export interface CreateMarketFormProps {
 
 export default function CreateMarketForm({ className }: CreateMarketFormProps): JSX.Element {
   const [stepIndex, setStepIndex] = useState<number>(0);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const { setCreatedMarket } = useDemoFlow();
+
+  const handleDeploy = async () => {
+    setIsDeploying(true);
+    // Simulate deployment delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setIsDeploying(false);
+    setIsSuccess(true);
+    setCreatedMarket(true);
+  };
+
+  if (isSuccess) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="glass-card rounded-3xl p-12 text-center space-y-6 max-w-2xl mx-auto"
+      >
+        <div className="flex justify-center">
+          <div className="rounded-full bg-primary/20 p-6 text-primary ring-8 ring-primary/10">
+            <CheckCircle2 className="h-12 w-12" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-3xl font-black tracking-tight text-foreground">Market Deployed</h2>
+          <p className="text-muted-foreground">Your confidential prediction market is now live on the Fhenix testnet.</p>
+        </div>
+        <div className="pt-4 flex justify-center gap-4">
+          <Button variant="outline" onClick={() => setIsSuccess(false)}>Create Another</Button>
+          <Link href="/">
+            <Button className="gap-2">
+              View Markets
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <div className={clsx('space-y-10', className)}>
@@ -160,7 +203,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
 
             <div className="flex items-center justify-between pt-4 border-t border-white/5">
               <Button
-                disabled={stepIndex === 0}
+                disabled={stepIndex === 0 || isDeploying}
                 onClick={() => setStepIndex((current) => Math.max(0, current - 1))}
                 type="button"
                 variant="outline"
@@ -170,12 +213,13 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                 Previous Step
               </Button>
               <Button
-                onClick={() => setStepIndex((current) => Math.min(STEPS.length - 1, current + 1))}
+                disabled={isDeploying}
+                onClick={stepIndex === STEPS.length - 1 ? handleDeploy : () => setStepIndex((current) => Math.min(STEPS.length - 1, current + 1))}
                 type="button"
                 className="gap-2"
               >
-                {stepIndex === STEPS.length - 1 ? 'Deploy Contract' : 'Next Step'}
-                <ChevronRight className="h-4 w-4" />
+                {stepIndex === STEPS.length - 1 ? (isDeploying ? 'Deploying...' : 'Deploy Contract') : 'Next Step'}
+                {stepIndex === STEPS.length - 1 ? (isDeploying ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />) : <ChevronRight className="h-4 w-4" />}
               </Button>
             </div>
           </div>
