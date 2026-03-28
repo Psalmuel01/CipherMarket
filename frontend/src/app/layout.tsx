@@ -1,11 +1,15 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { Toaster } from 'sonner';
 import Sidebar from '@/components/layout/Sidebar';
-import Providers from '@/app/providers';
 import '@/app/globals.css';
+
+const Providers = dynamic(() => import('@/app/providers'), {
+  ssr: false,
+});
 
 export const metadata: Metadata = {
   title: 'CipherMarket',

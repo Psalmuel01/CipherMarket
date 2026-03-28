@@ -1,7 +1,7 @@
 'use client';
 
+import { injected } from '@wagmi/core';
 import { useAccount, useChainId, useConnect, useDisconnect } from 'wagmi';
-import { injected } from 'wagmi/connectors';
 import Button from '@/components/ui/Button';
 import { truncateAddress } from '@/lib/formatters';
 
@@ -33,4 +33,3 @@ export default function WalletButton({ className }: WalletButtonProps): JSX.Elem
     </Button>
   );
 }
-

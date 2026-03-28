@@ -3,8 +3,8 @@
 import { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CofheProvider } from '@cofhe/react';
+import { injected } from '@wagmi/core';
 import { createConfig, http, WagmiProvider, usePublicClient, useWalletClient } from 'wagmi';
-import { injected } from 'wagmi/connectors';
 import { cofheConfig, wagmiChains } from '@/lib/fhenix';
 
 const wagmiConfig = createConfig({
@@ -48,4 +48,3 @@ export default function Providers({ children }: ProvidersProps): JSX.Element {
     </WagmiProvider>
   );
 }
-

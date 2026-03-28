@@ -1,4 +1,4 @@
-import { createCofheConfig } from '@cofhe/sdk/web';
+import { createCofheConfig } from '@cofhe/react';
 import {
   localcofhe as cofheLocalcofhe,
   sepolia as cofheSepolia,
@@ -37,12 +37,17 @@ export const wagmiTransports = {
 };
 
 export const cofheConfig = createCofheConfig({
-  environment: 'web',
   supportedChains: [cofheLocalcofhe, cofheSepolia],
   useWorkers: true,
   mocks: {
     decryptDelay: 0,
     encryptDelay: [80, 80, 120, 240, 240],
   },
+  react: {
+    autogeneratePermits: false,
+    enableShieldUnshield: false,
+    initialTheme: 'dark',
+    position: 'bottom-right',
+    shareablePermits: false,
+  },
 });
-

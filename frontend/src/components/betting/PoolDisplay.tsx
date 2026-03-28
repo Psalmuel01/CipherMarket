@@ -12,7 +12,7 @@ export default function PoolDisplay({ pools }: PoolDisplayProps): JSX.Element {
         <p className="font-mono text-xs text-muted">visible liquidity only</p>
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-5 space-y-3">
         {pools.map((pool) => (
           <div key={pool.outcomeId} className="space-y-2">
             <div className="flex items-center justify-between text-sm">

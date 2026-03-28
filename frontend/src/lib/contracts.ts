@@ -3,7 +3,7 @@ import FHESmokeArtifact from '../../../contracts/artifacts/contracts/FHESmoke.so
 
 export const CONTRACT_ADDRESSES = {
   localhost: {
-    fheSmoke: null,
+    fheSmoke: '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9',
   },
   sepolia: {
     fheSmoke: null,
@@ -11,4 +11,3 @@ export const CONTRACT_ADDRESSES = {
 } as const;
 
 export const FHESMOKE_ABI = FHESmokeArtifact.abi as Abi;
-

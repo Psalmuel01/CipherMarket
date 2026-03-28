@@ -8,7 +8,7 @@ export interface ProposeOutcomeFormProps {
 
 export default function ProposeOutcomeForm({ className }: ProposeOutcomeFormProps): JSX.Element {
   return (
-    <form className={`space-y-4 rounded-2xl border border-line bg-panel/72 p-5 ${className ?? ''}`}>
+    <form className={`space-y-3 rounded-2xl border border-line bg-panel/72 p-5 ${className ?? ''}`}>
       <div>
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-teal">
           Propose Outcome

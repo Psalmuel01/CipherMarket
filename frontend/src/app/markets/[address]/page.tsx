@@ -47,7 +47,7 @@ export default function Page({
         <div className="grid gap-6 xl:grid-cols-[1.15fr,0.85fr]">
           <PoolDisplay pools={POOLS} />
 
-          <section className="space-y-4 rounded-2xl border border-line bg-panel/72 p-5">
+          <section className="space-y-3 rounded-2xl border border-line bg-panel/72 p-5">
             <div className="space-y-2">
               <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted">
                 Select Outcome
