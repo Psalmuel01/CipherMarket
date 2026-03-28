@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cofhe/abi": "0.4.0",
     "@cofhe/react": "^0.4.0",
     "@cofhe/sdk": "^0.4.0",
     "@emotion/react": "^11.14.0",

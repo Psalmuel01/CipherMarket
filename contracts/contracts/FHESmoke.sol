@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.25;
 
 import '@fhenixprotocol/cofhe-contracts/FHE.sol';
 
@@ -9,12 +9,12 @@ contract FHESmoke {
   /// @notice Emitted when a new encrypted value is stored.
   /// @param account The caller that submitted the encrypted value.
   /// @param ciphertextHandle The ciphertext handle persisted on-chain.
-  event ValueStored(address indexed account, bytes32 indexed ciphertextHandle);
+  event ValueStored(address indexed account, uint256 indexed ciphertextHandle);
 
   /// @notice Emitted when the stored encrypted value is incremented.
   /// @param account The caller that submitted the encrypted addend.
   /// @param ciphertextHandle The updated ciphertext handle persisted on-chain.
-  event ValueAdded(address indexed account, bytes32 indexed ciphertextHandle);
+  event ValueAdded(address indexed account, uint256 indexed ciphertextHandle);
 
   /// @notice The latest encrypted value handle.
   euint128 public storedValue;
@@ -44,4 +44,3 @@ contract FHESmoke {
     emit ValueAdded(msg.sender, euint128.unwrap(storedValue));
   }
 }
-
