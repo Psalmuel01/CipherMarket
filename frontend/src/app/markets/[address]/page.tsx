@@ -57,7 +57,7 @@ export default function Page({
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                Fhenix Confidential
+                FHE Powered Privacy
               </span>
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                 STATUS: {hasResolved ? 'RESOLVED' : 'ACTIVE'}
@@ -104,7 +104,7 @@ export default function Page({
                 <h3 className="text-sm font-black uppercase tracking-widest">Market Information</h3>
               </div>
               <p className="text-base leading-relaxed text-muted-foreground">
-                This market utilizes Fhenix's confidential computing capabilities to encrypt individual stakes. While aggregate pool sizing is visible to maintain market health, individual positions remain sealed until resolution or private settlement.
+                This market utilizes Fully Homomorphic Encryption (FHE) on the Ethereum Sepolia network to encrypt individual stakes. While aggregate pool sizing is visible to maintain market health, individual positions remain sealed until resolution.
               </p>
             </div>
           </div>
@@ -135,7 +135,7 @@ export default function Page({
                   <div className="space-y-4 rounded-2xl bg-white/[0.03] p-4 text-xs font-bold leading-relaxed text-muted-foreground">
                     <div className="flex items-start gap-3">
                       <ShieldCheck className="mt-0.5 h-4 w-4 text-primary" />
-                      <p>Encrypted by Fhenix. Only the final transaction handle is shared publicly.</p>
+                      <p>Encrypted by FHE. Only the final settlement is shared publicly.</p>
                     </div>
                   </div>
 
@@ -157,7 +157,7 @@ export default function Page({
 
                   <div className="rounded-2xl bg-white/[0.03] p-6 space-y-2">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Estimated Payout</p>
-                    <p className="text-3xl font-black text-primary">+842.50 FHE</p>
+                    <p className="text-3xl font-black text-primary">+0.84 ETH</p>
                   </div>
 
                   <Button 

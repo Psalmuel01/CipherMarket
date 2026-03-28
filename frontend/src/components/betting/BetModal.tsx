@@ -70,8 +70,9 @@ export default function BetModal({
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Selected Outcome</p>
                 <p className="text-xl font-black text-foreground">{outcome.label}</p>
               </div>
-              <div className="rounded-xl bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
-                {outcome.impliedShare}% Implied
+              <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+                <span>Network Fee</span>
+                <span>~0.002 ETH</span>
               </div>
             </div>
             
@@ -83,8 +84,8 @@ export default function BetModal({
 
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Stake Amount (FHE)</label>
-              <span className="text-[10px] font-bold text-muted-foreground">Balance: 1,420 FHE</span>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Stake Amount (ETH)</label>
+              <span className="text-[10px] font-bold text-muted-foreground">Balance: 1,420 ETH</span>
             </div>
             <div className="relative">
               <input
@@ -123,7 +124,10 @@ export default function BetModal({
               exit={{ opacity: 0, y: -10 }}
               className="rounded-2xl border border-primary/20 bg-primary/5 p-6 flex items-center gap-4"
             >
-              <Wallet className="h-6 w-6 text-primary" />
+              <div className="flex h-12 flex-1 items-center px-4 rounded-2xl border border-white/10 bg-white/[0.03]">
+                <span className="flex-1 text-sm font-bold text-foreground">{amount || '0.00'}</span>
+                <span className="text-xs font-black text-primary">ETH</span>
+              </div>
               <div className="space-y-1">
                 <p className="text-sm font-bold text-foreground">Confirm in Wallet</p>
                 <p className="text-xs text-muted-foreground">Please sign the transaction to submit your encrypted bet.</p>

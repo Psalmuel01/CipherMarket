@@ -7,7 +7,7 @@ import clsx from 'clsx';
 import useAppStore from '@/store/useAppStore';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Markets', icon: LayoutGrid },
+  { href: '/dashboard', label: 'Markets', icon: LayoutGrid },
   { href: '/my-bets', label: 'My Bets', icon: Ticket },
   { href: '/markets/create', label: 'Create Market', icon: PlusSquare },
   { href: '/oracle', label: 'Oracle Desk', icon: ShieldAlert },
@@ -36,7 +36,7 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
               <Cpu className="h-6 w-6" />
             </div>
             <div>
-              <Link href="/" className="text-lg font-bold tracking-tight text-foreground">CipherMarket</Link>
+              <h1 className="text-lg font-bold tracking-tight text-foreground">CipherMarket</h1>
               <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/80">
                 Confidential Rails
               </p>
@@ -79,10 +79,10 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
                 Network Status
               </p>
             </div>
-            <p className="text-sm font-medium text-foreground">Sepolia + Fhenix L2</p>
+            <p className="text-sm font-medium text-foreground">Sepolia + FHE Rails</p>
             <div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground/80 leading-relaxed">
               <Activity className="h-3 w-3 shrink-0" />
-              <span>Real-time FHE encryption enabled for all positions.</span>
+              <span>Confidentiality powered by FHE on Ethereum Sepolia.</span>
             </div>
           </div>
         </div>

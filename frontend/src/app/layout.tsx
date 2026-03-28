@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { Toaster } from 'sonner';
-import Sidebar from '@/components/layout/Sidebar';
+import LayoutWrapper from '@/components/layout/LayoutWrapper';
 import '@/app/globals.css';
 
 const Providers = dynamic(() => import('@/app/providers'), {
@@ -13,7 +13,7 @@ const Providers = dynamic(() => import('@/app/providers'), {
 
 export const metadata: Metadata = {
   title: 'CipherMarket',
-  description: 'Private prediction markets powered by Fhenix CoFHE.',
+  description: 'Confidential prediction markets on Ethereum Sepolia powered by FHE.',
 };
 
 export default function RootLayout({
@@ -27,25 +27,22 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
     >
-      <body className="bg-bg font-[family-name:var(--font-geist-sans)] text-text antialiased">
+      <body className="bg-bg font-[family-name:var(--font-geist-sans)] text-text antialiased overflow-x-hidden">
         <Providers>
-          <div className="min-h-screen lg:pl-72">
-            <Sidebar />
-            <div className="relative min-h-screen">
-              {children}
-            </div>
-            <Toaster
-              position="bottom-right"
-              theme="dark"
-              toastOptions={{
-                style: {
-                  background: '#101722',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  color: '#E7EEF7',
-                },
-              }}
-            />
-          </div>
+          <LayoutWrapper>
+            {children}
+          </LayoutWrapper>
+          <Toaster
+            position="bottom-right"
+            theme="dark"
+            toastOptions={{
+              style: {
+                background: '#101722',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: '#E7EEF7',
+              },
+            }}
+          />
         </Providers>
       </body>
     </html>

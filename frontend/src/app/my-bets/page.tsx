@@ -43,7 +43,7 @@ export default function MyBetsPage(): JSX.Element {
         <div className="grid gap-6 sm:grid-cols-3">
           {[
             { label: 'Active Stakes', value: hasPlacedBet ? '1' : '0', icon: Activity, color: 'text-primary' },
-            { label: 'Total Payouts', value: '2,840 FHE', icon: Trophy, color: 'text-yellow-400' },
+            { label: 'Total Payouts', value: '2.84 ETH', icon: Trophy, color: 'text-yellow-400' },
             { label: 'Win Rate', value: '50%', icon: ArrowUpRight, color: 'text-blue-400' },
           ].map((stat) => (
             <div key={stat.label} className="glass-card rounded-3xl p-6 flex items-center gap-4">
@@ -99,8 +99,8 @@ export default function MyBetsPage(): JSX.Element {
                           {lastBetOutcome}
                         </span>
                       </td>
-                      <td className="px-6 py-6 font-bold text-foreground">{lastBetAmount} FHE</td>
-                      <td className="px-6 py-6 font-bold text-primary">{(Number(lastBetAmount) * 1.85).toFixed(0)} FHE</td>
+                      <td className="px-6 py-6 font-bold text-foreground">{lastBetAmount} ETH</td>
+                      <td className="px-6 py-6 font-bold text-primary">{(Number(lastBetAmount) * 1.85).toFixed(2)} ETH</td>
                       <td className="px-6 py-6">
                         <div className="flex items-center gap-2">
                           <div className={clsx("h-1.5 w-1.5 rounded-full animate-pulse", hasResolved ? "bg-yellow-400" : "bg-primary")} />
@@ -152,7 +152,7 @@ export default function MyBetsPage(): JSX.Element {
                   </div>
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Payout</p>
-                    <p className="text-sm font-black text-foreground">{bet.payout} FHE</p>
+                    <p className="text-sm font-black text-foreground">{bet.payout} ETH</p>
                   </div>
                 </div>
 
