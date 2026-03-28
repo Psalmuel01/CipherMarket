@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, PlusSquare, ShieldAlert, Cpu, Activity } from 'lucide-react';
+import { LayoutGrid, PlusSquare, ShieldAlert, Cpu, Activity, Ticket } from 'lucide-react';
 import clsx from 'clsx';
 import useAppStore from '@/store/useAppStore';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Markets', icon: LayoutGrid },
+  { href: '/my-bets', label: 'My Bets', icon: Ticket },
   { href: '/markets/create', label: 'Create Market', icon: PlusSquare },
   { href: '/oracle', label: 'Oracle Desk', icon: ShieldAlert },
 ];
@@ -35,7 +36,7 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
               <Cpu className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-foreground">CipherMarket</h1>
+              <Link href="/" className="text-lg font-bold tracking-tight text-foreground">CipherMarket</Link>
               <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/80">
                 Confidential Rails
               </p>

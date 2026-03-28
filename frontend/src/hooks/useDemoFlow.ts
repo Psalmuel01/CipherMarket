@@ -10,7 +10,9 @@ interface DemoFlowStore {
   hasCreatedMarket: boolean;
   setCreatedMarket: (created: boolean) => void;
   hasPlacedBet: boolean;
-  setPlacedBet: (placed: boolean) => void;
+  lastBetAmount: string;
+  lastBetOutcome: string;
+  setPlacedBet: (placed: boolean, amount?: string, outcome?: string) => void;
   hasResolved: boolean;
   setResolved: (resolved: boolean) => void;
   hasClaimed: boolean;
@@ -25,7 +27,10 @@ export const useDemoFlow = create<DemoFlowStore>((set) => ({
   hasCreatedMarket: false,
   setCreatedMarket: (created) => set({ hasCreatedMarket: created }),
   hasPlacedBet: false,
-  setPlacedBet: (placed) => set({ hasPlacedBet: placed }),
+  lastBetAmount: '0',
+  lastBetOutcome: '',
+  setPlacedBet: (placed, amount = '500', outcome = 'YES') => 
+    set({ hasPlacedBet: placed, lastBetAmount: amount, lastBetOutcome: outcome }),
   hasResolved: false,
   setResolved: (resolved) => set({ hasResolved: resolved }),
   hasClaimed: false,
