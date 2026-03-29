@@ -152,7 +152,9 @@ export default function Page({
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-xl font-black tracking-tight text-foreground">Resolution Success</h3>
-                    <p className="text-sm text-muted-foreground">Outcome "YES" has been finalized. You predicted correctly!</p>
+                    <p className="text-sm text-muted-foreground">
+                      Outcome &quot;YES&quot; has been finalized. You predicted correctly!
+                    </p>
                   </div>
 
                   <div className="rounded-2xl bg-white/[0.03] p-6 space-y-2">

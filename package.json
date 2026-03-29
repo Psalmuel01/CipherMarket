@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.14.2",
   "scripts": {
-    "lint": "pnpm -r lint",
+    "lint": "pnpm --filter frontend lint",
     "test": "pnpm -r test",
     "build": "pnpm -r build",
     "dev:frontend": "pnpm --filter frontend dev",
@@ -12,4 +12,3 @@
     "lint:frontend": "pnpm --filter frontend lint"
   }
 }
-

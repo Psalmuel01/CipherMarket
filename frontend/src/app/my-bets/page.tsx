@@ -72,7 +72,9 @@ export default function MyBetsPage(): JSX.Element {
                   <Ticket className="h-8 w-8" />
                 </div>
               </div>
-              <p className="text-muted-foreground max-w-xs mx-auto">You don't have any active positions. Start by exploring the markets.</p>
+              <p className="text-muted-foreground max-w-xs mx-auto">
+                You don&apos;t have any active positions. Start by exploring the markets.
+              </p>
               <Link href="/">
                 <Button variant="outline" className="mt-4">Explore Markets</Button>
               </Link>

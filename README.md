@@ -2,20 +2,20 @@
 
 CipherMarket is a privacy-native prediction market built on Fhenix CoFHE.
 
-Phase 1 delivers the monorepo foundation, a verified CoFHE smoke-test contract, and a
-production-styled Next.js shell for the dApp.
+The repo currently has a revamped frontend demo flow plus the original CoFHE smoke-test
+contract workspace. The UI covers more of the product journey than the contract layer does today.
 
 ## Workspaces
 
 - `contracts`: Hardhat + Solidity smart contracts
 - `frontend`: Next.js 14 application shell
 
-## Phase 1 Status
+## Current Status
 
-- Monorepo scaffolded with `pnpm` workspaces
-- `FHESmoke.sol` implemented, compiled, and covered by contract tests
-- Next.js shell implemented with shared providers, wallet entry point, and dark terminal UI
-- Localhost deployment flow wired through Hardhat scripts
+- Frontend routes now cover landing, dashboard, market detail, create-market, oracle, and my-bets
+- `FHESmoke.sol` is still the only Solidity contract implemented
+- Frontend hooks remain mostly demo/mock state rather than live on-chain reads and writes
+- Localhost deployment flow exists for the smoke-test contract only
 
 ## Locked Stack
 
@@ -39,37 +39,47 @@ production-styled Next.js shell for the dApp.
 - `@cofhe/react` remains in the provider stack and its floating UI is intentionally suppressed at
   the shell layer via the global `fnx-` CSS rule.
 
-## Getting Started
+## Start The Frontend
 
 ```bash
 pnpm install
-pnpm --filter contracts compile
-pnpm --filter contracts test
-pnpm --filter frontend lint
+pnpm dev:frontend
+```
+
+Open `http://localhost:3000`.
+
+## Checks
+
+```bash
+pnpm lint
 pnpm --filter frontend test
 ```
 
-## Local Development
+## Smart Contracts
 
-Start the local Hardhat chain:
+- Compile and test the current contract workspace:
+
+```bash
+pnpm --filter contracts compile
+pnpm --filter contracts test
+```
+
+- Run the local contract stack:
 
 ```bash
 pnpm --filter contracts node
-```
-
-Deploy `FHESmoke` to localhost in a second terminal:
-
-```bash
 pnpm --filter contracts deploy:localhost
 ```
 
-Start the frontend in a third terminal:
+## What Is Actually Implemented
 
-```bash
-pnpm --filter frontend dev
-```
-
-Open `http://localhost:3000` to view the CipherMarket shell.
+- `FHESmoke.sol` verifies CoFHE wiring, encrypted storage, and encrypted addition
+- The prediction-market contracts from the product flow are not built yet:
+  - `OracleRegistry`
+  - `MarketFactory`
+  - `PredictionMarket`
+  - `DisputeResolver`
+- The frontend currently demonstrates the updated product flow with mocked hooks and local demo state
 
 ## Repo Shape
 
