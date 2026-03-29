@@ -2,21 +2,33 @@ import hre from 'hardhat';
 import type { HardhatRuntimeEnvironment } from 'hardhat/types';
 
 /**
- * Deploys the FHESmoke contract and returns the deployment metadata.
+ * Deployment metadata for a deployed contract.
+ */
+interface DeploymentResult {
+  address: string;
+  txHash: string;
+}
+
+/**
+ * Deploys a named contract and returns the deployment metadata.
  * @param runtime The Hardhat runtime environment.
+ * @param contractName The contract to deploy.
+ * @param args Constructor arguments.
  * @returns The deployed address and deployment transaction hash.
  */
-export async function deployFHESmoke(
+async function deployContract(
   runtime: HardhatRuntimeEnvironment,
-): Promise<{ address: string; txHash: string }> {
-  const factory = await runtime.ethers.getContractFactory('FHESmoke');
-  const contract = await factory.deploy();
+  contractName: string,
+  args: unknown[] = [],
+): Promise<DeploymentResult> {
+  const factory = await runtime.ethers.getContractFactory(contractName);
+  const contract = await factory.deploy(...args);
   await contract.waitForDeployment();
 
   const deploymentTransaction = contract.deploymentTransaction();
 
   if (!deploymentTransaction) {
-    throw new Error('Deployment transaction was not created.');
+    throw new Error(`Deployment transaction was not created for ${contractName}.`);
   }
 
   return {
@@ -25,15 +37,42 @@ export async function deployFHESmoke(
   };
 }
 
-async function main(): Promise<void> {
-  const deployment = await deployFHESmoke(hre);
+/**
+ * Deploys the FHESmoke contract and returns the deployment metadata.
+ * @param runtime The Hardhat runtime environment.
+ * @returns The deployed address and deployment transaction hash.
+ */
+export async function deployFHESmoke(
+  runtime: HardhatRuntimeEnvironment,
+): Promise<DeploymentResult> {
+  return deployContract(runtime, 'FHESmoke');
+}
 
-  console.info(`FHESmoke deployed to ${deployment.address}`);
-  console.info(`FHESmoke deployment tx hash: ${deployment.txHash}`);
+async function main(): Promise<void> {
+  const oracleRegistry = await deployContract(hre, 'OracleRegistry', [hre.ethers.parseEther('1')]);
+  const predictionMarket = await deployContract(hre, 'PredictionMarket', [
+    oracleRegistry.address,
+    1 days,
+  ]);
+  const mockUsdc = await deployContract(hre, 'MockUSDC');
+  const fheSmoke = await deployFHESmoke(hre);
+
+  const registry = await hre.ethers.getContractAt('OracleRegistry', oracleRegistry.address);
+  const market = await hre.ethers.getContractAt('PredictionMarket', predictionMarket.address);
+  await (await registry.setPredictionMarket(predictionMarket.address)).wait();
+  await (await market.setAcceptedCollateral(mockUsdc.address, true)).wait();
+
+  console.info(`OracleRegistry deployed to ${oracleRegistry.address}`);
+  console.info(`OracleRegistry deployment tx hash: ${oracleRegistry.txHash}`);
+  console.info(`PredictionMarket deployed to ${predictionMarket.address}`);
+  console.info(`PredictionMarket deployment tx hash: ${predictionMarket.txHash}`);
+  console.info(`MockUSDC deployed to ${mockUsdc.address}`);
+  console.info(`MockUSDC deployment tx hash: ${mockUsdc.txHash}`);
+  console.info(`FHESmoke deployed to ${fheSmoke.address}`);
+  console.info(`FHESmoke deployment tx hash: ${fheSmoke.txHash}`);
 }
 
 main().catch((error: unknown) => {
   console.error(error);
   process.exitCode = 1;
 });
-
