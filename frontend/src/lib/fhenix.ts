@@ -22,7 +22,11 @@ export const cipherMarketSepolia = defineChain({
   name: 'Sepolia',
   nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://ethereum-sepolia.publicnode.com'] },
+    default: {
+      http: [
+        process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com',
+      ],
+    },
   },
   blockExplorers: {
     default: { name: 'Etherscan', url: 'https://sepolia.etherscan.io' },

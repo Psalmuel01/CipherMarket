@@ -25,10 +25,10 @@ export const CONTRACT_ADDRESSES: Record<number, ChainContractAddresses> = {
     fheSmoke: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9',
   },
   [SEPOLIA_CHAIN_ID]: {
-    oracleRegistry: null,
-    predictionMarket: null,
-    mockUsdc: null,
-    fheSmoke: null,
+    oracleRegistry: (process.env.NEXT_PUBLIC_SEPOLIA_ORACLE_REGISTRY as Address) ?? null,
+    predictionMarket: (process.env.NEXT_PUBLIC_SEPOLIA_PREDICTION_MARKET as Address) ?? null,
+    mockUsdc: (process.env.NEXT_PUBLIC_SEPOLIA_MOCK_USDC as Address) ?? null,
+    fheSmoke: null, // FHESmoke is only available on local Hardhat (requires mock FHE plugin)
   },
 };
 
