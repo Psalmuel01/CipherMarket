@@ -2,41 +2,34 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { formatUnits } from 'viem';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 
-export interface ClaimRewardReceipt {
+export interface ProposeOutcomeReceipt {
   txHash: string;
-  amount: string;
 }
 
-export interface UseClaimRewardResult {
-  data: ClaimRewardReceipt | null;
+export interface UseProposeOutcomeResult {
+  data: ProposeOutcomeReceipt | null;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
-  claimReward: (marketId: number, amount: bigint, symbol: string, decimals: number) => Promise<void>;
+  proposeOutcome: (marketId: number, outcomeIndex: number) => Promise<void>;
 }
 
 /**
- * Claims finalized winnings from the singleton market contract.
- * @returns Claim mutation state and the contract-backed claim action.
+ * Submits an optimistic oracle proposal for a market inside the singleton contract.
+ * @returns Mutation state and the proposal action.
  */
-export default function useClaimReward(): UseClaimRewardResult {
+export default function useProposeOutcome(): UseProposeOutcomeResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const [data, setData] = useState<ClaimRewardReceipt | null>(null);
+  const [data, setData] = useState<ProposeOutcomeReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const claimReward = async (
-    marketId: number,
-    amount: bigint,
-    symbol: string,
-    decimals: number,
-  ): Promise<void> => {
+  const proposeOutcome = async (marketId: number, outcomeIndex: number): Promise<void> => {
     try {
       const addresses = getContractAddresses(chainId);
       const predictionMarketAddress = addresses?.predictionMarket;
@@ -55,23 +48,19 @@ export default function useClaimReward(): UseClaimRewardResult {
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'claimReward',
-        args: [BigInt(marketId)],
+        functionName: 'proposeOutcome',
+        args: [BigInt(marketId), outcomeIndex],
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
 
-      const formattedAmount = `${formatUnits(amount, decimals)} ${symbol}`;
-      setData({
-        txHash: hash,
-        amount: formattedAmount,
-      });
-      toast.success(`Claimed ${formattedAmount}.`);
+      setData({ txHash: hash });
+      toast.success('Outcome proposal submitted.');
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))
-          : new Error('Unable to claim reward.');
+          : new Error('Unable to propose an outcome.');
 
       setError(nextError);
       toast.error(nextError.message);
@@ -85,6 +74,6 @@ export default function useClaimReward(): UseClaimRewardResult {
     isLoading,
     isError: error !== null,
     error,
-    claimReward,
+    proposeOutcome,
   };
 }

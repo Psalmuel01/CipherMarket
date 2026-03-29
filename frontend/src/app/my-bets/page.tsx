@@ -38,7 +38,7 @@ export default function MyBetsPage(): JSX.Element {
     <>
       <TopBar eyebrow="Personal Portfolio" title="My Positions" />
       <main className="space-y-10 px-4 py-8 lg:px-10 max-w-7xl mx-auto">
-        
+
         {/* Stats Overview */}
         <div className="grid gap-6 sm:grid-cols-3">
           {[
@@ -66,7 +66,7 @@ export default function MyBetsPage(): JSX.Element {
           </div>
 
           {!hasPlacedBet ? (
-            <div className="glass-card rounded-3xl p-12 text-center space-y-4">
+            <div className="glass-card rounded-3xl p-12 text-center space-y-3">
               <div className="flex justify-center">
                 <div className="rounded-full bg-white/5 p-4 text-muted-foreground">
                   <Ticket className="h-8 w-8" />
@@ -140,7 +140,7 @@ export default function MyBetsPage(): JSX.Element {
                   <p className="text-xs font-black uppercase tracking-widest text-muted-foreground italic">{bet.date}</p>
                   <p className="text-lg font-black text-foreground">{bet.market}</p>
                 </div>
-                
+
                 <div className="flex items-center gap-8 text-center">
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your Side</p>

@@ -1,55 +1,38 @@
 'use client';
 
-import { useDeferredValue } from 'react';
+import { useDeferredValue, useMemo } from 'react';
+import { useChainId, useReadContract, useReadContracts } from 'wagmi';
+import {
+  getCollateralMetadata,
+  getContractAddresses,
+  MARKET_STATE_LABELS,
+  MARKET_TYPE_LABELS,
+  PREDICTION_MARKET_ABI,
+} from '@/lib/contracts';
 import useAppStore from '@/store/useAppStore';
-import type { MarketLifecycle, MarketSummary } from '@/types/market';
+import type { MarketLifecycle, MarketOutcome, MarketSummary } from '@/types/market';
+import type { Address } from 'viem';
 
-const SAMPLE_MARKETS: MarketSummary[] = [
-  {
-    address: '0x5f2d3d4f7f6b4c44f87c7250c6fe2f2606570a11',
-    title: 'Will ETH settle above $4,000 by June 30?',
-    category: 'Macro',
-    type: 'BINARY',
-    totalLiquidity: 1_280_000n,
-    outcomeCount: 2,
-    expiryTime: '2026-06-30T16:00:00.000Z',
-    status: 'ACTIVE',
-    outcomes: [
-      { id: 'yes', label: 'YES', impliedShare: 58 },
-      { id: 'no', label: 'NO', impliedShare: 42 },
-    ],
-  },
-  {
-    address: '0x31cb1f683b703a4ea093fa2e2692fa5d3a54d2bc',
-    title: 'Which L2 leads stablecoin volume this quarter?',
-    category: 'Infra',
-    type: 'CATEGORICAL',
-    totalLiquidity: 845_000n,
-    outcomeCount: 4,
-    expiryTime: '2026-05-12T13:00:00.000Z',
-    status: 'PROPOSED',
-    outcomes: [
-      { id: 'base', label: 'BASE', impliedShare: 37 },
-      { id: 'arb', label: 'ARB', impliedShare: 33 },
-      { id: 'op', label: 'OP', impliedShare: 18 },
-      { id: 'other', label: 'OTHER', impliedShare: 12 },
-    ],
-  },
-  {
-    address: '0x91b6f6a90d0d65f7a3cd830bc94b0cc0175651fa',
-    title: 'Will the first FHE-native consumer app hit 100k MAU?',
-    category: 'FHE',
-    type: 'BINARY',
-    totalLiquidity: 420_000n,
-    outcomeCount: 2,
-    expiryTime: '2026-04-07T09:00:00.000Z',
-    status: 'EXPIRED',
-    outcomes: [
-      { id: 'yes', label: 'YES', impliedShare: 49 },
-      { id: 'no', label: 'NO', impliedShare: 51 },
-    ],
-  },
-];
+interface PredictionMarketView {
+  marketId: bigint;
+  creator: Address;
+  collateralToken: Address;
+  proposedBy: Address;
+  createdAt: bigint;
+  expiryTime: bigint;
+  disputeWindowEndsAt: bigint;
+  minimumStake: bigint;
+  totalLiquidity: bigint;
+  disputeStakeTotal: bigint;
+  outcomeCount: number;
+  proposedOutcome: number;
+  finalOutcome: number;
+  marketType: number;
+  state: number;
+  title: string;
+  category: string;
+  outcomes: string[];
+}
 
 export interface UseMarketsResult {
   data: MarketSummary[];
@@ -59,25 +42,103 @@ export interface UseMarketsResult {
   availableStatuses: Array<MarketLifecycle | 'ALL'>;
 }
 
-/**
- * Provides market list data for the phase-1 shell with status filtering baked in.
- * @returns Market data plus loading and error state helpers.
- */
-export default function useMarkets(): UseMarketsResult {
-  const activeStatusFilter = useAppStore((state) => state.activeStatusFilter);
-  const deferredFilter = useDeferredValue(activeStatusFilter);
+function mapOutcomeLabels(labels: string[]): MarketOutcome[] {
+  const total = labels.length || 1;
 
-  const data =
-    deferredFilter === 'ALL'
-      ? SAMPLE_MARKETS
-      : SAMPLE_MARKETS.filter((market) => market.status === deferredFilter);
+  return labels.map((label, outcomeIndex) => ({
+    id: String(outcomeIndex),
+    label,
+    impliedShare: Math.max(Math.round(100 / total), 1),
+    outcomeIndex,
+  }));
+}
+
+function mapMarketSummary(view: PredictionMarketView, chainId?: number): MarketSummary {
+  const collateral = getCollateralMetadata(view.collateralToken, chainId);
 
   return {
-    data,
-    isLoading: false,
-    isError: false,
-    error: null,
-    availableStatuses: ['ALL', 'ACTIVE', 'PROPOSED', 'EXPIRED', 'FINALIZED'],
+    marketId: Number(view.marketId),
+    title: view.title,
+    category: view.category,
+    type: MARKET_TYPE_LABELS[view.marketType] ?? 'BINARY',
+    totalLiquidity: view.totalLiquidity,
+    outcomeCount: Number(view.outcomeCount),
+    expiryTime: new Date(Number(view.expiryTime) * 1000).toISOString(),
+    status: MARKET_STATE_LABELS[view.state] ?? 'ACTIVE',
+    outcomes: mapOutcomeLabels(view.outcomes),
+    minimumStake: view.minimumStake,
+    collateralToken: view.collateralToken,
+    collateralSymbol: collateral.symbol,
   };
 }
 
+/**
+ * Reads the singleton market registry and exposes the list view used throughout the app shell.
+ * @returns Market list state, loading, and error helpers.
+ */
+export default function useMarkets(): UseMarketsResult {
+  const chainId = useChainId();
+  const activeStatusFilter = useAppStore((state) => state.activeStatusFilter);
+  const deferredFilter = useDeferredValue(activeStatusFilter);
+  const addresses = getContractAddresses(chainId);
+  const predictionMarketAddress = addresses?.predictionMarket ?? undefined;
+
+  const nextMarketIdQuery = useReadContract({
+    address: predictionMarketAddress ?? undefined,
+    abi: PREDICTION_MARKET_ABI,
+    functionName: 'nextMarketId',
+    query: {
+      enabled: Boolean(predictionMarketAddress),
+    },
+  });
+
+  const marketIds = useMemo(() => {
+    const count = Number(nextMarketIdQuery.data ?? 0n);
+    return Array.from({ length: count }, (_, index) => BigInt(index)).reverse();
+  }, [nextMarketIdQuery.data]);
+
+  const marketReads = useReadContracts({
+    contracts: predictionMarketAddress
+      ? marketIds.map((marketId) => ({
+          address: predictionMarketAddress,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'getMarket',
+          args: [marketId],
+        }))
+      : [],
+    query: {
+      enabled: Boolean(predictionMarketAddress) && marketIds.length > 0,
+    },
+  });
+
+  const data = useMemo(() => {
+    const items = marketReads.data ?? [];
+
+    const mappedMarkets = items
+      .map((item) => {
+        if (item.status !== 'success' || !item.result) {
+          return null;
+        }
+
+        return mapMarketSummary(item.result as unknown as PredictionMarketView, chainId);
+      })
+      .filter((market): market is MarketSummary => market !== null);
+
+    return deferredFilter === 'ALL'
+      ? mappedMarkets
+      : mappedMarkets.filter((market) => market.status === deferredFilter);
+  }, [chainId, deferredFilter, marketReads.data]);
+
+  const error =
+    !predictionMarketAddress
+      ? new Error('PredictionMarket is not configured for the current chain.')
+      : nextMarketIdQuery.error || marketReads.error || null;
+
+  return {
+    data,
+    isLoading: nextMarketIdQuery.isLoading || marketReads.isLoading,
+    isError: error !== null,
+    error,
+    availableStatuses: ['ALL', 'ACTIVE', 'EXPIRED', 'PROPOSED', 'DISPUTED', 'FINALIZED'],
+  };
+}

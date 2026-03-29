@@ -8,7 +8,6 @@ import Button from '@/components/ui/Button';
 import Skeleton from '@/components/ui/Skeleton';
 import useMarkets from '@/hooks/useMarkets';
 import useAppStore from '@/store/useAppStore';
-import { formatAmount } from '@/lib/formatters';
 import type { MarketSummary } from '@/types/market';
 
 type SortKey = 'liquidity' | 'expiry' | 'outcomes';
@@ -40,7 +39,7 @@ export default function MarketList({ description, heading }: MarketListProps): J
   const [sortKey, setSortKey] = useState<SortKey>('liquidity');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredMarkets = data.filter(market => 
+  const filteredMarkets = data.filter(market =>
     market.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     market.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -50,7 +49,7 @@ export default function MarketList({ description, heading }: MarketListProps): J
   return (
     <section className="space-y-10">
       <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
-        <div className="max-w-3xl space-y-4">
+        <div className="max-w-3xl space-y-3">
           <h2 className="text-4xl font-black tracking-tight text-foreground lg:text-5xl">
             {heading}
           </h2>
@@ -133,13 +132,13 @@ export default function MarketList({ description, heading }: MarketListProps): J
       {!isLoading && !isError ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {sortedMarkets.map((market, index) => (
-            <MarketCard key={market.address} index={index} market={market} />
+            <MarketCard key={market.marketId} index={index} market={market} />
           ))}
         </div>
       ) : null}
 
       {!isLoading && sortedMarkets.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
           <div className="h-16 w-16 rounded-full bg-white/[0.02] flex items-center justify-center border border-white/5">
             <Search className="h-8 w-8 text-muted-foreground" />
           </div>

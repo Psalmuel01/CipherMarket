@@ -1,3 +1,5 @@
+import { formatUnits } from 'viem';
+
 /**
  * Truncates a wallet address for compact terminal-style display.
  * @param address The address to truncate.
@@ -12,14 +14,26 @@ export function truncateAddress(address: string): string {
 }
 
 /**
- * Formats a bigint-denominated token amount for display.
+ * Formats a bigint-denominated token amount for compact display.
  * @param value The amount to format.
+ * @param decimals The token decimals.
  * @returns A localized string representation.
  */
-export function formatAmount(value: bigint): string {
+export function formatAmount(value: bigint, decimals = 3): string {
   return new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 2,
-  }).format(Number(value) / 1_000);
+  }).format(Number(formatUnits(value, decimals)));
+}
+
+/**
+ * Formats a token amount together with its symbol.
+ * @param value The raw amount.
+ * @param decimals The token decimals.
+ * @param symbol The token symbol.
+ * @returns A token string such as "12.5 ETH".
+ */
+export function formatTokenAmount(value: bigint, decimals: number, symbol: string): string {
+  return `${formatAmount(value, decimals)} ${symbol}`;
 }
 
 /**
@@ -55,4 +69,3 @@ export function formatRelativeExpiry(value: string): string {
 
   return `in ${Math.floor(hours / 24)}d`;
 }
-

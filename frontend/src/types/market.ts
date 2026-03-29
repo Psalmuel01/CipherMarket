@@ -1,3 +1,5 @@
+import type { Address } from 'viem';
+
 export type MarketLifecycle =
   | 'ACTIVE'
   | 'EXPIRED'
@@ -12,6 +14,7 @@ export interface MarketOutcome {
   id: string;
   label: string;
   impliedShare: number;
+  outcomeIndex: number;
 }
 
 export interface PoolSnapshot {
@@ -19,10 +22,11 @@ export interface PoolSnapshot {
   label: string;
   liquidity: bigint;
   percentage: number;
+  collateralSymbol: string;
 }
 
 export interface MarketSummary {
-  address: `0x${string}`;
+  marketId: number;
   title: string;
   category: string;
   type: MarketType;
@@ -31,18 +35,47 @@ export interface MarketSummary {
   expiryTime: string;
   status: MarketLifecycle;
   outcomes: MarketOutcome[];
+  minimumStake: bigint;
+  collateralToken: Address;
+  collateralSymbol: string;
+}
+
+export interface MarketDetail extends MarketSummary {
+  createdAt: string;
+  disputeWindowEndsAt: string | null;
+  creator: Address;
+  proposedBy: Address | null;
+  proposedOutcomeIndex: number | null;
+  finalOutcomeIndex: number | null;
+  pools: PoolSnapshot[];
+  claimableAmount: bigint;
 }
 
 export interface BetDraft {
-  marketAddress: `0x${string}`;
+  marketId: number;
+  marketTitle: string;
   outcomeId: string;
   amount: string;
+  collateralToken: Address;
+  collateralSymbol: string;
+  collateralDecimals: number;
+}
+
+export interface CreateMarketDraft {
+  title: string;
+  category: string;
+  marketType: MarketType;
+  outcomes: string[];
+  expiryTime: string;
+  collateralToken: Address;
+  minimumStake: string;
 }
 
 export interface OracleProfile {
   isRegistered: boolean;
+  stakeAmount: bigint;
   stakeFormatted: string;
   disputeExposure: string;
   activeAssignments: number;
+  minimumStakeFormatted: string;
 }
-

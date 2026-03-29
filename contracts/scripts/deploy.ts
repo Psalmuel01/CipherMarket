@@ -52,7 +52,7 @@ async function main(): Promise<void> {
   const oracleRegistry = await deployContract(hre, 'OracleRegistry', [hre.ethers.parseEther('1')]);
   const predictionMarket = await deployContract(hre, 'PredictionMarket', [
     oracleRegistry.address,
-    1 days,
+    24 * 60 * 60,
   ]);
   const mockUsdc = await deployContract(hre, 'MockUSDC');
   const fheSmoke = await deployFHESmoke(hre);

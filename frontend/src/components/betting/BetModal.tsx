@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Wallet, Sparkles, CheckCircle2, Loader2, Info } from 'lucide-react';
+import { ShieldCheck, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import usePlaceBet from '@/hooks/usePlaceBet';
@@ -11,14 +11,22 @@ import type { MarketOutcome } from '@/types/market';
 import clsx from 'clsx';
 
 export interface BetModalProps {
-  marketAddress: `0x${string}`;
+  marketId: number;
+  marketTitle: string;
+  collateralToken: `0x${string}`;
+  collateralSymbol: string;
+  collateralDecimals: number;
   open: boolean;
   outcome: MarketOutcome;
   onClose: () => void;
 }
 
 export default function BetModal({
-  marketAddress,
+  marketId,
+  marketTitle,
+  collateralDecimals,
+  collateralSymbol,
+  collateralToken,
   onClose,
   open,
   outcome,
@@ -38,10 +46,10 @@ export default function BetModal({
     { id: 'success', label: 'Success' },
   ];
 
-  const currentStepIndex = 
+  const currentStepIndex =
     data?.step === 'success' ? 3 :
-    data?.step === 'awaiting_wallet' ? 2 :
-    data?.step === 'encrypting' ? 1 : 0;
+      data?.step === 'awaiting_wallet' ? 2 :
+        data?.step === 'encrypting' ? 1 : 0;
 
   return (
     <Modal
@@ -64,7 +72,7 @@ export default function BetModal({
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl bg-white/[0.03] p-6 space-y-4">
+          <div className="rounded-2xl bg-white/[0.03] p-6 space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Selected Outcome</p>
@@ -72,10 +80,10 @@ export default function BetModal({
               </div>
               <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
                 <span>Network Fee</span>
-                <span>~0.002 ETH</span>
+                <span>{collateralSymbol === 'ETH' ? '~0.002 ETH' : 'ERC20 approval may be required'}</span>
               </div>
             </div>
-            
+
             <div className="flex items-start gap-3 rounded-xl bg-primary/5 p-3 text-[11px] font-bold text-primary/80">
               <ShieldCheck className="h-4 w-4 shrink-0" />
               <p>Privacy Shield Active: Your stake and position remain fully encrypted until market resolution.</p>
@@ -84,8 +92,12 @@ export default function BetModal({
 
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Stake Amount (ETH)</label>
-              <span className="text-[10px] font-bold text-muted-foreground">Balance: 1,420 ETH</span>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Stake Amount ({collateralSymbol})
+              </label>
+              <span className="text-[10px] font-bold text-muted-foreground">
+                Market #{marketId}
+              </span>
             </div>
             <div className="relative">
               <input
@@ -103,7 +115,7 @@ export default function BetModal({
 
         <AnimatePresence mode="wait">
           {data?.step === 'encrypting' && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -118,7 +130,7 @@ export default function BetModal({
           )}
 
           {data?.step === 'awaiting_wallet' && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -126,7 +138,7 @@ export default function BetModal({
             >
               <div className="flex h-12 flex-1 items-center px-4 rounded-2xl border border-white/10 bg-white/[0.03]">
                 <span className="flex-1 text-sm font-bold text-foreground">{amount || '0.00'}</span>
-                <span className="text-xs font-black text-primary">ETH</span>
+                <span className="text-xs font-black text-primary">{collateralSymbol}</span>
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-bold text-foreground">Confirm in Wallet</p>
@@ -136,10 +148,10 @@ export default function BetModal({
           )}
 
           {data?.step === 'success' && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="rounded-2xl border border-primary/20 bg-primary/5 p-6 space-y-4"
+              className="rounded-2xl border border-primary/20 bg-primary/5 p-6 space-y-3"
             >
               <div className="flex items-center gap-4">
                 <div className="rounded-full bg-primary/20 p-2 text-primary">
@@ -147,7 +159,9 @@ export default function BetModal({
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-bold text-foreground">Bet Placed Privately</p>
-                  <p className="text-xs text-muted-foreground text-primary/80">Tx: {truncateAddress(data.txHash ?? marketAddress)}</p>
+                  <p className="text-xs text-muted-foreground text-primary/80">
+                    Tx: {truncateAddress(data.txHash ?? collateralToken)}
+                  </p>
                 </div>
               </div>
             </motion.div>
@@ -171,8 +185,12 @@ export default function BetModal({
             onClick={() =>
               placeBet({
                 amount,
-                marketAddress,
+                marketId,
+                marketTitle,
                 outcomeId: outcome.id,
+                collateralToken,
+                collateralSymbol,
+                collateralDecimals,
               })
             }
             type="button"
@@ -185,4 +203,3 @@ export default function BetModal({
     </Modal>
   );
 }
-

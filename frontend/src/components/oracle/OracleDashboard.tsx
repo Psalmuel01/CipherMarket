@@ -6,6 +6,8 @@ import Skeleton from '@/components/ui/Skeleton';
 import useOracleStatus from '@/hooks/useOracleStatus';
 import ProposeOutcomeForm from '@/components/oracle/ProposeOutcomeForm';
 import clsx from 'clsx';
+import useRegisterOracle from '@/hooks/useRegisterOracle';
+import useMarkets from '@/hooks/useMarkets';
 
 export interface OracleDashboardProps {
   className?: string;
@@ -13,6 +15,16 @@ export interface OracleDashboardProps {
 
 export default function OracleDashboard({ className }: OracleDashboardProps): JSX.Element {
   const { data, error, isError, isLoading } = useOracleStatus();
+  const {
+    registerOracle,
+    error: registerError,
+    isError: isRegisterError,
+    isLoading: isRegisterLoading,
+  } = useRegisterOracle();
+  const { data: markets } = useMarkets();
+  const pendingMarkets = markets.filter(
+    (market) => market.status === 'EXPIRED' || market.status === 'PROPOSED' || market.status === 'DISPUTED',
+  );
 
   return (
     <section className={clsx("space-y-8", className)}>
@@ -24,15 +36,21 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                    Oracle Node Active
+                    {data?.isRegistered ? 'Oracle Node Active' : 'Oracle Seat Available'}
                   </span>
                 </div>
                 <h2 className="text-3xl font-black tracking-tight text-foreground">Resolution Desk</h2>
                 <p className="text-sm text-muted-foreground">Manage your locked stake and participate in optimistic market resolution.</p>
               </div>
-              <Button variant="primary" className="gap-2">
+              <Button
+                variant="primary"
+                className="gap-2"
+                disabled={isRegisterLoading || data?.isRegistered}
+                onClick={() => registerOracle()}
+                type="button"
+              >
                 <Zap className="h-4 w-4" />
-                Boost Stake
+                {data?.isRegistered ? 'Registered' : isRegisterLoading ? 'Registering...' : 'Register Oracle'}
               </Button>
             </div>
 
@@ -51,6 +69,9 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                     <span>Total Stake</span>
                   </div>
                   <p className="text-2xl font-black text-foreground">{data.stakeFormatted}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Minimum: {data.minimumStakeFormatted}
+                  </p>
                 </div>
                 <div className="rounded-2xl bg-white/[0.03] p-6 space-y-3">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -68,6 +89,12 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                 </div>
               </div>
             ) : null}
+
+            {isRegisterError && registerError ? (
+              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-xs font-bold text-destructive">
+                {registerError.message}
+              </div>
+            ) : null}
           </div>
 
           {/* Pending Resolutions Section Mock */}
@@ -77,22 +104,33 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                 <Activity className="h-5 w-5 text-primary" />
                 <h3 className="text-sm font-black uppercase tracking-widest">Awaiting Resolution</h3>
               </div>
-              <span className="text-[10px] font-bold text-muted-foreground tracking-widest">3 Markets Found</span>
+              <span className="text-[10px] font-bold text-muted-foreground tracking-widest">
+                {pendingMarkets.length} Markets Found
+              </span>
             </div>
-            
-            <div className="space-y-4">
-              {[1, 2].map((i) => (
-                <div key={i} className="group flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.01] p-4 transition-all hover:bg-white/[0.03]">
+
+            <div className="space-y-3">
+              {pendingMarkets.map((market) => (
+                <div
+                  key={market.marketId}
+                  className="group flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.01] p-4 transition-all hover:bg-white/[0.03]"
+                >
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-foreground">Market #0x5f2d...0a11</p>
-                    <p className="text-xs text-muted-foreground">Will ETH settle above $4,000 by June 30?</p>
+                    <p className="text-sm font-bold text-foreground">Market #{market.marketId}</p>
+                    <p className="text-xs text-muted-foreground">{market.title}</p>
                   </div>
                   <Button variant="outline" size="sm" className="gap-2">
-                    Resolve
+                    {market.status === 'EXPIRED' ? 'Propose' : 'Review'}
                     <ChevronRight className="h-3 w-3" />
                   </Button>
                 </div>
               ))}
+
+              {pendingMarkets.length === 0 ? (
+                <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-4 text-xs font-bold text-muted-foreground">
+                  No markets are currently waiting on oracle action.
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

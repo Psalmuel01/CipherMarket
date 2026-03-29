@@ -1,6 +1,7 @@
 import { Activity, Info } from 'lucide-react';
 import type { PoolSnapshot } from '@/types/market';
 import clsx from 'clsx';
+import { formatAmount } from '@/lib/formatters';
 
 export interface PoolDisplayProps {
   pools: PoolSnapshot[];
@@ -31,7 +32,13 @@ export default function PoolDisplay({ pools, className }: PoolDisplayProps): JSX
               </div>
               <div className="text-right space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Pool</p>
-                <p className="text-lg font-black text-primary">{Number(pool.liquidity).toFixed(2)} ETH</p>
+                <p className="text-lg font-black text-primary">
+                  {formatAmount(
+                    pool.liquidity,
+                    pool.collateralSymbol === 'USDC' ? 6 : 18,
+                  )}{' '}
+                  {pool.collateralSymbol}
+                </p>
               </div>
             </div>
             
@@ -50,4 +57,3 @@ export default function PoolDisplay({ pools, className }: PoolDisplayProps): JSX
     </div>
   );
 }
-

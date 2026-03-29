@@ -1,10 +1,9 @@
 'use client';
 
-import { Menu, ShieldCheck, Wallet, Activity, FlaskConical, Gavel } from 'lucide-react';
+import { Menu, ShieldCheck, Activity } from 'lucide-react';
 import useAppStore from '@/store/useAppStore';
-import { useDemoFlow } from '@/hooks/useDemoFlow';
 import WalletButton from '@/components/layout/WalletButton';
-import clsx from 'clsx';
+import { useChainId } from 'wagmi';
 
 export interface TopBarProps {
   title: string;
@@ -13,10 +12,7 @@ export interface TopBarProps {
 
 export default function TopBar({ eyebrow, title }: TopBarProps): JSX.Element {
   const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
-  const { 
-    hasResolved, setResolved, 
-    isWalletConnected, setWalletConnected,
-  } = useDemoFlow();
+  const chainId = useChainId();
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-background/80 backdrop-blur-xl">
@@ -39,34 +35,6 @@ export default function TopBar({ eyebrow, title }: TopBarProps): JSX.Element {
               {title}
             </h1>
           </div>
-
-          {/* Demo Controls - SaaS Utility Style */}
-          <div className="hidden items-center gap-1 rounded-2xl bg-white/[0.03] p-1.5 lg:flex">
-            <div className="flex items-center gap-2 border-r border-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              <FlaskConical className="h-3 w-3 text-primary" />
-              <span>Demo Mode</span>
-            </div>
-            <button
-              onClick={() => setWalletConnected(!isWalletConnected)}
-              className={clsx(
-                "flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all",
-                isWalletConnected ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-white/5"
-              )}
-            >
-              <Wallet className="h-3 w-3" />
-              Account: {isWalletConnected ? '0x8f2d...' : 'Disconnected'}
-            </button>
-            <button
-              onClick={() => setResolved(!hasResolved)}
-              className={clsx(
-                "flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all",
-                hasResolved ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-white/5"
-              )}
-            >
-              <Gavel className="h-3 w-3" />
-              State: {hasResolved ? 'Market Resolved' : 'Market Active'}
-            </button>
-          </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -78,7 +46,7 @@ export default function TopBar({ eyebrow, title }: TopBarProps): JSX.Element {
             <div className="h-3 w-px bg-white/10" />
             <div className="flex items-center gap-2">
               <Activity className="h-3.5 w-3.5 text-primary" />
-              <span>42 ms</span>
+              <span>Chain {chainId}</span>
             </div>
           </div>
           <WalletButton />

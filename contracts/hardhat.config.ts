@@ -23,6 +23,9 @@ const config: HardhatUserConfig = {
     gasWarning: true,
   },
   networks: {
+    hardhat: {
+      chainId: 420105,
+    },
     'eth-sepolia': {
       url: process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com',
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],

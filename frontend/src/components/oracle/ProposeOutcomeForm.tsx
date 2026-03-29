@@ -1,33 +1,38 @@
-import { Activity, Info, Sparkles, Gavel, CheckCircle2, Loader2 } from 'lucide-react';
+import { Info, Sparkles, Gavel, CheckCircle2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
-import { useDemoFlow } from '@/hooks/useDemoFlow';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
+import useMarkets from '@/hooks/useMarkets';
+import useProposeOutcome from '@/hooks/useProposeOutcome';
 
 export interface ProposeOutcomeFormProps {
   className?: string;
 }
 
 export default function ProposeOutcomeForm({ className }: ProposeOutcomeFormProps): JSX.Element {
-  const [isStaging, setIsStaging] = useState(false);
+  const { data: markets } = useMarkets();
+  const [marketId, setMarketId] = useState<string>('');
+  const [outcomeIndex, setOutcomeIndex] = useState<string>('0');
   const [isSuccess, setIsSuccess] = useState(false);
-  const { setResolved } = useDemoFlow();
+  const { data, error, isError, isLoading, proposeOutcome } = useProposeOutcome();
+  const proposedMarket = markets.find((market) => String(market.marketId) === marketId) ?? null;
 
-  const handleStage = async () => {
-    setIsStaging(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsStaging(false);
+  const handleStage = async (): Promise<void> => {
+    if (!proposedMarket) {
+      return;
+    }
+
+    await proposeOutcome(proposedMarket.marketId, Number.parseInt(outcomeIndex, 10));
     setIsSuccess(true);
-    setResolved(true);
   };
 
   if (isSuccess) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={clsx("glass-card rounded-3xl p-8 text-center space-y-4", className)}
+        className={clsx("glass-card rounded-3xl p-8 text-center space-y-3", className)}
       >
         <div className="flex justify-center">
           <div className="rounded-full bg-primary/20 p-4 text-primary">
@@ -36,6 +41,11 @@ export default function ProposeOutcomeForm({ className }: ProposeOutcomeFormProp
         </div>
         <h3 className="text-xl font-black text-foreground">Proposal Staged</h3>
         <p className="text-xs text-muted-foreground">The optimistic dispute window is now open. The market will finalize in 24 hours if undisputed.</p>
+        {data ? (
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Tx: {data.txHash.slice(0, 10)}...
+          </p>
+        ) : null}
         <Button variant="outline" size="sm" onClick={() => setIsSuccess(false)}>New Proposal</Button>
       </motion.div>
     );
@@ -56,21 +66,41 @@ export default function ProposeOutcomeForm({ className }: ProposeOutcomeFormProp
       <form className="space-y-6">
         <div className="space-y-3">
           <label className="px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-            Market Address
+            Market
           </label>
-          <input
+          <select
             className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-            defaultValue="0x5f2d3d4f7f6b4c44f87c7250c6fe2f2606570a11"
-          />
+            onChange={(event) => {
+              setMarketId(event.target.value);
+              setOutcomeIndex('0');
+            }}
+            value={marketId}
+          >
+            <option value="">Select a market</option>
+            {markets
+              .filter((market) => market.status === 'EXPIRED' || market.status === 'PROPOSED')
+              .map((market) => (
+                <option key={market.marketId} value={String(market.marketId)}>
+                  #{market.marketId} · {market.title}
+                </option>
+              ))}
+          </select>
         </div>
 
         <div className="space-y-3">
           <label className="px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Proposed Outcome
           </label>
-          <select className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10">
-            <option className="bg-background">Outcome: YES</option>
-            <option className="bg-background">Outcome: NO</option>
+          <select
+            className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+            onChange={(event) => setOutcomeIndex(event.target.value)}
+            value={outcomeIndex}
+          >
+            {(proposedMarket?.outcomes ?? []).map((outcome) => (
+              <option key={outcome.id} className="bg-background" value={outcome.outcomeIndex}>
+                Outcome: {outcome.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -89,20 +119,25 @@ export default function ProposeOutcomeForm({ className }: ProposeOutcomeFormProp
           <p>Important: Your locked stake will be slashed if this proposal is successfully disputed.</p>
         </div>
 
-        <Button 
-          className="w-full gap-2" 
-          size="lg" 
-          disabled={isStaging}
+        <Button
+          className="w-full gap-2"
+          size="lg"
+          disabled={isLoading || !proposedMarket}
           onClick={(e) => {
             e.preventDefault();
             handleStage();
           }}
         >
-          {isStaging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {isStaging ? 'Staging...' : 'Stage Proposal'}
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {isLoading ? 'Submitting...' : 'Stage Proposal'}
         </Button>
+
+        {isError && error ? (
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-xs font-bold text-destructive">
+            {error.message}
+          </div>
+        ) : null}
       </form>
     </div>
   );
 }
-

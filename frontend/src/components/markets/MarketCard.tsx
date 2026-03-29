@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ExternalLink, Users, Calendar, ArrowRight } from 'lucide-react';
 import LifecycleBadge from '@/components/markets/LifecycleBadge';
-import { formatAmount, formatRelativeExpiry } from '@/lib/formatters';
+import { formatTokenAmount, formatRelativeExpiry } from '@/lib/formatters';
 import type { MarketSummary } from '@/types/market';
 
 export interface MarketCardProps {
@@ -20,7 +20,7 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
       transition={{ duration: 0.4, delay: index * 0.05 }}
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="space-y-1.5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
               {market.category}
@@ -43,7 +43,11 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
             <span>Liquidity</span>
           </div>
           <p className="text-2xl font-black tracking-tight text-foreground">
-            {formatAmount(market.totalLiquidity)}
+            {formatTokenAmount(
+              market.totalLiquidity,
+              market.collateralSymbol === 'USDC' ? 6 : 18,
+              market.collateralSymbol,
+            )}
           </p>
         </div>
         <div className="space-y-1.5 text-right">
@@ -76,7 +80,7 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
         </div>
         <Link
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-all hover:scale-105 active:scale-95"
-          href={`/markets/${market.address}`}
+          href={`/markets/${market.marketId}`}
         >
           Explore
           <ArrowRight className="h-3 w-3" />
@@ -85,4 +89,3 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
     </motion.article>
   );
 }
-

@@ -1,6 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { useCofheEncrypt } from '@cofhe/react';
+import { Encryptable } from '@cofhe/sdk';
+import { toast } from 'sonner';
+import { parseUnits, zeroAddress } from 'viem';
+import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
+import {
+  formatContractError,
+  getContractAddresses,
+  MOCK_USDC_ABI,
+  PREDICTION_MARKET_ABI,
+} from '@/lib/contracts';
 import type { BetDraft } from '@/types/market';
 
 export interface PlaceBetState {
@@ -18,30 +29,85 @@ export interface UsePlaceBetResult {
 }
 
 /**
- * Simulates the private bet placement flow for the phase-1 frontend shell.
- * @returns Mutation state and a placeholder bet action.
+ * Encrypts stake input and submits a real singleton-market bet transaction.
+ * @returns Mutation state and the contract-backed placeBet action.
  */
 export default function usePlaceBet(): UsePlaceBetResult {
+  const chainId = useChainId();
+  const publicClient = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
+  const { encryptInputsAsync } = useCofheEncrypt();
   const [data, setData] = useState<PlaceBetState | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const placeBet = async (draft: BetDraft): Promise<void> => {
     try {
+      const addresses = getContractAddresses(chainId);
+      const predictionMarketAddress = addresses?.predictionMarket;
+
+      if (!predictionMarketAddress) {
+        throw new Error('PredictionMarket is not configured for the current chain.');
+      }
+
+      if (!publicClient) {
+        throw new Error('Public client is not available.');
+      }
+
+      const stakeAmount = parseUnits(draft.amount || '0', draft.collateralDecimals);
+      if (stakeAmount <= 0n) {
+        throw new Error('Enter a valid stake amount.');
+      }
+
       setError(null);
       setIsLoading(true);
       setData({ step: 'encrypting', txHash: null });
 
-      await new Promise((resolve) => setTimeout(resolve, 850));
+      const [encryptedStake] = await encryptInputsAsync([Encryptable.uint128(stakeAmount)]);
+
+      if (draft.collateralToken.toLowerCase() !== zeroAddress) {
+        setData({ step: 'awaiting_wallet', txHash: null });
+
+        const approvalHash = await writeContractAsync({
+          address: draft.collateralToken,
+          abi: MOCK_USDC_ABI,
+          functionName: 'approve',
+          args: [predictionMarketAddress, stakeAmount],
+        });
+
+        await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+      }
+
       setData({ step: 'awaiting_wallet', txHash: null });
 
-      await new Promise((resolve) => setTimeout(resolve, 950));
+      const betHash = await writeContractAsync({
+        address: predictionMarketAddress,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: 'placeBet',
+        args: [
+          BigInt(draft.marketId),
+          Number.parseInt(draft.outcomeId, 10),
+          stakeAmount,
+          encryptedStake,
+        ],
+        value: draft.collateralToken.toLowerCase() === zeroAddress ? stakeAmount : 0n,
+      });
+
+      await publicClient.waitForTransactionReceipt({ hash: betHash });
+
       setData({
         step: 'success',
-        txHash: `0xcm${draft.marketAddress.slice(4, 18)}${draft.outcomeId}`.slice(0, 24),
+        txHash: betHash,
       });
+      toast.success(`Bet placed privately on ${draft.marketTitle}.`);
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError : new Error('Unable to place bet.'));
+      const nextError =
+        caughtError instanceof Error
+          ? new Error(formatContractError(caughtError))
+          : new Error('Unable to place bet.');
+
+      setError(nextError);
+      toast.error(nextError.message);
     } finally {
       setIsLoading(false);
     }
@@ -62,4 +128,3 @@ export default function usePlaceBet(): UsePlaceBetResult {
     reset,
   };
 }
-
