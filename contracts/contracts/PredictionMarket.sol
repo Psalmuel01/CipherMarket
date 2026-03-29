@@ -252,8 +252,11 @@ contract PredictionMarket is Ownable {
       require(bytes(outcomes[outcomeIndex]).length > 0, 'Outcome label is required');
       marketOutcomeLabels[marketId].push(outcomes[outcomeIndex]);
 
-      encryptedOutcomeTotals[marketId][uint8(outcomeIndex)] = FHE.asEuint128(0);
-      FHE.allowThis(encryptedOutcomeTotals[marketId][uint8(outcomeIndex)]);
+      // Initialize the encrypted total to zero and grant the contract persistent access.
+      // Must allowThis on the handle returned by asEuint128, not re-read from the mapping.
+      euint128 zeroTotal = FHE.asEuint128(0);
+      FHE.allowThis(zeroTotal);
+      encryptedOutcomeTotals[marketId][uint8(outcomeIndex)] = zeroTotal;
     }
 
     emit MarketCreated(marketId, msg.sender, collateralToken, market.outcomeCount, title);
@@ -289,27 +292,36 @@ contract PredictionMarket is Ownable {
     euint128 stake = FHE.asEuint128(encStake);
     euint128 currentStake = encryptedStakes[marketId][accountKey][outcomeIndex];
 
+    // If the slot is uninitialized (handle == 0), starting an FHE.add on it would
+    // revert with ACLNotAllowed because handle 0 is not a ciphertext the contract owns.
+    // Instead, always add against an initialized base: if first bet, use trivial-zero as base.
+    euint128 newStake;
     if (euint128.unwrap(currentStake) == 0) {
-      encryptedStakes[marketId][accountKey][outcomeIndex] = stake;
+      // First bet for this user+outcome — add against freshly initialized zero.
+      euint128 zero = FHE.asEuint128(0);
+      FHE.allowThis(zero);
+      newStake = FHE.add(zero, stake);
     } else {
-      encryptedStakes[marketId][accountKey][outcomeIndex] = FHE.add(currentStake, stake);
+      newStake = FHE.add(currentStake, stake);
     }
 
-    encryptedOutcomeTotals[marketId][outcomeIndex] = FHE.add(
-      encryptedOutcomeTotals[marketId][outcomeIndex],
-      stake
-    );
+    // allowThis must be called on the *new* handle returned by FHE.add —
+    // not on what is stored in the mapping, as that is the old handle.
+    FHE.allowThis(newStake);
+    FHE.allowSender(newStake);
+    encryptedStakes[marketId][accountKey][outcomeIndex] = newStake;
 
-    FHE.allowThis(encryptedStakes[marketId][accountKey][outcomeIndex]);
-    FHE.allowSender(encryptedStakes[marketId][accountKey][outcomeIndex]);
-    FHE.allowThis(encryptedOutcomeTotals[marketId][outcomeIndex]);
+    // Update the encrypted outcome total and re-grant contract access on the new handle.
+    euint128 newTotal = FHE.add(encryptedOutcomeTotals[marketId][outcomeIndex], stake);
+    FHE.allowThis(newTotal);
+    encryptedOutcomeTotals[marketId][outcomeIndex] = newTotal;
 
     emit BetPlaced(
       marketId,
       msg.sender,
       outcomeIndex,
       plainStakeAmount,
-      euint128.unwrap(encryptedStakes[marketId][accountKey][outcomeIndex])
+      euint128.unwrap(newStake)
     );
   }
 

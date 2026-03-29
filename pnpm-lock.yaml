@@ -13,6 +13,9 @@ importers:
       '@fhenixprotocol/cofhe-contracts':
         specifier: 0.0.13
         version: 0.0.13
+      ethers:
+        specifier: ^6.16.0
+        version: 6.16.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
     devDependencies:
       '@fhenixprotocol/cofhe-mock-contracts':
         specifier: ^0.3.1
@@ -14410,7 +14413,7 @@ snapshots:
       buffer: 6.0.3
       eventemitter3: 5.0.4
       uuid: 11.1.0
-      ws: 8.18.3(bufferutil@4.1.0)(utf-8-validate@6.0.6)
+      ws: 8.20.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
     optionalDependencies:
       bufferutil: 4.1.0
       utf-8-validate: 6.0.6
