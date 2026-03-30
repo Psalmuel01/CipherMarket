@@ -288,7 +288,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
 
               <div className="grid gap-4">
                 {outcomes.map((outcome, index) => (
-                  <div key={`${outcome}-${index}`} className="flex items-center gap-3">
+                  <div key={`outcome-${index}`} className="flex items-center gap-3">
                     <div className="relative flex-1">
                       <input
                         className={clsx(
