@@ -14,7 +14,6 @@ const wagmiConfig = getDefaultConfig({
   chains: wagmiChains as any,
   transports: {
     [wagmiChains[0].id]: http(wagmiChains[0].rpcUrls.default.http[0]),
-    [wagmiChains[1].id]: http(wagmiChains[1].rpcUrls.default.http[0]),
   },
   ssr: true,
 });

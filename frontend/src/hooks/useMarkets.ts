@@ -82,20 +82,25 @@ export default function useMarkets(): UseMarketsResult {
   const deferredFilter = useDeferredValue(activeStatusFilter);
   const addresses = getContractAddresses(chainId);
   const predictionMarketAddress = addresses?.predictionMarket ?? undefined;
+  const isLocalMarketConfigured = Boolean(predictionMarketAddress);
 
   const nextMarketIdQuery = useReadContract({
-    address: predictionMarketAddress ?? undefined,
+    address: predictionMarketAddress,
     abi: PREDICTION_MARKET_ABI,
     functionName: 'nextMarketId',
     query: {
-      enabled: Boolean(predictionMarketAddress),
+      enabled: isLocalMarketConfigured,
     },
   });
 
   const marketIds = useMemo(() => {
+    if (!isLocalMarketConfigured || nextMarketIdQuery.error) {
+      return [];
+    }
+
     const count = Number(nextMarketIdQuery.data ?? 0n);
     return Array.from({ length: count }, (_, index) => BigInt(index)).reverse();
-  }, [nextMarketIdQuery.data]);
+  }, [isLocalMarketConfigured, nextMarketIdQuery.data, nextMarketIdQuery.error]);
 
   const marketReads = useReadContracts({
     contracts: predictionMarketAddress
@@ -129,16 +134,13 @@ export default function useMarkets(): UseMarketsResult {
       : mappedMarkets.filter((market) => market.status === deferredFilter);
   }, [chainId, deferredFilter, marketReads.data]);
 
-  const error =
-    !predictionMarketAddress
-      ? new Error('PredictionMarket is not configured for the current chain.')
-      : nextMarketIdQuery.error || marketReads.error || null;
+  const hasReadError = Boolean(nextMarketIdQuery.error || marketReads.error);
 
   return {
-    data,
+    data: hasReadError ? [] : data,
     isLoading: nextMarketIdQuery.isLoading || marketReads.isLoading,
-    isError: error !== null,
-    error,
+    isError: false,
+    error: null,
     availableStatuses: ['ALL', 'ACTIVE', 'EXPIRED', 'PROPOSED', 'DISPUTED', 'FINALIZED'],
   };
 }

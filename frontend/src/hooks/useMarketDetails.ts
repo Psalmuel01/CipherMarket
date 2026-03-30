@@ -82,7 +82,7 @@ function buildPools(
  */
 export default function useMarketDetails(marketIdParam: string): UseMarketDetailsResult {
   const chainId = useChainId();
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const addresses = getContractAddresses(chainId);
   const predictionMarketAddress = addresses?.predictionMarket ?? undefined;
   const marketId = Number.parseInt(marketIdParam, 10);
@@ -118,7 +118,10 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
           }))
         : [],
     query: {
-      enabled: Boolean(predictionMarketAddress) && validMarketId !== null && outcomeIndices.length > 0,
+      enabled:
+        Boolean(predictionMarketAddress) &&
+        validMarketId !== null &&
+        outcomeIndices.length > 0,
     },
   });
 
@@ -128,7 +131,11 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
     functionName: 'getClaimableAmount',
     args: validMarketId !== null && address ? [validMarketId, address] : undefined,
     query: {
-      enabled: Boolean(predictionMarketAddress) && validMarketId !== null && Boolean(address),
+      enabled:
+        Boolean(predictionMarketAddress) &&
+        validMarketId !== null &&
+        Boolean(address) &&
+        isConnected,
     },
   });
 
@@ -172,7 +179,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       pools: buildPools(outcomes, poolTotals, collateral.symbol),
       claimableAmount: (claimableQuery.data as bigint | undefined) ?? 0n,
     } satisfies MarketDetail;
-  }, [chainId, claimableQuery.data, marketView, poolQueries.data]);
+  }, [chainId, claimableQuery.data, marketView, poolQueries.data, isConnected]);
 
   const error =
     validMarketId === null
@@ -184,7 +191,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
   return {
     data,
     isLoading: marketQuery.isLoading || poolQueries.isLoading || claimableQuery.isLoading,
-    isError: error !== null,
+    isError: Boolean(error),
     error,
   };
 }

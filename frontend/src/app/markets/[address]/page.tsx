@@ -68,7 +68,7 @@ export default function Page({
 
   return (
     <>
-      <TopBar eyebrow="Market Protocol" title="Terminal Access" />
+      {/* <TopBar eyebrow="Market Protocol" title="Terminal Access" /> */}
       <main className="space-y-10 px-4 py-8 lg:px-10">
         {isLoading ? (
           <div className="space-y-6">

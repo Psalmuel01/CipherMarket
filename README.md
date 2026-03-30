@@ -30,10 +30,7 @@ This repo is split into two main workspaces:
   * Oracle panel
   * My bets
 * ABI files stored locally in `frontend/src/lib/abi/` for portability
-* Supports both:
-
-  * Sepolia testnet
-  * Local Hardhat network
+* Supports Sepolia testnet
 * Local deployment flow works end-to-end
 
 ---
@@ -61,7 +58,7 @@ This repo is split into two main workspaces:
 ## **Important Notes**
 
 * Solidity is pinned to `0.8.25`. Earlier versions will break the CoFHE setup.
-* Localhost is the primary development environment. Sepolia is configured as a secondary network.
+* Sepolia is the primary network. No local Hardhat network is configured.
 * ABI files are committed for convenience and deployment portability.
 
 To regenerate ABIs:
@@ -115,13 +112,6 @@ Compile and test:
 ```bash
 pnpm --filter contracts compile
 pnpm --filter contracts test
-```
-
-Run local node and deploy:
-
-```bash
-pnpm --filter contracts node
-pnpm --filter contracts deploy:localhost
 ```
 
 ---

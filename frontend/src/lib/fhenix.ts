@@ -1,21 +1,8 @@
 import { createCofheConfig } from '@cofhe/react';
 import {
-  localcofhe as cofheLocalcofhe,
   sepolia as cofheSepolia,
 } from '@cofhe/sdk/chains';
 import { defineChain, http } from 'viem';
-
-export const localcofhe = defineChain({
-  id: 420105,
-  name: 'Local Cofhe',
-  nativeCurrency: { name: 'Local ETH', symbol: 'ETH', decimals: 18 },
-  rpcUrls: {
-    default: { http: ['http://127.0.0.1:8545'] },
-  },
-  blockExplorers: {
-    default: { name: 'Localhost', url: 'http://127.0.0.1:8545' },
-  },
-});
 
 export const cipherMarketSepolia = defineChain({
   id: 11155111,
@@ -33,15 +20,14 @@ export const cipherMarketSepolia = defineChain({
   },
 });
 
-export const wagmiChains = [localcofhe, cipherMarketSepolia] as const;
+export const wagmiChains = [cipherMarketSepolia] as const;
 
 export const wagmiTransports = {
-  [localcofhe.id]: http(localcofhe.rpcUrls.default.http[0]),
   [cipherMarketSepolia.id]: http(cipherMarketSepolia.rpcUrls.default.http[0]),
 };
 
 export const cofheConfig = createCofheConfig({
-  supportedChains: [cofheLocalcofhe, cofheSepolia],
+  supportedChains: [cofheSepolia],
   useWorkers: true,
   mocks: {
     decryptDelay: 0,
