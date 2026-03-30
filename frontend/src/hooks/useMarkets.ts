@@ -105,11 +105,11 @@ export default function useMarkets(): UseMarketsResult {
   const marketReads = useReadContracts({
     contracts: predictionMarketAddress
       ? marketIds.map((marketId) => ({
-          address: predictionMarketAddress,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'getMarket',
-          args: [marketId],
-        }))
+        address: predictionMarketAddress,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: 'getMarket',
+        args: [marketId],
+      }))
       : [],
     query: {
       enabled: Boolean(predictionMarketAddress) && marketIds.length > 0,

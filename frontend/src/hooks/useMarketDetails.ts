@@ -111,11 +111,11 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
     contracts:
       predictionMarketAddress && validMarketId !== null
         ? outcomeIndices.map((outcomeIndex) => ({
-            address: predictionMarketAddress,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getOutcomeLiquidity',
-            args: [validMarketId, Number(outcomeIndex)],
-          }))
+          address: predictionMarketAddress,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'getOutcomeLiquidity',
+          args: [validMarketId, Number(outcomeIndex)],
+        }))
         : [],
     query: {
       enabled:

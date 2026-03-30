@@ -10,28 +10,28 @@ It lets users create markets, place bets, and claim winnings without exposing th
 
 This repo is split into two main workspaces:
 
-* `contracts` — Hardhat + Solidity smart contracts
-* `frontend` — Next.js 14 application
+- `contracts` — Hardhat + Solidity smart contracts
+- `frontend` — Next.js 14 application
 
 ---
 
 ## **Current Status**
 
-* Core contracts implemented:
+- Core contracts implemented:
+  - `OracleRegistry`
+  - `PredictionMarket` (with tests)
 
-  * `OracleRegistry`
-  * `PredictionMarket` (with tests)
-* Frontend includes full product flow:
+- Frontend includes full product flow:
+  - Landing
+  - Dashboard
+  - Market detail
+  - Create market
+  - Oracle panel
+  - My bets
 
-  * Landing
-  * Dashboard
-  * Market detail
-  * Create market
-  * Oracle panel
-  * My bets
-* ABI files stored locally in `frontend/src/lib/abi/` for portability
-* Supports Sepolia testnet
-* Local deployment flow works end-to-end
+- ABI files stored locally in `frontend/src/lib/abi/` for portability
+- Supports Sepolia testnet
+- Local deployment flow works end-to-end
 
 ---
 
@@ -39,27 +39,27 @@ This repo is split into two main workspaces:
 
 ### Smart Contracts
 
-* Solidity `0.8.25`
-* Hardhat `2.22.19`
-* `@fhenixprotocol/cofhe-contracts`
-* `cofhe-hardhat-plugin`
+- Solidity `0.8.25`
+- Hardhat `2.22.19`
+- `@fhenixprotocol/cofhe-contracts`
+- `cofhe-hardhat-plugin`
 
 ### Frontend
 
-* Next.js `14`
-* React `18`
-* wagmi `v2`
-* viem
-* Tailwind CSS
-* Zustand
+- Next.js `14`
+- React `18`
+- wagmi `v2`
+- viem
+- Tailwind CSS
+- Zustand
 
 ---
 
 ## **Important Notes**
 
-* Solidity is pinned to `0.8.25`. Earlier versions will break the CoFHE setup.
-* Sepolia is the primary network. No local Hardhat network is configured.
-* ABI files are committed for convenience and deployment portability.
+- Solidity is pinned to `0.8.25`. Earlier versions will break the CoFHE setup.
+- Sepolia is the primary network. No local Hardhat network is configured.
+- ABI files are committed for convenience and deployment portability.
 
 To regenerate ABIs:
 
@@ -70,7 +70,7 @@ for f in contracts/artifacts/contracts/**/*.json; do \
 done
 ```
 
-* `@cofhe/react` is included in the provider stack, but its default UI is suppressed via global CSS.
+- `@cofhe/react` is included in the provider stack, but its default UI is suppressed via global CSS.
 
 ---
 
@@ -120,27 +120,27 @@ pnpm --filter contracts test
 
 ### Contracts
 
-* `OracleRegistry.sol`
+- `OracleRegistry.sol`
   Handles oracle registration, staking, and slashing
 
-* `PredictionMarket.sol`
+- `PredictionMarket.sol`
   Supports binary and categorical markets with dispute and resolution logic
 
-* `MockUSDC.sol`
+- `MockUSDC.sol`
   ERC20 mock token for testing collateral
 
 ---
 
 ### Frontend
 
-* Full UI flow across all major product surfaces
-* Hooks for:
+- Full UI flow across all major product surfaces
+- Hooks for:
+  - Market creation
+  - Betting
+  - Oracle participation
+  - Disputes
 
-  * Market creation
-  * Betting
-  * Oracle participation
-  * Disputes
-* Wallet integration via wagmi (Sepolia + localhost)
+- Wallet integration via wagmi (Sepolia + localhost)
 
 ---
 
@@ -168,4 +168,3 @@ ciphermarket/
 │   └── package.json
 └── README.md
 ```
-

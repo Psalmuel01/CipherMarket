@@ -6,11 +6,11 @@ export default function Page(): JSX.Element {
     <>
       <TopBar eyebrow="Authoring" title="Create A New Prediction Market" />
       <main className="px-4 py-8 lg:px-10">
-        <div className="max-w-5xl space-y-3">
-          <p className="max-w-3xl text-sm leading-6 text-muted">
+        <div className="max-w-5xl space-y-3 my-5">
+          {/* <p className="max-w-3xl text-sm leading-6 text-muted">
             The creation flow is staged into clear reviewable steps so market terms, outcomes, and
             oracle assumptions are explicit before any contract deployment begins.
-          </p>
+          </p> */}
           <CreateMarketForm />
         </div>
       </main>
