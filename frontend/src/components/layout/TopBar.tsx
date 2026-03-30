@@ -41,13 +41,13 @@ export default function TopBar({ eyebrow, title }: TopBarProps): JSX.Element {
           <div className="hidden h-10 items-center gap-4 rounded-xl border border-white/5 bg-white/[0.02] px-4 text-[11px] font-bold text-muted-foreground transition-all hover:bg-white/[0.05] md:flex">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-              <span>Fhenix Network</span>
+              <span>Fhenix Encryption</span>
             </div>
-            <div className="h-3 w-px bg-white/10" />
+            {/* <div className="h-3 w-px bg-white/10" />
             <div className="flex items-center gap-2">
               <Activity className="h-3.5 w-3.5 text-primary" />
               <span>Chain {chainId}</span>
-            </div>
+            </div> */}
           </div>
           <WalletButton />
         </div>

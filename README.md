@@ -1,83 +1,160 @@
-# CipherMarket
+# **CipherMarket**
 
-CipherMarket is a privacy-native prediction market built on Fhenix CoFHE.
+CipherMarket is a privacy-first prediction market built on Fhenix CoFHE.
 
-The repo currently has a revamped frontend demo flow plus the original CoFHE smoke-test
-contract workspace. The UI covers more of the product journey than the contract layer does today.
+It lets users create markets, place bets, and claim winnings without exposing their positions on-chain. The current repo includes a working frontend flow and a functional contract layer, with the UI covering more of the full product experience than the contracts do today.
 
-## Workspaces
+---
 
-- `contracts`: Hardhat + Solidity smart contracts
-- `frontend`: Next.js 14 application shell
+## **Project Structure**
 
-## Current Status
+This repo is split into two main workspaces:
 
-- Frontend routes now cover landing, dashboard, market detail, create-market, oracle, and my-bets
-- Frontend hooks remain mostly demo/mock state rather than live on-chain reads and writes
-- Localhost deployment flow exists for the smoke-test contract only
+* `contracts` — Hardhat + Solidity smart contracts
+* `frontend` — Next.js 14 application
 
-## Locked Stack
+---
 
-- Solidity `0.8.25`
-- Hardhat `2.22.19`
-- `cofhe-hardhat-plugin` `0.3.1`
-- `@fhenixprotocol/cofhe-contracts` `0.0.13`
-- `@fhenixprotocol/cofhe-mock-contracts` `0.3.1`
-- Next.js `14.2.35`
-- React `18.3.1`
-- wagmi `2.19.5`
+## **Current Status**
 
-## Important Caveats
+* Core contracts implemented:
 
-- Solidity is pinned to `0.8.25`, not `0.8.24`. The current working CoFHE contract stack used in
-  this repo requires `>=0.8.25`.
-- Phase 1 uses Ethereum Sepolia as the secondary configured network while localhost remains the
-  primary development target.
-- The frontend keeps a cross-workspace ABI import from `contracts/artifacts` for Phase 1. If this
-  becomes brittle in Phase 2, replace it with a shared package or generated ABI export step.
-- `@cofhe/react` remains in the provider stack and its floating UI is intentionally suppressed at
-  the shell layer via the global `fnx-` CSS rule.
+  * `OracleRegistry`
+  * `PredictionMarket` (with tests)
+* Frontend includes full product flow:
 
-## Start The Frontend
+  * Landing
+  * Dashboard
+  * Market detail
+  * Create market
+  * Oracle panel
+  * My bets
+* ABI files stored locally in `frontend/src/lib/abi/` for portability
+* Supports both:
+
+  * Sepolia testnet
+  * Local Hardhat network
+* Local deployment flow works end-to-end
+
+---
+
+## **Tech Stack**
+
+### Smart Contracts
+
+* Solidity `0.8.25`
+* Hardhat `2.22.19`
+* `@fhenixprotocol/cofhe-contracts`
+* `cofhe-hardhat-plugin`
+
+### Frontend
+
+* Next.js `14`
+* React `18`
+* wagmi `v2`
+* viem
+* Tailwind CSS
+* Zustand
+
+---
+
+## **Important Notes**
+
+* Solidity is pinned to `0.8.25`. Earlier versions will break the CoFHE setup.
+* Localhost is the primary development environment. Sepolia is configured as a secondary network.
+* ABI files are committed for convenience and deployment portability.
+
+To regenerate ABIs:
+
+```bash
+mkdir -p frontend/src/lib/abi && \
+for f in contracts/artifacts/contracts/**/*.json; do \
+  jq '{abi: .abi}' "$f" > "frontend/src/lib/abi/$(basename "$f")"; \
+done
+```
+
+* `@cofhe/react` is included in the provider stack, but its default UI is suppressed via global CSS.
+
+---
+
+## **Getting Started**
+
+### Install dependencies
 
 ```bash
 pnpm install
+```
+
+---
+
+### Run the frontend
+
+```bash
 pnpm dev:frontend
 ```
 
-Open `http://localhost:3000`.
+Open: [http://localhost:3000](http://localhost:3000)
 
-## Checks
+---
+
+## **Development**
+
+### Linting & tests
 
 ```bash
 pnpm lint
 pnpm --filter frontend test
 ```
 
-## Smart Contracts
+---
 
-- Compile and test the current contract workspace:
+### Smart contracts
+
+Compile and test:
 
 ```bash
 pnpm --filter contracts compile
 pnpm --filter contracts test
 ```
 
-- Run the local contract stack:
+Run local node and deploy:
 
 ```bash
 pnpm --filter contracts node
 pnpm --filter contracts deploy:localhost
 ```
 
-## What Is Actually Implemented
+---
 
-- The prediction-market contracts from the product flow are not built yet:
-  - `OracleRegistry`
-  - `PredictionMarket`
-- The frontend currently demonstrates the updated product flow with mocked hooks and local demo state
+## **Implemented Features**
 
-## Repo Shape
+### Contracts
+
+* `OracleRegistry.sol`
+  Handles oracle registration, staking, and slashing
+
+* `PredictionMarket.sol`
+  Supports binary and categorical markets with dispute and resolution logic
+
+* `MockUSDC.sol`
+  ERC20 mock token for testing collateral
+
+---
+
+### Frontend
+
+* Full UI flow across all major product surfaces
+* Hooks for:
+
+  * Market creation
+  * Betting
+  * Oracle participation
+  * Disputes
+* Wallet integration via wagmi (Sepolia + localhost)
+
+---
+
+## **Repository Layout**
 
 ```text
 ciphermarket/
@@ -101,3 +178,4 @@ ciphermarket/
 │   └── package.json
 └── README.md
 ```
+
