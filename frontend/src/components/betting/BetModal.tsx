@@ -181,22 +181,22 @@ export default function BetModal({
           <Button
             className="flex-1 gap-2"
             size="lg"
-            disabled={isLoading || data?.step === 'success'}
-            onClick={() =>
-              placeBet({
-                amount,
-                marketId,
-                marketTitle,
-                outcomeId: outcome.id,
-                collateralToken,
-                collateralSymbol,
-                collateralDecimals,
-              })
-            }
+            disabled={true}
+            // onClick={() =>
+            //   placeBet({
+            //     amount,
+            //     marketId,
+            //     marketTitle,
+            //     outcomeId: outcome.id,
+            //     collateralToken,
+            //     collateralSymbol,
+            //     collateralDecimals,
+            //   })
+            // }
             type="button"
           >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {isLoading ? 'Processing...' : 'Place Private Bet'}
+            <Sparkles className="h-4 w-4" />
+            Coming Soon
           </Button>
         </div>
       </div>

@@ -26,11 +26,11 @@ export default function TopBar({ eyebrow, title }: TopBarProps): JSX.Element {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex flex-col">
-            {eyebrow && (
+            {/* {eyebrow && (
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">
                 {eyebrow}
               </span>
-            )}
+            )} */}
             <h1 className="text-xl font-black tracking-tighter text-foreground">
               {title}
             </h1>

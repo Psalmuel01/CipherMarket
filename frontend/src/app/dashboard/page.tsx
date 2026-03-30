@@ -4,11 +4,11 @@ import MarketList from '@/components/markets/MarketList';
 export default function DashboardPage(): JSX.Element {
   return (
     <>
-      <TopBar eyebrow="Order Flow" title="Private Market Terminal" />
+      <TopBar eyebrow="Order Flow" title="Explore Markets" />
       <main className="px-4 py-8 lg:px-10">
         <MarketList
-          description="Browse active and pending private markets. Liquidity is public for market health; individual wallet positions stay sealed."
-          heading="Encrypted market surface"
+          description="Browse active and pending private markets."
+          heading="Explore markets"
         />
       </main>
     </>

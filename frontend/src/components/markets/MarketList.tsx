@@ -50,25 +50,16 @@ export default function MarketList({ description, heading }: MarketListProps): J
     <section className="space-y-10">
       <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
         <div className="max-w-3xl space-y-3">
-          <h2 className="text-4xl font-black tracking-tight text-foreground lg:text-5xl">
+          {/* <h2 className="text-4xl font-black tracking-tight text-foreground lg:text-5xl">
             {heading}
-          </h2>
+          </h2> */}
           <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
             {description}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
-            <input
-              type="text"
-              placeholder="Search markets..."
-              className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] pl-10 pr-4 text-sm text-foreground outline-none ring-primary/20 transition-all focus:border-primary/50 focus:ring-4 sm:w-64"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+
           <div className="flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
             {availableStatuses.map((status) => (
               <button
@@ -85,6 +76,17 @@ export default function MarketList({ description, heading }: MarketListProps): J
               </button>
             ))}
           </div>
+
+          {/* <div className="relative group">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+            <input
+              type="text"
+              placeholder="Search markets..."
+              className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] pl-10 pr-4 text-sm text-foreground outline-none ring-primary/20 transition-all focus:border-primary/50 focus:ring-4 sm:w-64"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div> */}
         </div>
       </div>
 
