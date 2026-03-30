@@ -1,14 +1,12 @@
 import type { Abi, Address } from 'viem';
-import OracleRegistryArtifact from '../../../contracts/artifacts/contracts/OracleRegistry.sol/OracleRegistry.json';
-import PredictionMarketArtifact from '../../../contracts/artifacts/contracts/PredictionMarket.sol/PredictionMarket.json';
-import MockUSDCArtifact from '../../../contracts/artifacts/contracts/mocks/MockUSDC.sol/MockUSDC.json';
-import FHESmokeArtifact from '../../../contracts/artifacts/contracts/FHESmoke.sol/FHESmoke.json';
+import OracleRegistryArtifact from './abi/OracleRegistry.json';
+import PredictionMarketArtifact from './abi/PredictionMarket.json';
+import MockUSDCArtifact from './abi/MockUSDC.json';
 
 export interface ChainContractAddresses {
   oracleRegistry: Address | null;
   predictionMarket: Address | null;
   mockUsdc: Address | null;
-  fheSmoke: Address | null;
 }
 
 export const LOCAL_CHAIN_ID = 420105;
@@ -22,20 +20,17 @@ export const CONTRACT_ADDRESSES: Record<number, ChainContractAddresses> = {
     oracleRegistry: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
     predictionMarket: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
     mockUsdc: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
-    fheSmoke: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9',
   },
   [SEPOLIA_CHAIN_ID]: {
     oracleRegistry: (process.env.NEXT_PUBLIC_SEPOLIA_ORACLE_REGISTRY as Address) ?? null,
     predictionMarket: (process.env.NEXT_PUBLIC_SEPOLIA_PREDICTION_MARKET as Address) ?? null,
     mockUsdc: (process.env.NEXT_PUBLIC_SEPOLIA_MOCK_USDC as Address) ?? null,
-    fheSmoke: null, // FHESmoke is only available on local Hardhat (requires mock FHE plugin)
   },
 };
 
 export const ORACLE_REGISTRY_ABI = OracleRegistryArtifact.abi as Abi;
 export const PREDICTION_MARKET_ABI = PredictionMarketArtifact.abi as Abi;
 export const MOCK_USDC_ABI = MockUSDCArtifact.abi as Abi;
-export const FHESMOKE_ABI = FHESmokeArtifact.abi as Abi;
 
 export const MARKET_TYPE_LABELS = ['BINARY', 'CATEGORICAL'] as const;
 export const MARKET_STATE_LABELS = [

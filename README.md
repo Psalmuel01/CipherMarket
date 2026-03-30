@@ -13,7 +13,6 @@ contract workspace. The UI covers more of the product journey than the contract 
 ## Current Status
 
 - Frontend routes now cover landing, dashboard, market detail, create-market, oracle, and my-bets
-- `FHESmoke.sol` is still the only Solidity contract implemented
 - Frontend hooks remain mostly demo/mock state rather than live on-chain reads and writes
 - Localhost deployment flow exists for the smoke-test contract only
 
@@ -73,12 +72,9 @@ pnpm --filter contracts deploy:localhost
 
 ## What Is Actually Implemented
 
-- `FHESmoke.sol` verifies CoFHE wiring, encrypted storage, and encrypted addition
 - The prediction-market contracts from the product flow are not built yet:
   - `OracleRegistry`
-  - `MarketFactory`
   - `PredictionMarket`
-  - `DisputeResolver`
 - The frontend currently demonstrates the updated product flow with mocked hooks and local demo state
 
 ## Repo Shape

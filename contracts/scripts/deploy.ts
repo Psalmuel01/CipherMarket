@@ -10,9 +10,6 @@
  *   - OracleRegistry.setPredictionMarket(PredictionMarket)
  *   - PredictionMarket.setAcceptedCollateral(MockUSDC, true)
  *
- * NOTE: FHESmoke is excluded from live network deployments.
- *       Its constructor calls FHE.asEuint128(0) which requires the
- *       CoFHE coprocessor — it only works on Hardhat local with the mock plugin.
  *
  * Usage:
  *   npx hardhat run scripts/deploy.ts                  (local Hardhat node)
@@ -149,7 +146,6 @@ async function main(): Promise<void> {
   } else {
     console.log('  Mode:     Live testnet (CoFHE coprocessor active)');
     console.log('');
-    console.log('  ⚠  FHESmoke is skipped on live networks.');
     console.log('     Its constructor requires the hardhat mock FHE plugin.');
   }
   console.log('');
@@ -171,20 +167,14 @@ async function main(): Promise<void> {
   // ── 3. MockUSDC ────────────────────────────────────────────────────────────
   const mockUsdc = await deploy(hre, provider, 'MockUSDC');
 
-  // ── 4. FHESmoke (local only) ───────────────────────────────────────────────
-  let fheSmoke: Deployed | null = null;
-  if (isLocal) {
-    fheSmoke = await deploy(hre, provider, 'FHESmoke');
-  }
-
-  // ── 5. Wire: OracleRegistry → PredictionMarket ─────────────────────────────
+  // ── 4. Wire: OracleRegistry → PredictionMarket ─────────────────────────────
   console.log('\n[Wiring]');
   console.log(`  OracleRegistry.setPredictionMarket(${predictionMarket.address})`);
   const registry = await hre.ethers.getContractAt('OracleRegistry', oracleRegistry.address);
   const setPMTx = await registry.setPredictionMarket(predictionMarket.address);
   await sendConfig(provider, 'setPredictionMarket', setPMTx);
 
-  // ── 6. Wire: PredictionMarket.setAcceptedCollateral(MockUSDC) ───────────────
+  // ── 5. Wire: PredictionMarket.setAcceptedCollateral(MockUSDC) ───────────────
   console.log(`\n  PredictionMarket.setAcceptedCollateral(${mockUsdc.address}, true)`);
   const market = await hre.ethers.getContractAt('PredictionMarket', predictionMarket.address);
   const setColTx = await market.setAcceptedCollateral(mockUsdc.address, true);
@@ -198,7 +188,6 @@ async function main(): Promise<void> {
   console.log('');
 
   const rows: Deployed[] = [oracleRegistry, predictionMarket, mockUsdc];
-  if (fheSmoke) rows.push(fheSmoke);
 
   for (const c of rows) {
     console.log(`  ${c.name}`);

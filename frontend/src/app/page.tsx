@@ -113,7 +113,7 @@ export default function LandingPage(): JSX.Element {
               </Button>
             </Link>
             <Button variant="outline" size="lg" className="h-14 px-10 text-lg border-white/5 bg-white/[0.02] hover:bg-white/[0.05]">
-              Read Whitepaper
+              Read Docs
             </Button>
           </motion.div>
 
