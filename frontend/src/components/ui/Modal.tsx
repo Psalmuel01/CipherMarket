@@ -29,7 +29,7 @@ export default function Modal({
           onClick={onClose}
         >
           <motion.div
-            className="w-full max-w-2xl rounded-2xl border border-line bg-panel/90 p-6 shadow-panel backdrop-blur-terminal"
+            className="w-full max-w-2xl rounded-2xl border border-line bg-panel p-6 shadow-panel backdrop-blur-[12px]"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
@@ -37,8 +37,8 @@ export default function Modal({
           >
             <div className="mb-6 flex items-start justify-between gap-4">
               <div className="space-y-2">
-                <h2 className="text-lg font-medium text-text">{title}</h2>
-                {description ? <p className="text-sm text-muted">{description}</p> : null}
+                <h2 className="text-lg font-semibold text-text">{title}</h2>
+                {description ? <p className="text-sm text-gray-400">{description}</p> : null}
               </div>
               <button
                 aria-label="Close modal"

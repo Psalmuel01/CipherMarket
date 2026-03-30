@@ -47,6 +47,9 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
         teal: 'hsl(var(--cm-teal))',
+        panel: 'hsl(220 25% 8%)',
+        line: 'hsl(217 24% 20%)',
+        text: 'hsl(210 20% 98%)',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -81,6 +84,12 @@ const config: Config = {
       },
       backgroundImage: {
         'glass-gradient': 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%)',
+      },
+      boxShadow: {
+        panel: '0 20px 25px -5px rgb(0 0 0 / 0.3)',
+      },
+      backdropFilter: {
+        terminal: 'blur(12px)',
       },
     },
   },
