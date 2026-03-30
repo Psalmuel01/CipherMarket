@@ -32,14 +32,20 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
       <div className="flex h-full flex-col justify-between p-6">
         <div className="space-y-10">
           <div className="flex items-center gap-3 px-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
-              <Cpu className="h-6 w-6" />
-            </div>
+            {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary"> */}
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                <rect width="28" height="28" rx="8" fill="rgba(79,255,212,0.1)" />
+                <path d="M8 14h4m4 0h4M14 8v4m0 4v4" stroke="#4FFFD4" strokeWidth="1.5" strokeLinecap="round" />
+                <rect x="11" y="11" width="6" height="6" rx="1" stroke="#4FFFD4" strokeWidth="1" />
+              </svg>
+            {/* </div> */}
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-foreground">CipherMarket</h1>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/80">
+              <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
+                CipherMarket
+              </Link>
+              {/* <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/80">
                 Confidential Rails
-              </p>
+              </p> */}
             </div>
           </div>
 
