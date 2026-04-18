@@ -153,7 +153,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                   isCompleted
                     ? 'bg-primary border-primary text-primary-foreground'
                     : isActive
-                      ? 'bg-card border-primary text-primary shadow-[0_0_20px_rgba(79,255,212,0.3)]'
+                      ? 'bg-card border-primary text-primary shadow-[0_0_20px_rgba(170,58,49,0.2)]'
                       : 'bg-card border-white/10 text-muted-foreground',
                 )}
               >
@@ -204,7 +204,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                       className={clsx(
                         'flex flex-col items-start gap-3 rounded-2xl border-2 p-6 text-left transition-all',
                         marketType === option.type
-                          ? 'border-primary bg-primary/5 shadow-[0_0_20px_rgba(79,255,212,0.1)]'
+                          ? 'border-primary bg-primary/5 shadow-[0_0_20px_rgba(170,58,49,0.12)]'
                           : 'border-white/5 bg-white/[0.02] hover:border-white/10',
                       )}
                       onClick={() => handleTypeChange(option.type)}

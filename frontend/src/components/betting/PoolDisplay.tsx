@@ -44,7 +44,7 @@ export default function PoolDisplay({ pools, className }: PoolDisplayProps): JSX
             
             <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/5">
               <div
-                className="h-full rounded-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(79,255,212,0.4)]"
+                className="h-full rounded-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(170,58,49,0.28)]"
                 style={{ width: `${Math.max(pool.percentage, 4)}%` }}
               />
             </div>

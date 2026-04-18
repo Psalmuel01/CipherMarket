@@ -27,7 +27,7 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
     >
-      <body className="bg-bg font-[family-name:var(--font-geist-sans)] text-text antialiased overflow-x-hidden">
+      <body className="overflow-x-hidden bg-background font-[family-name:var(--font-geist-sans)] text-foreground antialiased">
         <Providers>
           <LayoutWrapper>
             {children}
@@ -37,9 +37,9 @@ export default function RootLayout({
             theme="dark"
             toastOptions={{
               style: {
-                background: '#101722',
+                background: '#11151d',
                 border: '1px solid rgba(255,255,255,0.08)',
-                color: '#E7EEF7',
+                color: '#EAECEF',
               },
             }}
           />

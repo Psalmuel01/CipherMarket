@@ -28,7 +28,7 @@ export default function OutcomeSelector({
             className={clsx(
               "flex items-center justify-between rounded-2xl border-2 px-6 py-4 transition-all duration-300",
               isSelected 
-                ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(79,255,212,0.15)]" 
+                ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(170,58,49,0.14)]"
                 : "border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
             )}
           >
@@ -58,4 +58,3 @@ export default function OutcomeSelector({
     </div>
   );
 }
-

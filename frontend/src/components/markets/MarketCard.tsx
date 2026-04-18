@@ -13,7 +13,7 @@ export interface MarketCardProps {
 export default function MarketCard({ index, market }: MarketCardProps): JSX.Element {
   return (
     <motion.article
-      className="glass-card group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_40px_rgba(79,255,212,0.1)]"
+      className="glass-card group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_40px_rgba(170,58,49,0.12)]"
       initial={{ opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
@@ -22,10 +22,10 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-primary">
               {market.category}
             </p>
-            <h2 className="text-xl font-bold leading-tight tracking-tight text-foreground transition-colors group-hover:text-primary">
+            <h2 className="text-xl font-semibold leading-tight tracking-tight text-foreground transition-colors group-hover:text-primary">
               {market.title}
             </h2>
           </div>
@@ -42,7 +42,7 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
             <Users className="h-3 w-3" />
             <span>Liquidity</span>
           </div>
-          <p className="text-2xl font-black tracking-tight text-foreground">
+          <p className="font-mono text-2xl font-semibold tracking-tight text-foreground">
             {formatTokenAmount(
               market.totalLiquidity,
               market.collateralSymbol === 'USDC' ? 6 : 18,
@@ -55,7 +55,7 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
             <Calendar className="h-3 w-3" />
             <span>Ends In</span>
           </div>
-          <p className="text-2xl font-black tracking-tight text-foreground">
+          <p className="font-mono text-2xl font-semibold tracking-tight text-foreground">
             {formatRelativeExpiry(market.expiryTime)}
           </p>
         </div>

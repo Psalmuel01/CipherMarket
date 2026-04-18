@@ -1,9 +1,8 @@
 'use client';
 
-import { Menu, ShieldCheck, Activity } from 'lucide-react';
+import { Menu, ShieldCheck } from 'lucide-react';
 import useAppStore from '@/store/useAppStore';
 import WalletButton from '@/components/layout/WalletButton';
-import { useChainId } from 'wagmi';
 
 export interface TopBarProps {
   title: string;
@@ -12,7 +11,6 @@ export interface TopBarProps {
 
 export default function TopBar({ eyebrow, title }: TopBarProps): JSX.Element {
   const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
-  const chainId = useChainId();
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-background/80 backdrop-blur-xl">
@@ -26,28 +24,23 @@ export default function TopBar({ eyebrow, title }: TopBarProps): JSX.Element {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex flex-col">
-            {/* {eyebrow && (
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">
+            {eyebrow ? (
+              <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-primary/80">
                 {eyebrow}
               </span>
-            )} */}
-            <h1 className="text-xl font-black tracking-tighter text-foreground">
+            ) : null}
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
               {title}
             </h1>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="hidden h-10 items-center gap-4 rounded-xl border border-white/5 bg-white/[0.02] px-4 text-[11px] font-bold text-muted-foreground transition-all hover:bg-white/[0.05] md:flex">
+          <div className="hidden h-10 items-center gap-4 rounded-xl border border-white/5 bg-white/[0.02] px-4 text-[11px] text-muted-foreground transition-all hover:bg-white/[0.05] md:flex">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-              <span>Fhenix Encryption</span>
+              <span className="font-mono uppercase tracking-[0.2em]">FHE Protected</span>
             </div>
-            {/* <div className="h-3 w-px bg-white/10" />
-            <div className="flex items-center gap-2">
-              <Activity className="h-3.5 w-3.5 text-primary" />
-              <span>Chain {chainId}</span>
-            </div> */}
           </div>
           <WalletButton />
         </div>

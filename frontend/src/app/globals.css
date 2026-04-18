@@ -4,41 +4,38 @@
 
 @layer base {
   :root {
-    /* Base Colors - HSL for modern control */
-    --background: 220 40% 4%;
-    --foreground: 210 20% 98%;
+    --background: 222 30% 6%;
+    --foreground: 210 20% 96%;
 
-    --card: 220 25% 6%;
-    --card-foreground: 210 20% 98%;
+    --card: 222 22% 9%;
+    --card-foreground: 210 18% 96%;
 
-    --popover: 220 40% 4%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 222 26% 8%;
+    --popover-foreground: 210 18% 96%;
 
-    --primary: 165 100% 65%;
-    --primary-foreground: 220 40% 4%;
+    --primary: 4 62% 58%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 220 20% 12%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 220 15% 14%;
+    --secondary-foreground: 210 18% 92%;
 
-    --muted: 220 15% 15%;
-    --muted-foreground: 215 20% 75%;
+    --muted: 222 14% 13%;
+    --muted-foreground: 216 12% 68%;
 
-    --accent: 165 100% 65%;
-    --accent-foreground: 210 20% 98%;
+    --accent: 4 36% 20%;
+    --accent-foreground: 210 18% 96%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 78% 55%;
     --destructive-foreground: 210 20% 98%;
 
-    --border: 217 24% 15%;
-    --input: 217 24% 18%;
-    --ring: 165 100% 65%;
+    --border: 220 14% 18%;
+    --input: 220 14% 16%;
+    --ring: 4 62% 58%;
 
-    --radius: 1rem;
-
-    /* Custom CipherMarket Tokens */
-    --cm-teal: 165 100% 65%;
-    --cm-glass: rgba(16, 23, 34, 0.85);
-    --cm-glass-border: rgba(255, 255, 255, 0.12);
+    --radius: 0.875rem;
+    --cm-signal: 215 81 72;
+    --cm-panel: rgba(14, 18, 26, 0.88);
+    --cm-panel-border: rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -46,30 +43,46 @@
   * {
     @apply border-border;
   }
+
+  html {
+    @apply scroll-smooth;
+  }
+
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/20;
     background-image:
-      radial-gradient(circle at 0% 0%, hsla(var(--cm-teal) / 0.12), transparent 40%),
-      radial-gradient(circle at 100% 100%, hsla(220, 100%, 15%, 0.1), transparent 40%);
+      radial-gradient(circle at top left, rgba(168, 55, 49, 0.12), transparent 32%),
+      radial-gradient(circle at bottom right, rgba(90, 22, 18, 0.18), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0));
     background-attachment: fixed;
+    font-feature-settings: 'cv01' 1, 'cv06' 1, 'ss01' 1;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-card/85 backdrop-blur-xl border border-white/10 shadow-2xl;
+    @apply border border-white/10 bg-card/85 backdrop-blur-xl shadow-[0_18px_44px_rgba(5,8,13,0.34)];
   }
 
   .interactive-glow {
     @apply relative overflow-hidden;
+
     &::after {
       content: '';
       @apply absolute inset-0 opacity-0 transition-opacity duration-500 pointer-events-none;
-      background: radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(79, 255, 212, 0.15), transparent 40%);
+      background: radial-gradient(500px circle at var(--mouse-x) var(--mouse-y), rgba(199, 80, 72, 0.12), transparent 36%);
     }
+
     &:hover::after {
       @apply opacity-100;
     }
+  }
+
+  .terminal-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
 }
 

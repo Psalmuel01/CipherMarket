@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
+import { ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import usePlaceBet from '@/hooks/usePlaceBet';
@@ -75,39 +75,49 @@ export default function BetModal({
           <div className="rounded-2xl bg-white/[0.03] p-6 space-y-3">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Selected Outcome</p>
-                <p className="text-xl font-black text-foreground">{outcome.label}</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
+                  Selected Outcome
+                </p>
+                <p className="text-xl font-semibold text-foreground">{outcome.label}</p>
               </div>
-              <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Network Fee</span>
                 <span>{collateralSymbol === 'ETH' ? '~0.002 ETH' : 'ERC20 approval may be required'}</span>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 rounded-xl bg-primary/5 p-3 text-[11px] font-bold text-primary/80">
+            <div className="flex items-start gap-3 rounded-xl bg-primary/5 p-3 text-[11px] text-primary/80">
               <ShieldCheck className="h-4 w-4 shrink-0" />
-              <p>Privacy Shield Active: Your stake and position remain fully encrypted until market resolution.</p>
+              <p>
+                Privacy shield active. Your stake and position remain encrypted through
+                submission and settlement.
+              </p>
             </div>
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <label className="font-mono text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
                 Stake Amount ({collateralSymbol})
               </label>
-              <span className="text-[10px] font-bold text-muted-foreground">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                 Market #{marketId}
               </span>
             </div>
             <div className="relative">
               <input
-                className="h-16 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-6 text-2xl font-black text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+                className="h-16 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-6 font-mono text-2xl font-semibold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
                 onChange={(event) => setAmount(event.target.value)}
                 value={amount}
                 placeholder="0.00"
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
-                <button className="rounded-lg bg-white/5 px-2 py-1 text-[10px] font-bold hover:bg-white/10">MAX</button>
+                <button
+                  className="rounded-lg bg-white/5 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] hover:bg-white/10"
+                  type="button"
+                >
+                  Max
+                </button>
               </div>
             </div>
           </div>
@@ -119,12 +129,28 @@ export default function BetModal({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="rounded-2xl border border-primary/20 bg-primary/5 p-6 flex items-center gap-4"
+              className="rounded-2xl border border-primary/20 bg-primary/5 p-6"
             >
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-foreground">Encrypting position...</p>
-                <p className="text-xs text-muted-foreground">Fhenix Confidential Runtime processing your stake.</p>
+              <div className="flex items-center gap-4">
+                <div className="flex gap-1.5">
+                  <span className="h-9 w-2 animate-pulse rounded-full bg-primary/30 [animation-delay:0ms]" />
+                  <span className="h-9 w-2 animate-pulse rounded-full bg-primary/45 [animation-delay:120ms]" />
+                  <span className="h-9 w-2 animate-pulse rounded-full bg-primary/60 [animation-delay:240ms]" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">Encrypting position...</p>
+                  <p className="text-xs text-muted-foreground">
+                    Fhenix confidential runtime is sealing your stake before submission.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
+                <motion.div
+                  className="h-full rounded-full bg-primary/60"
+                  initial={{ x: '-100%' }}
+                  animate={{ x: '100%' }}
+                  transition={{ repeat: Infinity, duration: 1.6, ease: 'linear' }}
+                />
               </div>
             </motion.div>
           )}
@@ -137,12 +163,18 @@ export default function BetModal({
               className="rounded-2xl border border-primary/20 bg-primary/5 p-6 flex items-center gap-4"
             >
               <div className="flex h-12 flex-1 items-center px-4 rounded-2xl border border-white/10 bg-white/[0.03]">
-                <span className="flex-1 text-sm font-bold text-foreground">{amount || '0.00'}</span>
-                <span className="text-xs font-black text-primary">{collateralSymbol}</span>
+                <span className="flex-1 font-mono text-sm font-semibold text-foreground">
+                  {amount || '0.00'}
+                </span>
+                <span className="font-mono text-xs uppercase tracking-[0.18em] text-primary">
+                  {collateralSymbol}
+                </span>
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-foreground">Confirm in Wallet</p>
-                <p className="text-xs text-muted-foreground">Please sign the transaction to submit your encrypted bet.</p>
+                <p className="text-sm font-semibold text-foreground">Confirm in Wallet</p>
+                <p className="text-xs text-muted-foreground">
+                  Review the encrypted order and sign the transaction to continue.
+                </p>
               </div>
             </motion.div>
           )}
@@ -158,8 +190,8 @@ export default function BetModal({
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-bold text-foreground">Bet Placed Privately</p>
-                  <p className="text-xs text-muted-foreground text-primary/80">
+                  <p className="text-sm font-semibold text-foreground">Bet Placed Privately</p>
+                  <p className="font-mono text-xs text-primary/80">
                     Tx: {truncateAddress(data.txHash ?? collateralToken)}
                   </p>
                 </div>
@@ -169,7 +201,7 @@ export default function BetModal({
         </AnimatePresence>
 
         {isError && error && (
-          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-xs font-bold text-destructive">
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-xs font-medium text-destructive">
             {error.message}
           </div>
         )}

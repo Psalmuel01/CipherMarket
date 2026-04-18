@@ -179,7 +179,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       pools: buildPools(outcomes, poolTotals, collateral.symbol),
       claimableAmount: (claimableQuery.data as bigint | undefined) ?? 0n,
     } satisfies MarketDetail;
-  }, [chainId, claimableQuery.data, marketView, poolQueries.data, isConnected]);
+  }, [chainId, claimableQuery.data, marketView, poolQueries.data]);
 
   const error =
     validMarketId === null

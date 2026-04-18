@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, PlusSquare, ShieldAlert, Cpu, Activity, Ticket } from 'lucide-react';
+import { LayoutGrid, PlusSquare, ShieldAlert, Activity, Ticket } from 'lucide-react';
 import clsx from 'clsx';
 import useAppStore from '@/store/useAppStore';
 
@@ -32,20 +32,23 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
       <div className="flex h-full flex-col justify-between p-6">
         <div className="space-y-10">
           <div className="flex items-center gap-3 px-2">
-            {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary"> */}
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <rect width="28" height="28" rx="8" fill="rgba(79,255,212,0.1)" />
-                <path d="M8 14h4m4 0h4M14 8v4m0 4v4" stroke="#4FFFD4" strokeWidth="1.5" strokeLinecap="round" />
-                <rect x="11" y="11" width="6" height="6" rx="1" stroke="#4FFFD4" strokeWidth="1" />
-              </svg>
-            {/* </div> */}
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect width="28" height="28" rx="8" fill="rgba(199,80,72,0.12)" />
+              <path
+                d="M8 14h4m4 0h4M14 8v4m0 4v4"
+                stroke="#D66A61"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <rect x="11" y="11" width="6" height="6" rx="1" stroke="#D66A61" strokeWidth="1" />
+            </svg>
             <div>
-              <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
+              <Link href="/" className="text-lg font-semibold tracking-tight text-foreground">
                 CipherMarket
               </Link>
-              {/* <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/80">
-                Confidential Rails
-              </p> */}
+              <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground/70">
+                Private Market Desk
+              </p>
             </div>
           </div>
 
@@ -59,7 +62,7 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
                   className={clsx(
                     'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'bg-primary/10 text-primary shadow-[0_0_20px_rgba(79,255,212,0.15)]'
+                      ? 'bg-primary/10 text-primary shadow-[0_0_24px_rgba(170,58,49,0.16)]'
                       : 'text-muted-foreground hover:bg-white/[0.03] hover:text-foreground',
                   )}
                   href={item.href}
@@ -81,14 +84,14 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
           <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
                 Network Status
               </p>
             </div>
-            <p className="text-sm font-medium text-foreground">Sepolia + FHE Rails</p>
-            <div className="mt-4 flex items-center gap-2 text-[11px] text-muted-foreground/80 leading-relaxed">
+            <p className="font-mono text-sm text-foreground">Sepolia / FHE active</p>
+            <div className="mt-4 flex items-center gap-2 text-[11px] leading-relaxed text-muted-foreground/80">
               <Activity className="h-3 w-3 shrink-0" />
-              <span>Confidentiality powered by FHE on Ethereum Sepolia.</span>
+              <span>Encrypted execution with on-chain resolution discipline.</span>
             </div>
           </div>
         </div>
@@ -96,4 +99,3 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
     </aside>
   );
 }
-
