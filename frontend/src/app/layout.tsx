@@ -1,15 +1,9 @@
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { Toaster } from 'sonner';
-import LayoutWrapper from '@/components/layout/LayoutWrapper';
 import '@/app/globals.css';
-
-const Providers = dynamic(() => import('@/app/providers'), {
-  ssr: false,
-});
 
 export const metadata: Metadata = {
   title: 'CipherMarket',
@@ -28,22 +22,18 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="overflow-x-hidden bg-background font-[family-name:var(--font-geist-sans)] text-foreground antialiased">
-        <Providers>
-          <LayoutWrapper>
-            {children}
-          </LayoutWrapper>
-          <Toaster
-            position="bottom-right"
-            theme="dark"
-            toastOptions={{
-              style: {
-                background: '#11151d',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: '#EAECEF',
-              },
-            }}
-          />
-        </Providers>
+        {children}
+        <Toaster
+          position="bottom-right"
+          theme="dark"
+          toastOptions={{
+            style: {
+              background: '#11151d',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: '#EAECEF',
+            },
+          }}
+        />
       </body>
     </html>
   );
