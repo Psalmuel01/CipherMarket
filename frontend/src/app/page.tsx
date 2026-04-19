@@ -137,6 +137,7 @@ function TerminalMockup(): JSX.Element {
     );
     return () => timers.forEach(clearTimeout);
   }, []);
+
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-[#080C14] overflow-hidden shadow-2xl">
       {/* Window chrome */}
@@ -447,7 +448,7 @@ export default function LandingPage(): JSX.Element {
         <div className="mx-auto max-w-6xl px-6 lg:px-10 py-16 lg:py-24">
           <p className="font-mono text-[9px] uppercase tracking-[0.26em] text-[#e8533a] mb-4">Security model</p>
           <h2 className="font-serif italic text-[36px] lg:text-[48px] tracking-[-0.03em] text-[#e8e4df] leading-[1.05] mb-4">
-            What even the contract<br />owner can't see.
+            What even the contract<br />owner cant see.
           </h2>
           <p className="text-[15px] leading-[1.85] text-white/40 font-light max-w-[580px] mb-14">
             FHE ciphertexts are governed by an on-chain ACL. No address — not even the deployer — can decrypt your position without an explicit permit signed by your wallet. Access control is enforced at the cryptographic layer, not by trust.
@@ -521,7 +522,7 @@ export default function LandingPage(): JSX.Element {
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.26em] text-[#e8533a] mb-4">Live Markets</p>
               <h2 className="font-serif italic text-[36px] lg:text-[48px] tracking-[-0.03em] text-[#e8e4df] leading-[1.05]">
-                Everything's encrypted.<br />
+                Everything is encrypted.<br />
                 <span className="text-white/30 font-sans font-light not-italic">Even the stakes.</span>
               </h2>
             </div>
