@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: 'Markets', icon: LayoutGrid },
   { href: '/my-bets', label: 'My Bets', icon: Ticket },
   { href: '/markets/create', label: 'Create Market', icon: PlusSquare },
-  { href: '/oracle', label: 'Oracle Desk', icon: ShieldAlert },
+  { href: '/oracle', label: 'Oracle', icon: ShieldAlert },
 ];
 
 export interface SidebarProps {
@@ -47,7 +47,7 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
                 CipherMarket
               </Link>
               <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground/70">
-                Private Market Desk
+                Private Market
               </p>
             </div>
           </div>

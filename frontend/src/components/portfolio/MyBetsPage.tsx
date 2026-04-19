@@ -73,7 +73,7 @@ export default function MyBetsPage(): JSX.Element {
                 </div>
               </div>
               <p className="mx-auto max-w-xs text-muted-foreground">
-                No live positions yet. Open the market desk when you&apos;re ready to put on a view.
+                No live positions yet. Open the market when you&apos;re ready to put on a view.
               </p>
               <Link href="/dashboard">
                 <Button variant="outline" className="mt-4">
