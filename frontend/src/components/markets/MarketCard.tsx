@@ -28,6 +28,9 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
             <h2 className="text-xl font-semibold leading-tight tracking-tight text-foreground transition-colors group-hover:text-primary">
               {market.title}
             </h2>
+            <p className="max-w-md text-sm leading-6 text-muted-foreground">
+              {market.description}
+            </p>
           </div>
           <LifecycleBadge status={market.status} />
         </div>
@@ -40,7 +43,7 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             <Users className="h-3 w-3" />
-            <span>Liquidity</span>
+            <span>Collateral</span>
           </div>
           <p className="font-mono text-2xl font-semibold tracking-tight text-foreground">
             {formatTokenAmount(
@@ -62,21 +65,19 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
       </div>
 
       <div className="mt-8 flex items-end justify-between gap-4">
-        <div className="flex -space-x-2">
-          {market.outcomes.slice(0, 3).map((outcome) => (
-            <div
-              key={outcome.id}
-              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-card text-[10px] font-bold text-foreground ring-1 ring-white/5"
-              title={`${outcome.label}: ${outcome.impliedShare}%`}
-            >
-              {outcome.label[0]}
+        <div className="space-y-2">
+          {market.outcomes.slice(0, 2).map((outcome) => (
+            <div key={outcome.id} className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="min-w-20 text-foreground">{outcome.label}</span>
+              <div className="h-2 w-24 overflow-hidden rounded-full bg-white/5">
+                <div
+                  className="h-full bg-primary/70"
+                  style={{ width: `${Math.max(outcome.impliedShare, 4)}%` }}
+                />
+              </div>
+              <span className="font-mono text-foreground">{outcome.impliedShare}%</span>
             </div>
           ))}
-          {market.outcomeCount > 3 && (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-bold text-muted-foreground ring-1 ring-white/5">
-              +{market.outcomeCount - 3}
-            </div>
-          )}
         </div>
         <Link
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-all hover:scale-105 active:scale-95"

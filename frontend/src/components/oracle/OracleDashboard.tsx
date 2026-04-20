@@ -8,6 +8,7 @@ import ProposeOutcomeForm from '@/components/oracle/ProposeOutcomeForm';
 import clsx from 'clsx';
 import useRegisterOracle from '@/hooks/useRegisterOracle';
 import useMarkets from '@/hooks/useMarkets';
+import Link from 'next/link';
 
 export interface OracleDashboardProps {
   className?: string;
@@ -83,9 +84,12 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                 <div className="rounded-2xl bg-white/[0.03] p-6 space-y-3">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                     <Target className="h-3 w-3 text-primary" />
-                    <span>Assignments</span>
+                    <span>Proposal Locks</span>
                   </div>
-                  <p className="text-2xl font-black text-foreground">{data.activeAssignments}</p>
+                  <p className="text-2xl font-black text-foreground">{data.proposalLocks}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Active assignments: {data.activeAssignments}
+                  </p>
                 </div>
               </div>
             ) : null}
@@ -110,6 +114,12 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
             </div>
 
             <div className="space-y-3">
+              <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-4 text-xs leading-relaxed text-muted-foreground">
+                Becoming an oracle is straightforward: stake at least the registry minimum, wait
+                for markets to expire, then propose the outcome backed by the listed source. If a
+                disputed proposal is overturned, your stake can be slashed.
+              </div>
+
               {pendingMarkets.map((market) => (
                 <div
                   key={market.marketId}
@@ -118,11 +128,14 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                   <div className="space-y-1">
                     <p className="text-sm font-bold text-foreground">Market #{market.marketId}</p>
                     <p className="text-xs text-muted-foreground">{market.title}</p>
+                    <p className="text-[11px] text-muted-foreground/80">{market.oracleSource}</p>
                   </div>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    {market.status === 'EXPIRED' ? 'Propose' : 'Review'}
-                    <ChevronRight className="h-3 w-3" />
-                  </Button>
+                  <Link href={`/markets/${market.marketId}`}>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      {market.status === 'EXPIRED' ? 'Propose' : 'Review'}
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </Link>
                 </div>
               ))}
 

@@ -15,27 +15,46 @@ export interface MarketOutcome {
   label: string;
   impliedShare: number;
   outcomeIndex: number;
+  probability: bigint;
+  reserve: bigint;
+  price: bigint;
+  encryptedHandle?: bigint;
+  revealedShares: bigint | null;
 }
 
 export interface PoolSnapshot {
   outcomeId: string;
   label: string;
-  liquidity: bigint;
+  reserve: bigint;
   percentage: number;
   collateralSymbol: string;
+}
+
+export interface QuotePreview {
+  outcomeIndex: number;
+  side: 'BUY' | 'SELL';
+  collateralAmount: bigint;
+  sharesAmount: bigint;
+  feeAmount: bigint;
+  averagePrice: bigint;
+  slippageBps: number;
+  postTradeProbabilities: bigint[];
 }
 
 export interface MarketSummary {
   marketId: number;
   title: string;
+  description: string;
   category: string;
+  oracleSource: string;
   type: MarketType;
   totalLiquidity: bigint;
+  totalCollateralCollected: bigint;
   outcomeCount: number;
   expiryTime: string;
   status: MarketLifecycle;
   outcomes: MarketOutcome[];
-  minimumStake: bigint;
+  minimumTrade: bigint;
   collateralToken: Address;
   collateralSymbol: string;
 }
@@ -47,11 +66,24 @@ export interface MarketDetail extends MarketSummary {
   proposedBy: Address | null;
   proposedOutcomeIndex: number | null;
   finalOutcomeIndex: number | null;
+  reserves: bigint[];
+  probabilities: bigint[];
   pools: PoolSnapshot[];
-  claimableAmount: bigint;
+  tradeFeeBps: number;
+  protocolFeeShareBps: number;
+  seedLiquidity: bigint;
+  reservePerOutcome: bigint;
+  disputeStakeTotal: bigint;
+  remainingWinningShares: bigint;
+  accruedProtocolFees: bigint;
+  accruedLpFees: bigint;
+  protocolDisputeFees: bigint;
+  disputeRefundsEnabled: boolean;
+  revealedWinningShares: bigint | null;
+  canRevealPositions: boolean;
 }
 
-export interface BetDraft {
+export interface TradeDraft {
   marketId: number;
   marketTitle: string;
   outcomeId: string;
@@ -59,16 +91,20 @@ export interface BetDraft {
   collateralToken: Address;
   collateralSymbol: string;
   collateralDecimals: number;
+  minAmountOut?: bigint;
 }
 
 export interface CreateMarketDraft {
   title: string;
+  description: string;
   category: string;
+  oracleSource: string;
   marketType: MarketType;
   outcomes: string[];
   expiryTime: string;
   collateralToken: Address;
-  minimumStake: string;
+  minimumTrade: string;
+  seedLiquidity: string;
 }
 
 export interface OracleProfile {
@@ -78,4 +114,5 @@ export interface OracleProfile {
   disputeExposure: string;
   activeAssignments: number;
   minimumStakeFormatted: string;
+  proposalLocks: number;
 }

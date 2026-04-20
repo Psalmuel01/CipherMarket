@@ -56,4 +56,25 @@ describe('OracleRegistry', () => {
       registry.connect(stranger).slash(oracle.address, ethers.parseEther('0.1'), recipient.address),
     ).to.be.revertedWith('Caller is not authorized to slash');
   });
+
+  it('locks proposed oracles from deregistering and only allows prediction market once', async () => {
+    const { owner, oracle, registry } = await deployFixture();
+
+    await registry.setPredictionMarket(owner.address);
+    await registry.connect(oracle).register({ value: ethers.parseEther('1') });
+    await registry.lockOracle(oracle.address);
+
+    await expect(registry.connect(oracle).deregister()).to.be.revertedWith(
+      'Oracle has active proposal lock',
+    );
+    await expect(registry.setPredictionMarket(oracle.address)).to.be.revertedWith(
+      'Prediction market already set',
+    );
+
+    await registry.unlockOracle(oracle.address);
+    await expect(() => registry.connect(oracle).deregister()).to.changeEtherBalance(
+      oracle,
+      ethers.parseEther('1'),
+    );
+  });
 });

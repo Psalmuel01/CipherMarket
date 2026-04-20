@@ -20,16 +20,28 @@ interface PredictionMarketView {
   createdAt: bigint;
   expiryTime: bigint;
   disputeWindowEndsAt: bigint;
-  minimumStake: bigint;
-  totalLiquidity: bigint;
+  minimumTrade: bigint;
+  seedLiquidity: bigint;
+  totalCollateralCollected: bigint;
   disputeStakeTotal: bigint;
+  remainingWinningShares: bigint;
+  accruedProtocolFees: bigint;
+  accruedLpFees: bigint;
+  protocolDisputeFees: bigint;
+  tradeFeeBps: number;
+  protocolFeeShareBps: number;
   outcomeCount: number;
   proposedOutcome: number;
   finalOutcome: number;
   marketType: number;
   state: number;
+  lpClaimed: boolean;
+  protocolFeesClaimed: boolean;
+  disputeRefundsEnabled: boolean;
   title: string;
+  description: string;
   category: string;
+  oracleSource: string;
   outcomes: string[];
 }
 
@@ -40,56 +52,47 @@ export interface UseMarketDetailsResult {
   error: Error | null;
 }
 
-function buildOutcomes(labels: string[], poolTotals: bigint[], totalLiquidity: bigint): MarketOutcome[] {
+function buildOutcomes(
+  labels: string[],
+  probabilities: bigint[],
+  reserves: bigint[],
+): MarketOutcome[] {
   return labels.map((label, outcomeIndex) => {
-    const liquidity = poolTotals[outcomeIndex] ?? 0n;
-    const impliedShare =
-      totalLiquidity > 0n ? Number((liquidity * 100n) / totalLiquidity) : Math.round(100 / labels.length);
+    const probability = probabilities[outcomeIndex] ?? 0n;
 
     return {
       id: String(outcomeIndex),
       label,
-      impliedShare: Math.max(impliedShare, 1),
+      impliedShare: Number(probability / 10_000_000_000_000_000n),
       outcomeIndex,
+      probability,
+      reserve: reserves[outcomeIndex] ?? 0n,
+      price: probability,
+      revealedShares: null,
     };
   });
 }
 
-function buildPools(
-  outcomes: MarketOutcome[],
-  poolTotals: bigint[],
-  collateralSymbol: string,
-): PoolSnapshot[] {
-  const totalLiquidity = poolTotals.reduce((sum, amount) => sum + amount, 0n);
-
-  return outcomes.map((outcome) => {
-    const liquidity = poolTotals[outcome.outcomeIndex] ?? 0n;
-
-    return {
-      outcomeId: outcome.id,
-      label: outcome.label,
-      liquidity,
-      percentage: totalLiquidity > 0n ? Number((liquidity * 100n) / totalLiquidity) : outcome.impliedShare,
-      collateralSymbol,
-    };
-  });
+function buildPools(outcomes: MarketOutcome[], collateralSymbol: string): PoolSnapshot[] {
+  return outcomes.map((outcome) => ({
+    outcomeId: outcome.id,
+    label: outcome.label,
+    reserve: outcome.reserve,
+    percentage: outcome.impliedShare,
+    collateralSymbol,
+  }));
 }
 
-/**
- * Reads the singleton contract state needed to render a single market detail page.
- * @param marketIdParam The route segment currently representing the market id.
- * @returns Market detail data plus loading and error helpers.
- */
 export default function useMarketDetails(marketIdParam: string): UseMarketDetailsResult {
   const chainId = useChainId();
-  const { address, isConnected } = useAccount();
+  const { address } = useAccount();
   const addresses = getContractAddresses(chainId);
   const predictionMarketAddress = addresses?.predictionMarket ?? undefined;
   const marketId = Number.parseInt(marketIdParam, 10);
   const validMarketId = Number.isInteger(marketId) && marketId >= 0 ? BigInt(marketId) : null;
 
   const marketQuery = useReadContract({
-    address: predictionMarketAddress ?? undefined,
+    address: predictionMarketAddress,
     abi: PREDICTION_MARKET_ABI,
     functionName: 'getMarket',
     args: validMarketId !== null ? [validMarketId] : undefined,
@@ -98,69 +101,62 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
     },
   });
 
-  const marketView = marketQuery.data as PredictionMarketView | undefined;
-  const outcomeIndices = useMemo(
-    () =>
-      marketView
-        ? Array.from({ length: Number(marketView.outcomeCount) }, (_, index) => BigInt(index))
-        : [],
-    [marketView],
-  );
-
-  const poolQueries = useReadContracts({
+  const detailReads = useReadContracts({
     contracts:
       predictionMarketAddress && validMarketId !== null
-        ? outcomeIndices.map((outcomeIndex) => ({
-          address: predictionMarketAddress,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'getOutcomeLiquidity',
-          args: [validMarketId, Number(outcomeIndex)],
-        }))
+        ? [
+            {
+              address: predictionMarketAddress,
+              abi: PREDICTION_MARKET_ABI,
+              functionName: 'getOutcomeReserves',
+              args: [validMarketId],
+            },
+            {
+              address: predictionMarketAddress,
+              abi: PREDICTION_MARKET_ABI,
+              functionName: 'getMarketProbabilities',
+              args: [validMarketId],
+            },
+          ]
         : [],
     query: {
-      enabled:
-        Boolean(predictionMarketAddress) &&
-        validMarketId !== null &&
-        outcomeIndices.length > 0,
-    },
-  });
-
-  const claimableQuery = useReadContract({
-    address: predictionMarketAddress ?? undefined,
-    abi: PREDICTION_MARKET_ABI,
-    functionName: 'getClaimableAmount',
-    args: validMarketId !== null && address ? [validMarketId, address] : undefined,
-    query: {
-      enabled:
-        Boolean(predictionMarketAddress) &&
-        validMarketId !== null &&
-        Boolean(address) &&
-        isConnected,
+      enabled: Boolean(predictionMarketAddress) && validMarketId !== null,
     },
   });
 
   const data = useMemo(() => {
+    const marketView = marketQuery.data as PredictionMarketView | undefined;
+
     if (!marketView) {
       return null;
     }
 
+    const reserveResult = detailReads.data?.[0];
+    const probabilityResult = detailReads.data?.[1];
+    const reserves =
+      reserveResult?.status === 'success' && reserveResult.result ? (reserveResult.result as bigint[]) : [];
+    const probabilities =
+      probabilityResult?.status === 'success' && probabilityResult.result
+        ? (probabilityResult.result as bigint[])
+        : [];
+
     const collateral = getCollateralMetadata(marketView.collateralToken, chainId);
-    const poolTotals = (poolQueries.data ?? []).map((item) =>
-      item.status === 'success' && item.result ? (item.result as bigint) : 0n,
-    );
-    const outcomes = buildOutcomes(marketView.outcomes, poolTotals, marketView.totalLiquidity);
+    const outcomes = buildOutcomes(marketView.outcomes, probabilities, reserves);
 
     return {
       marketId: Number(marketView.marketId),
       title: marketView.title,
+      description: marketView.description,
       category: marketView.category,
+      oracleSource: marketView.oracleSource,
       type: MARKET_TYPE_LABELS[marketView.marketType] ?? 'BINARY',
-      totalLiquidity: marketView.totalLiquidity,
+      totalLiquidity: marketView.totalCollateralCollected,
+      totalCollateralCollected: marketView.totalCollateralCollected,
       outcomeCount: Number(marketView.outcomeCount),
       expiryTime: new Date(Number(marketView.expiryTime) * 1000).toISOString(),
       status: MARKET_STATE_LABELS[marketView.state] ?? 'ACTIVE',
       outcomes,
-      minimumStake: marketView.minimumStake,
+      minimumTrade: marketView.minimumTrade,
       collateralToken: marketView.collateralToken,
       collateralSymbol: collateral.symbol,
       createdAt: new Date(Number(marketView.createdAt) * 1000).toISOString(),
@@ -176,21 +172,34 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       proposedOutcomeIndex:
         marketView.proposedOutcome === 255 ? null : Number(marketView.proposedOutcome),
       finalOutcomeIndex: marketView.finalOutcome === 255 ? null : Number(marketView.finalOutcome),
-      pools: buildPools(outcomes, poolTotals, collateral.symbol),
-      claimableAmount: (claimableQuery.data as bigint | undefined) ?? 0n,
+      reserves,
+      probabilities,
+      pools: buildPools(outcomes, collateral.symbol),
+      tradeFeeBps: Number(marketView.tradeFeeBps),
+      protocolFeeShareBps: Number(marketView.protocolFeeShareBps),
+      seedLiquidity: marketView.seedLiquidity,
+      reservePerOutcome: reserves[0] ?? 0n,
+      disputeStakeTotal: marketView.disputeStakeTotal,
+      remainingWinningShares: marketView.remainingWinningShares,
+      accruedProtocolFees: marketView.accruedProtocolFees,
+      accruedLpFees: marketView.accruedLpFees,
+      protocolDisputeFees: marketView.protocolDisputeFees,
+      disputeRefundsEnabled: marketView.disputeRefundsEnabled,
+      revealedWinningShares: null,
+      canRevealPositions: Boolean(address),
     } satisfies MarketDetail;
-  }, [chainId, claimableQuery.data, marketView, poolQueries.data]);
+  }, [address, chainId, detailReads.data, marketQuery.data]);
 
   const error =
     validMarketId === null
       ? new Error('The market id in this route is invalid.')
       : !predictionMarketAddress
         ? new Error('PredictionMarket is not configured for the current chain.')
-        : marketQuery.error || poolQueries.error || claimableQuery.error || null;
+        : marketQuery.error || detailReads.error || null;
 
   return {
     data,
-    isLoading: marketQuery.isLoading || poolQueries.isLoading || claimableQuery.isLoading,
+    isLoading: marketQuery.isLoading || detailReads.isLoading,
     isError: Boolean(error),
     error,
   };

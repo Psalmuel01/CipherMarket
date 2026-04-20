@@ -1,12 +1,12 @@
 import type { Abi, Address } from 'viem';
+import { erc20Abi } from 'viem';
 import OracleRegistryArtifact from './abi/OracleRegistry.json';
 import PredictionMarketArtifact from './abi/PredictionMarket.json';
-import MockUSDCArtifact from './abi/MockUSDC.json';
 
 export interface ChainContractAddresses {
   oracleRegistry: Address | null;
   predictionMarket: Address | null;
-  mockUsdc: Address | null;
+  usdc: Address | null;
 }
 
 export const SEPOLIA_CHAIN_ID = 11155111;
@@ -18,13 +18,13 @@ export const CONTRACT_ADDRESSES: Record<number, ChainContractAddresses> = {
   [SEPOLIA_CHAIN_ID]: {
     oracleRegistry: (process.env.NEXT_PUBLIC_SEPOLIA_ORACLE_REGISTRY as Address) ?? null,
     predictionMarket: (process.env.NEXT_PUBLIC_SEPOLIA_PREDICTION_MARKET as Address) ?? null,
-    mockUsdc: (process.env.NEXT_PUBLIC_SEPOLIA_MOCK_USDC as Address) ?? null,
+    usdc: (process.env.NEXT_PUBLIC_SEPOLIA_USDC_ADDRESS as Address) ?? null,
   },
 };
 
 export const ORACLE_REGISTRY_ABI = OracleRegistryArtifact.abi as Abi;
 export const PREDICTION_MARKET_ABI = PredictionMarketArtifact.abi as Abi;
-export const MOCK_USDC_ABI = MockUSDCArtifact.abi as Abi;
+export const ERC20_ABI = erc20Abi as Abi;
 
 export const MARKET_TYPE_LABELS = ['BINARY', 'CATEGORICAL'] as const;
 export const MARKET_STATE_LABELS = [
@@ -74,7 +74,7 @@ export function getCollateralMetadata(
     };
   }
 
-  if (addresses?.mockUsdc && collateralToken.toLowerCase() === addresses.mockUsdc.toLowerCase()) {
+  if (addresses?.usdc && collateralToken.toLowerCase() === addresses.usdc.toLowerCase()) {
     return {
       symbol: 'USDC',
       decimals: 6,

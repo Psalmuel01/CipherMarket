@@ -21,16 +21,26 @@ interface PredictionMarketView {
   createdAt: bigint;
   expiryTime: bigint;
   disputeWindowEndsAt: bigint;
-  minimumStake: bigint;
-  totalLiquidity: bigint;
+  minimumTrade: bigint;
+  seedLiquidity: bigint;
+  totalCollateralCollected: bigint;
   disputeStakeTotal: bigint;
+  remainingWinningShares: bigint;
+  accruedProtocolFees: bigint;
+  accruedLpFees: bigint;
+  tradeFeeBps: number;
+  protocolFeeShareBps: number;
   outcomeCount: number;
   proposedOutcome: number;
   finalOutcome: number;
   marketType: number;
   state: number;
+  lpClaimed: boolean;
+  protocolFeesClaimed: boolean;
   title: string;
+  description: string;
   category: string;
+  oracleSource: string;
   outcomes: string[];
 }
 
@@ -42,74 +52,98 @@ export interface UseMarketsResult {
   availableStatuses: Array<MarketLifecycle | 'ALL'>;
 }
 
-function mapOutcomeLabels(labels: string[]): MarketOutcome[] {
-  const total = labels.length || 1;
+function mapMarketOutcomes(
+  labels: string[],
+  probabilities: bigint[],
+  reserves: bigint[],
+): MarketOutcome[] {
+  return labels.map((label, outcomeIndex) => {
+    const probability = probabilities[outcomeIndex] ?? 0n;
+    const reserve = reserves[outcomeIndex] ?? 0n;
 
-  return labels.map((label, outcomeIndex) => ({
-    id: String(outcomeIndex),
-    label,
-    impliedShare: Math.max(Math.round(100 / total), 1),
-    outcomeIndex,
-  }));
+    return {
+      id: String(outcomeIndex),
+      label,
+      impliedShare: Number(probability / 10_000_000_000_000_000n),
+      outcomeIndex,
+      probability,
+      reserve,
+      price: probability,
+      revealedShares: null,
+    };
+  });
 }
 
-function mapMarketSummary(view: PredictionMarketView, chainId?: number): MarketSummary {
+function mapMarketSummary(
+  view: PredictionMarketView,
+  probabilities: bigint[],
+  reserves: bigint[],
+  chainId?: number,
+): MarketSummary {
   const collateral = getCollateralMetadata(view.collateralToken, chainId);
 
   return {
     marketId: Number(view.marketId),
     title: view.title,
+    description: view.description,
     category: view.category,
+    oracleSource: view.oracleSource,
     type: MARKET_TYPE_LABELS[view.marketType] ?? 'BINARY',
-    totalLiquidity: view.totalLiquidity,
+    totalLiquidity: view.totalCollateralCollected,
+    totalCollateralCollected: view.totalCollateralCollected,
     outcomeCount: Number(view.outcomeCount),
     expiryTime: new Date(Number(view.expiryTime) * 1000).toISOString(),
     status: MARKET_STATE_LABELS[view.state] ?? 'ACTIVE',
-    outcomes: mapOutcomeLabels(view.outcomes),
-    minimumStake: view.minimumStake,
+    outcomes: mapMarketOutcomes(view.outcomes, probabilities, reserves),
+    minimumTrade: view.minimumTrade,
     collateralToken: view.collateralToken,
     collateralSymbol: collateral.symbol,
   };
 }
 
-/**
- * Reads the singleton market registry and exposes the list view used throughout the app shell.
- * @returns Market list state, loading, and error helpers.
- */
 export default function useMarkets(): UseMarketsResult {
   const chainId = useChainId();
   const activeStatusFilter = useAppStore((state) => state.activeStatusFilter);
   const deferredFilter = useDeferredValue(activeStatusFilter);
   const addresses = getContractAddresses(chainId);
   const predictionMarketAddress = addresses?.predictionMarket ?? undefined;
-  const isLocalMarketConfigured = Boolean(predictionMarketAddress);
 
   const nextMarketIdQuery = useReadContract({
     address: predictionMarketAddress,
     abi: PREDICTION_MARKET_ABI,
     functionName: 'nextMarketId',
     query: {
-      enabled: isLocalMarketConfigured,
+      enabled: Boolean(predictionMarketAddress),
     },
   });
 
   const marketIds = useMemo(() => {
-    if (!isLocalMarketConfigured || nextMarketIdQuery.error) {
-      return [];
-    }
-
     const count = Number(nextMarketIdQuery.data ?? 0n);
     return Array.from({ length: count }, (_, index) => BigInt(index)).reverse();
-  }, [isLocalMarketConfigured, nextMarketIdQuery.data, nextMarketIdQuery.error]);
+  }, [nextMarketIdQuery.data]);
 
   const marketReads = useReadContracts({
     contracts: predictionMarketAddress
-      ? marketIds.map((marketId) => ({
-        address: predictionMarketAddress,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'getMarket',
-        args: [marketId],
-      }))
+      ? marketIds.flatMap((marketId) => [
+          {
+            address: predictionMarketAddress,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'getMarket',
+            args: [marketId],
+          },
+          {
+            address: predictionMarketAddress,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'getMarketProbabilities',
+            args: [marketId],
+          },
+          {
+            address: predictionMarketAddress,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'getOutcomeReserves',
+            args: [marketId],
+          },
+        ])
       : [],
     query: {
       enabled: Boolean(predictionMarketAddress) && marketIds.length > 0,
@@ -118,29 +152,49 @@ export default function useMarkets(): UseMarketsResult {
 
   const data = useMemo(() => {
     const items = marketReads.data ?? [];
+    const mappedMarkets: MarketSummary[] = [];
 
-    const mappedMarkets = items
-      .map((item) => {
-        if (item.status !== 'success' || !item.result) {
-          return null;
-        }
+    for (let index = 0; index < items.length; index += 3) {
+      const marketResult = items[index];
+      const probabilityResult = items[index + 1];
+      const reserveResult = items[index + 2];
 
-        return mapMarketSummary(item.result as unknown as PredictionMarketView, chainId);
-      })
-      .filter((market): market is MarketSummary => market !== null);
+      if (
+        marketResult?.status !== 'success' ||
+        probabilityResult?.status !== 'success' ||
+        reserveResult?.status !== 'success' ||
+        !marketResult.result ||
+        !probabilityResult.result ||
+        !reserveResult.result
+      ) {
+        continue;
+      }
+
+      mappedMarkets.push(
+        mapMarketSummary(
+          marketResult.result as unknown as PredictionMarketView,
+          probabilityResult.result as bigint[],
+          reserveResult.result as bigint[],
+          chainId,
+        ),
+      );
+    }
 
     return deferredFilter === 'ALL'
       ? mappedMarkets
       : mappedMarkets.filter((market) => market.status === deferredFilter);
   }, [chainId, deferredFilter, marketReads.data]);
 
-  const hasReadError = Boolean(nextMarketIdQuery.error || marketReads.error);
+  const error =
+    !predictionMarketAddress
+      ? new Error('PredictionMarket is not configured for the current chain.')
+      : nextMarketIdQuery.error || marketReads.error || null;
 
   return {
-    data: hasReadError ? [] : data,
+    data: error ? [] : data,
     isLoading: nextMarketIdQuery.isLoading || marketReads.isLoading,
-    isError: false,
-    error: null,
+    isError: Boolean(error),
+    error,
     availableStatuses: ['ALL', 'ACTIVE', 'EXPIRED', 'PROPOSED', 'DISPUTED', 'FINALIZED'],
   };
 }

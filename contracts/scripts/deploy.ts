@@ -3,12 +3,11 @@
  *
  * Deploys:
  *   1. OracleRegistry      – manages oracle stake/registration
- *   2. PredictionMarket    – singleton market + FHE bet mirroring
- *   3. MockUSDC            – testnet ERC-20 collateral
+ *   2. PredictionMarket    – singleton FPMM market manager with encrypted user balances
  *
  * Post-deploy wiring:
  *   - OracleRegistry.setPredictionMarket(PredictionMarket)
- *   - PredictionMarket.setAcceptedCollateral(MockUSDC, true)
+ *   - PredictionMarket.setAcceptedCollateral(USDC, true) when configured
  *
  *
  * Usage:
@@ -164,21 +163,23 @@ async function main(): Promise<void> {
     24 * 60 * 60,
   ]);
 
-  // ── 3. MockUSDC ────────────────────────────────────────────────────────────
-  const mockUsdc = await deploy(hre, provider, 'MockUSDC');
-
-  // ── 4. Wire: OracleRegistry → PredictionMarket ─────────────────────────────
+  // ── 3. Wire: OracleRegistry → PredictionMarket ─────────────────────────────
   console.log('\n[Wiring]');
   console.log(`  OracleRegistry.setPredictionMarket(${predictionMarket.address})`);
   const registry = await hre.ethers.getContractAt('OracleRegistry', oracleRegistry.address);
   const setPMTx = await registry.setPredictionMarket(predictionMarket.address);
   await sendConfig(provider, 'setPredictionMarket', setPMTx);
 
-  // ── 5. Wire: PredictionMarket.setAcceptedCollateral(MockUSDC) ───────────────
-  console.log(`\n  PredictionMarket.setAcceptedCollateral(${mockUsdc.address}, true)`);
   const market = await hre.ethers.getContractAt('PredictionMarket', predictionMarket.address);
-  const setColTx = await market.setAcceptedCollateral(mockUsdc.address, true);
-  await sendConfig(provider, 'setAcceptedCollateral', setColTx);
+  const sepoliaUsdcAddress = process.env.SEPOLIA_USDC_ADDRESS;
+
+  if (sepoliaUsdcAddress) {
+    console.log(`\n  PredictionMarket.setAcceptedCollateral(${sepoliaUsdcAddress}, true)`);
+    const setColTx = await market.setAcceptedCollateral(sepoliaUsdcAddress, true);
+    await sendConfig(provider, 'setAcceptedCollateral', setColTx);
+  } else {
+    console.log('\n  No SEPOLIA_USDC_ADDRESS configured. Skipping ERC20 collateral whitelist.');
+  }
 
   // ── Summary ────────────────────────────────────────────────────────────────
   console.log('');
@@ -187,7 +188,7 @@ async function main(): Promise<void> {
   console.log('══════════════════════════════════════');
   console.log('');
 
-  const rows: Deployed[] = [oracleRegistry, predictionMarket, mockUsdc];
+  const rows: Deployed[] = [oracleRegistry, predictionMarket];
 
   for (const c of rows) {
     console.log(`  ${c.name}`);
@@ -209,7 +210,7 @@ async function main(): Promise<void> {
   console.log('');
   console.log('  Next steps:');
   console.log('  1. Copy the addresses above into your frontend .env');
-  console.log('  2. Fund test wallets with testnet ETH and MockUSDC');
+  console.log('  2. Set NEXT_PUBLIC_SEPOLIA_USDC_ADDRESS in frontend/.env.local');
   console.log('  3. Register an oracle via OracleRegistry.register()');
   console.log('══════════════════════════════════════');
 }

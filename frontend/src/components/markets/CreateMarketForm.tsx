@@ -45,17 +45,22 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
   const [marketType, setMarketType] = useState<MarketType>('BINARY');
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [title, setTitle] = useState<string>('Will ETH settle above $4,000 by June 30?');
+  const [description, setDescription] = useState<string>(
+    'Resolves against the official June 30 daily close using a single published settlement source.',
+  );
+  const [oracleSource, setOracleSource] = useState<string>('https://example.com/eth-june-settlement');
   const [outcomes, setOutcomes] = useState<string[]>(['YES', 'NO']);
   const [expiryTime, setExpiryTime] = useState<string>('2026-06-30T16:00');
-  const [minimumStake, setMinimumStake] = useState<string>('0.01');
+  const [minimumTrade, setMinimumTrade] = useState<string>('0.01');
+  const [seedLiquidity, setSeedLiquidity] = useState<string>('250');
   const [collateralToken, setCollateralToken] = useState<Address>(NATIVE_ETH_ADDRESS);
 
   const collateralOptions = useMemo(
     () => [
       { label: 'ETH', value: NATIVE_ETH_ADDRESS },
-      ...(addresses?.mockUsdc ? [{ label: 'USDC', value: addresses.mockUsdc }] : []),
+      ...(addresses?.usdc ? [{ label: 'USDC', value: addresses.usdc }] : []),
     ],
-    [addresses?.mockUsdc],
+    [addresses?.usdc],
   );
 
   const handleAddOutcome = (): void => {
@@ -87,12 +92,15 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
   const handleSubmit = async (): Promise<void> => {
     await createMarket({
       title,
+      description,
       category,
+      oracleSource,
       marketType,
       outcomes,
       expiryTime,
       collateralToken,
-      minimumStake,
+      minimumTrade,
+      seedLiquidity,
     });
   };
 
@@ -111,7 +119,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
         <div className="space-y-2">
           <h2 className="text-3xl font-black tracking-tight text-foreground">Market Created</h2>
           <p className="text-muted-foreground">
-            Your singleton-managed prediction market is now live on-chain.
+            Your singleton-managed share market is now live on-chain.
           </p>
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Tx: {data.txHash.slice(0, 10)}...
@@ -247,6 +255,17 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                 </div>
                 <div className="space-y-3">
                   <label className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+                    Description
+                  </label>
+                  <textarea
+                    className="min-h-28 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+                    onChange={(event) => setDescription(event.target.value)}
+                    placeholder="State the exact settlement condition and any important caveats."
+                    value={description}
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     Category
                   </label>
                   <select
@@ -352,14 +371,40 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
               </div>
               <div className="space-y-3 md:col-span-2">
                 <label className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                  Minimum Stake
+                  Oracle Source
                 </label>
                 <input
                   className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                  onChange={(event) => setMinimumStake(event.target.value)}
-                  placeholder="0.01"
-                  value={minimumStake}
+                  onChange={(event) => setOracleSource(event.target.value)}
+                  placeholder="https://publisher.example/settlement-source"
+                  value={oracleSource}
                 />
+              </div>
+              <div className="space-y-3 md:col-span-2">
+                <label className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+                  Minimum Trade
+                </label>
+                <input
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+                  onChange={(event) => setMinimumTrade(event.target.value)}
+                  placeholder="0.01"
+                  value={minimumTrade}
+                />
+              </div>
+              <div className="space-y-3 md:col-span-2">
+                <label className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+                  Total Seed Liquidity
+                </label>
+                <input
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+                  onChange={(event) => setSeedLiquidity(event.target.value)}
+                  placeholder="250"
+                  value={seedLiquidity}
+                />
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Enter the total deposit. CipherMarket splits it evenly across every outcome to
+                  initialize the pool.
+                </p>
               </div>
             </div>
           ) : null}
@@ -377,6 +422,10 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                     <p className="font-bold text-foreground">{title}</p>
                   </div>
                   <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Oracle Source</p>
+                    <p className="font-bold text-foreground break-all">{oracleSource}</p>
+                  </div>
+                  <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Type & Category</p>
                     <p className="font-bold text-foreground">{marketType} · {category}</p>
                   </div>
@@ -387,9 +436,17 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Minimum Stake</p>
-                    <p className="font-bold text-foreground">{minimumStake}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Minimum Trade</p>
+                    <p className="font-bold text-foreground">{minimumTrade}</p>
                   </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Seed Liquidity</p>
+                    <p className="font-bold text-foreground">{seedLiquidity}</p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</p>
+                  <p className="text-sm text-foreground">{description}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Outcomes</p>

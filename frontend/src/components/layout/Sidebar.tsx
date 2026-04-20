@@ -2,15 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, PlusSquare, ShieldAlert, Activity, Ticket } from 'lucide-react';
+import { LayoutGrid, PlusSquare, ShieldAlert, Activity, Ticket, BookOpenText } from 'lucide-react';
 import clsx from 'clsx';
 import useAppStore from '@/store/useAppStore';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Markets', icon: LayoutGrid },
-  { href: '/my-bets', label: 'My Bets', icon: Ticket },
+  { href: '/my-bets', label: 'My Positions', icon: Ticket },
   { href: '/markets/create', label: 'Create Market', icon: PlusSquare },
   { href: '/oracle', label: 'Oracle', icon: ShieldAlert },
+  { href: '/docs', label: 'Docs', icon: BookOpenText },
 ];
 
 export interface SidebarProps {

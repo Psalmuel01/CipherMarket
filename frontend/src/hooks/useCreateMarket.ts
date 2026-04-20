@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { parseUnits, zeroAddress } from 'viem';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import {
+  ERC20_ABI,
   formatContractError,
   getCollateralMetadata,
   getContractAddresses,
@@ -50,13 +51,34 @@ export default function useCreateMarket(): UseCreateMarketResult {
       }
 
       const collateral = getCollateralMetadata(draft.collateralToken, chainId);
-      const minimumStake = parseUnits(draft.minimumStake || '0', collateral.decimals);
-      if (minimumStake <= 0n) {
-        throw new Error('Minimum stake must be greater than zero.');
+      const minimumTrade = parseUnits(draft.minimumTrade || '0', collateral.decimals);
+      const seedLiquidity = parseUnits(draft.seedLiquidity || '0', collateral.decimals);
+
+      if (minimumTrade <= 0n) {
+        throw new Error('Minimum trade must be greater than zero.');
+      }
+
+      if (seedLiquidity <= 0n) {
+        throw new Error('Seed liquidity must be greater than zero.');
+      }
+
+      if (seedLiquidity % BigInt(draft.outcomes.length) !== 0n) {
+        throw new Error('Seed liquidity must split evenly across all outcomes.');
       }
 
       setError(null);
       setIsLoading(true);
+
+      if (draft.collateralToken !== zeroAddress) {
+        const approvalHash = await writeContractAsync({
+          address: draft.collateralToken,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [predictionMarketAddress, seedLiquidity],
+        });
+
+        await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+      }
 
       const marketType: MarketType = draft.marketType;
       const hash = await writeContractAsync({
@@ -65,19 +87,23 @@ export default function useCreateMarket(): UseCreateMarketResult {
         functionName: 'createMarket',
         args: [
           draft.title,
+          draft.description,
           draft.category,
+          draft.oracleSource,
           marketType === 'BINARY' ? 0 : 1,
           draft.outcomes,
           BigInt(Math.floor(new Date(draft.expiryTime).getTime() / 1000)),
           draft.collateralToken || zeroAddress,
-          minimumStake,
+          minimumTrade,
+          seedLiquidity,
         ],
+        value: draft.collateralToken === zeroAddress ? seedLiquidity : 0n,
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
 
       setData({ txHash: hash });
-      toast.success('Market created on-chain.');
+      toast.success('Market created with seeded liquidity.');
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error

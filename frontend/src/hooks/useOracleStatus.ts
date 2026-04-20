@@ -50,6 +50,16 @@ export default function useOracleStatus(): UseOracleStatusResult {
     },
   });
 
+  const proposalLocksQuery = useReadContract({
+    address: oracleRegistryAddress ?? undefined,
+    abi: ORACLE_REGISTRY_ABI,
+    functionName: 'getOracleProposalLocks',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: Boolean(oracleRegistryAddress) && Boolean(address),
+    },
+  });
+
   const data = useMemo(() => {
     if (!address) {
       return null;
@@ -70,23 +80,30 @@ export default function useOracleStatus(): UseOracleStatusResult {
       disputeExposure: `${markets.filter((market) => market.status === 'DISPUTED').length} disputed`,
       activeAssignments,
       minimumStakeFormatted: `${formatEther((minimumStakeQuery.data as bigint | undefined) ?? 0n)} ETH`,
+      proposalLocks: Number((proposalLocksQuery.data as bigint | undefined) ?? 0n),
     } satisfies OracleProfile;
-  }, [address, markets, minimumStakeQuery.data, profileQuery.data]);
+  }, [address, markets, minimumStakeQuery.data, profileQuery.data, proposalLocksQuery.data]);
 
   const error =
     !address
       ? null
       : !oracleRegistryAddress
         ? new Error('OracleRegistry is not configured for the current chain.')
-        : (profileQuery.error || minimumStakeQuery.error || marketsError
+        : (profileQuery.error || minimumStakeQuery.error || proposalLocksQuery.error || marketsError
             ? new Error(
-                formatContractError(profileQuery.error || minimumStakeQuery.error || marketsError),
+                formatContractError(
+                  profileQuery.error ||
+                    minimumStakeQuery.error ||
+                    proposalLocksQuery.error ||
+                    marketsError,
+                ),
               )
             : null);
 
   return {
     data,
-    isLoading: isMarketsLoading || profileQuery.isLoading || minimumStakeQuery.isLoading,
+    isLoading:
+      isMarketsLoading || profileQuery.isLoading || minimumStakeQuery.isLoading || proposalLocksQuery.isLoading,
     isError: isMarketsError || error !== null,
     error,
   };

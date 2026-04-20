@@ -1,170 +1,109 @@
-# **CipherMarket**
+# CipherMarket
 
-CipherMarket is a privacy-first prediction market built on Fhenix CoFHE.
+CipherMarket is a privacy-native prediction market on Ethereum Sepolia.
 
-It lets users create markets, place bets, and claim winnings without exposing their positions on-chain. The current repo includes a working frontend flow and a functional contract layer, with the UI covering more of the full product experience than the contracts do today.
+It uses a singleton share-market contract with a public FPMM pool and encrypted per-user balances:
 
----
+- public: reserves, probabilities, prices, lifecycle state
+- private: cumulative per-user positions
 
-## **Project Structure**
+That is the repo’s honest v1 privacy boundary.
 
-This repo is split into two main workspaces:
+## Workspaces
 
-- `contracts` — Hardhat + Solidity smart contracts
-- `frontend` — Next.js 14 application
+- `contracts` — Hardhat + Solidity contracts
+- `frontend` — Next.js 14 app
 
----
+## Current Contract Model
 
-## **Current Status**
+- `OracleRegistry.sol`
+  Oracle registration, staking, proposal locks, and slashing
 
-- Core contracts implemented:
-  - `OracleRegistry`
-  - `PredictionMarket` (with tests)
+- `PredictionMarket.sol`
+  Singleton FPMM market manager with:
+  - binary and categorical markets
+  - total seed liquidity split equally across outcomes
+  - ETH or whitelisted ERC20 collateral
+  - optimistic oracle proposal + dispute window
+  - encrypted per-user balances
+  - public pool-level pricing state
 
-- Frontend includes full product flow:
-  - Landing
-  - Dashboard
-  - Market detail
-  - Create market
-  - Oracle panel
-  - My bets
+## Network And Collateral
 
-- ABI files stored locally in `frontend/src/lib/abi/` for portability
-- Supports Sepolia testnet
-- Local deployment flow works end-to-end
+- Primary network: Ethereum Sepolia
+- Real Sepolia USDC: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
+- Mock USDC is no longer part of the frontend/product flow
 
----
-
-## **Tech Stack**
-
-### Smart Contracts
-
-- Solidity `0.8.25`
-- Hardhat `2.22.19`
-- `@fhenixprotocol/cofhe-contracts`
-- `cofhe-hardhat-plugin`
-
-### Frontend
-
-- Next.js `14`
-- React `18`
-- wagmi `v2`
-- viem
-- Tailwind CSS
-- Zustand
-
----
-
-## **Important Notes**
-
-- Solidity is pinned to `0.8.25`. Earlier versions will break the CoFHE setup.
-- Sepolia is the primary network. No local Hardhat network is configured.
-- ABI files are committed for convenience and deployment portability.
-
-To regenerate ABIs:
+Add these to [`frontend/.env.local`](/Users/sam/Desktop/Fhenix/CipherMarket/frontend/.env.local):
 
 ```bash
-mkdir -p frontend/src/lib/abi && \
-for f in contracts/artifacts/contracts/**/*.json; do \
-  jq '{abi: .abi}' "$f" > "frontend/src/lib/abi/$(basename "$f")"; \
-done
+NEXT_PUBLIC_SEPOLIA_ORACLE_REGISTRY=...
+NEXT_PUBLIC_SEPOLIA_PREDICTION_MARKET=...
+NEXT_PUBLIC_SEPOLIA_USDC_ADDRESS=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
 ```
 
-- `@cofhe/react` is included in the provider stack, but its default UI is suppressed via global CSS.
+For contract deployment whitelisting:
 
----
+```bash
+SEPOLIA_USDC_ADDRESS=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
+```
 
-## **Getting Started**
-
-### Install dependencies
+## Start The Frontend
 
 ```bash
 pnpm install
-```
-
----
-
-### Run the frontend
-
-```bash
 pnpm dev:frontend
 ```
 
-Open: [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000).
 
----
+## Verification
 
-## **Development**
-
-### Linting & tests
+Frontend:
 
 ```bash
-pnpm lint
+pnpm --filter frontend lint
 pnpm --filter frontend test
+NEXT_IGNORE_INCORRECT_LOCKFILE=1 pnpm --filter frontend build
 ```
 
----
-
-### Smart contracts
-
-Compile and test:
+Contracts:
 
 ```bash
 pnpm --filter contracts compile
 pnpm --filter contracts test
 ```
 
----
+## Deployment
 
-## **Implemented Features**
+Deploy the contracts:
 
-### Contracts
-
-- `OracleRegistry.sol`
-  Handles oracle registration, staking, and slashing
-
-- `PredictionMarket.sol`
-  Supports binary and categorical markets with dispute and resolution logic
-
-- `MockUSDC.sol`
-  ERC20 mock token for testing collateral
-
----
-
-### Frontend
-
-- Full UI flow across all major product surfaces
-- Hooks for:
-  - Market creation
-  - Betting
-  - Oracle participation
-  - Disputes
-
-- Wallet integration via wagmi (Sepolia + localhost)
-
----
-
-## **Repository Layout**
-
-```text
-ciphermarket/
-├── contracts/
-│   ├── contracts/
-│   │   └── FHESmoke.sol
-│   ├── scripts/
-│   │   └── deploy.ts
-│   ├── test/
-│   │   └── FHESmoke.test.ts
-│   ├── hardhat.config.ts
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── lib/
-│   │   ├── store/
-│   │   └── types/
-│   └── package.json
-└── README.md
+```bash
+cd contracts && npx hardhat run scripts/deploy.ts --network sepolia
 ```
+
+The deploy script:
+
+- deploys `OracleRegistry`
+- deploys `PredictionMarket`
+- wires `OracleRegistry.setPredictionMarket(...)`
+- whitelists `SEPOLIA_USDC_ADDRESS` when configured
+
+## Frontend Coverage
+
+The app currently includes:
+
+- landing page
+- dashboard
+- market detail with lifecycle-specific UX
+- create market flow
+- oracle dashboard
+- private portfolio page
+- in-app docs page at `/docs`
+
+## Important Notes
+
+- Solidity is pinned to `0.8.25` because of the current CoFHE-compatible stack.
+- Pool state remains public by design in v1.
+- Per-user holdings are encrypted and revealed locally through CoFHE-backed view flows.
+- Sell and redeem take an extra verification step because they depend on private balance confirmation.

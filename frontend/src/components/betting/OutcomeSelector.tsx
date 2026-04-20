@@ -1,7 +1,6 @@
 'use client';
 
 import { CheckCircle2 } from 'lucide-react';
-import Button from '@/components/ui/Button';
 import type { MarketOutcome } from '@/types/market';
 import clsx from 'clsx';
 
@@ -20,37 +19,51 @@ export default function OutcomeSelector({
     <div className="grid gap-4">
       {outcomes.map((outcome) => {
         const isSelected = selectedOutcomeId === outcome.id;
-        
+
         return (
           <button
             key={outcome.id}
             onClick={() => onSelect(outcome.id)}
             className={clsx(
-              "flex items-center justify-between rounded-2xl border-2 px-6 py-4 transition-all duration-300",
-              isSelected 
-                ? "border-primary bg-primary/10 shadow-[0_0_20px_rgba(170,58,49,0.14)]"
-                : "border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+              'rounded-2xl border-2 px-6 py-5 text-left transition-all duration-300',
+              isSelected
+                ? 'border-primary bg-primary/10 shadow-[0_0_20px_rgba(170,58,49,0.14)]'
+                : 'border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]',
             )}
+            type="button"
           >
-            <div className="flex items-center gap-4">
-              <div className={clsx(
-                "flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all",
-                isSelected ? "border-primary bg-primary text-primary-foreground" : "border-white/20"
-              )}>
-                {isSelected && <CheckCircle2 className="h-4 w-4" />}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div
+                  className={clsx(
+                    'flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all',
+                    isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-white/20',
+                  )}
+                >
+                  {isSelected ? <CheckCircle2 className="h-4 w-4" /> : null}
+                </div>
+                <div className="space-y-1">
+                  <span
+                    className={clsx(
+                      'block text-base font-semibold tracking-tight',
+                      isSelected ? 'text-foreground' : 'text-muted-foreground',
+                    )}
+                  >
+                    {outcome.label}
+                  </span>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Price {Number(outcome.price) / 1e16}%
+                  </span>
+                </div>
               </div>
-              <span className={clsx(
-                "text-base font-black uppercase tracking-widest",
-                isSelected ? "text-foreground" : "text-muted-foreground"
-              )}>
-                {outcome.label}
-              </span>
-            </div>
-            <div className={clsx(
-              "text-sm font-black transition-colors",
-              isSelected ? "text-primary" : "text-muted-foreground"
-            )}>
-              {outcome.impliedShare}%
+              <div className="text-right">
+                <p className={clsx('font-mono text-sm', isSelected ? 'text-primary' : 'text-foreground')}>
+                  {outcome.impliedShare}%
+                </p>
+                <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                  Reserve {outcome.reserve.toString()}
+                </p>
+              </div>
             </div>
           </button>
         );

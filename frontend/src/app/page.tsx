@@ -119,20 +119,20 @@ function toneBg(tone: FeaturedMarket['outcomes'][number]['tone']): string {
   return 'bg-white/[0.04] border-r border-white/10 text-white/30';
 }
 
+const TERMINAL_LINES = [
+  { text: '$ cipher encrypt --amount 500 --outcome YES', color: 'text-white/60', delay: 0 },
+  { text: '> Generating FHE ciphertext...', color: 'text-[#D66A61]/70', delay: 600 },
+  { text: '> *************** ✓ encrypted', color: 'text-[#D66A61]', delay: 1200 },
+  { text: '> Submitting to PredictionMarket.sol...', color: 'text-white/60', delay: 1800 },
+  { text: '> tx: 0x8d4c...f901 confirmed', color: 'text-white/40', delay: 2400 },
+  { text: '> Position sealed. No observer can read your stake.', color: 'text-[#D66A61]/90', delay: 3000 },
+] as const;
+
 function TerminalMockup(): JSX.Element {
   const [step, setStep] = useState(0);
 
-  const lines = [
-    { text: '$ cipher encrypt --amount 500 --outcome YES', color: 'text-white/60', delay: 0 },
-    { text: '> Generating FHE ciphertext...', color: 'text-[#D66A61]/70', delay: 600 },
-    { text: '> *************** ✓ encrypted', color: 'text-[#D66A61]', delay: 1200 },
-    { text: '> Submitting to PredictionMarket.sol...', color: 'text-white/60', delay: 1800 },
-    { text: '> tx: 0x8d4c...f901 confirmed', color: 'text-white/40', delay: 2400 },
-    { text: '> Position sealed. No observer can read your stake.', color: 'text-[#D66A61]/90', delay: 3000 },
-  ];
-
   useEffect(() => {
-    const timers = lines.map((line, i) =>
+    const timers = TERMINAL_LINES.map((line, i) =>
       setTimeout(() => setStep(i + 1), line.delay + 400),
     );
     return () => timers.forEach(clearTimeout);
@@ -149,7 +149,7 @@ function TerminalMockup(): JSX.Element {
       </div>
       {/* Terminal body */}
       <div className="p-6 font-mono text-sm space-y-2 min-h-[220px]">
-        {lines.map((line, i) => (
+        {TERMINAL_LINES.map((line, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, x: -4 }}
@@ -160,7 +160,7 @@ function TerminalMockup(): JSX.Element {
             {line.text}
           </motion.div>
         ))}
-        {step < lines.length && (
+        {step < TERMINAL_LINES.length && (
           <span className="inline-block w-2 h-4 bg-[#D66A61]/60 animate-pulse" />
         )}
       </div>

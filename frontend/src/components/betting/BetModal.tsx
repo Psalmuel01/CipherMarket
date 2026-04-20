@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ArrowUpDown, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import usePlaceBet from '@/hooks/usePlaceBet';
-import { truncateAddress } from '@/lib/formatters';
+import useBuyShares from '@/hooks/useBuyShares';
+import useMarketQuote from '@/hooks/useMarketQuote';
+import useSellShares from '@/hooks/useSellShares';
+import { formatAmount, truncateAddress } from '@/lib/formatters';
 import type { MarketOutcome } from '@/types/market';
 import clsx from 'clsx';
 
@@ -18,6 +20,7 @@ export interface BetModalProps {
   collateralDecimals: number;
   open: boolean;
   outcome: MarketOutcome;
+  side: 'BUY' | 'SELL';
   onClose: () => void;
 }
 
@@ -30,49 +33,108 @@ export default function BetModal({
   onClose,
   open,
   outcome,
+  side,
 }: BetModalProps): JSX.Element {
-  const [amount, setAmount] = useState<string>('25');
-  const { data, error, isError, isLoading, placeBet, reset } = usePlaceBet();
+  const [amount, setAmount] = useState<string>('1');
+  const { data: buyState, error: buyError, isError: isBuyError, isLoading: isBuyLoading, buyShares, reset } =
+    useBuyShares();
+  const {
+    data: sellState,
+    error: sellError,
+    isError: isSellError,
+    isLoading: isSellLoading,
+    sellShares,
+    reset: resetSellState,
+  } = useSellShares();
+  const quote = useMarketQuote({
+    marketId,
+    outcomeIndex: outcome.outcomeIndex,
+    amount,
+    decimals: collateralDecimals,
+    side,
+  });
+
+  const transactionState = side === 'BUY' ? buyState : sellState;
+  const isLoading = side === 'BUY' ? isBuyLoading : isSellLoading;
+  const error = side === 'BUY' ? buyError : sellError;
+  const isError = side === 'BUY' ? isBuyError : isSellError;
 
   const handleClose = (): void => {
     reset();
+    resetSellState();
     onClose();
+  };
+
+  const handleSubmit = async (): Promise<void> => {
+    if (!quote.data) {
+      return;
+    }
+
+    if (side === 'BUY') {
+      await buyShares({
+        amount,
+        marketId,
+        marketTitle,
+        outcomeId: outcome.id,
+        collateralToken,
+        collateralSymbol,
+        collateralDecimals,
+        minAmountOut: quote.data.sharesAmount,
+      });
+      return;
+    }
+
+    await sellShares({
+      amount,
+      marketId,
+      marketTitle,
+      outcomeId: outcome.id,
+      collateralToken,
+      collateralSymbol,
+      collateralDecimals,
+      minAmountOut: quote.data.collateralAmount,
+    });
   };
 
   const steps = [
     { id: 'input', label: 'Input' },
-    { id: 'encrypting', label: 'Encrypt' },
+    { id: 'quote', label: 'Quote' },
     { id: 'wallet', label: 'Confirm' },
     { id: 'success', label: 'Success' },
   ];
 
   const currentStepIndex =
-    data?.step === 'success' ? 3 :
-      data?.step === 'awaiting_wallet' ? 2 :
-        data?.step === 'encrypting' ? 1 : 0;
+    transactionState?.step === 'success'
+      ? 3
+      : transactionState?.step === 'awaiting_wallet'
+        ? 2
+        : transactionState?.step === 'encrypting'
+          ? 1
+          : 0;
 
   return (
     <Modal
       onClose={handleClose}
       open={open}
-      title="Place Private Bet"
-      description="Your position will be encrypted using Fhenix's confidential computing."
+      title={side === 'BUY' ? 'Buy Outcome Shares' : 'Sell Outcome Shares'}
+      description="The trade remains understandable even when your resulting position stays private."
     >
       <div className="space-y-8 py-2">
-        {/* Step Indicator */}
         <div className="flex items-center justify-between px-2">
           {steps.map((step, index) => (
             <div key={step.id} className="flex items-center gap-2">
-              <div className={clsx(
-                "h-2 w-12 rounded-full transition-all duration-500",
-                index <= currentStepIndex ? "bg-primary" : "bg-white/10"
-              )} />
+              <div
+                className={clsx(
+                  'h-2 w-12 rounded-full transition-all duration-500',
+                  index <= currentStepIndex ? 'bg-primary' : 'bg-white/10',
+                )}
+              />
             </div>
           ))}
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl bg-white/[0.03] p-6 space-y-3">
+          <div className="space-y-3 rounded-2xl bg-white/[0.03] p-6">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
@@ -80,17 +142,18 @@ export default function BetModal({
                 </p>
                 <p className="text-xl font-semibold text-foreground">{outcome.label}</p>
               </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Network Fee</span>
-                <span>{collateralSymbol === 'ETH' ? '~0.002 ETH' : 'ERC20 approval may be required'}</span>
+              <div className="text-right">
+                <p className="font-mono text-sm text-primary">{outcome.impliedShare}%</p>
+                <p className="text-xs text-muted-foreground">Current market probability</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3 rounded-xl bg-primary/5 p-3 text-[11px] text-primary/80">
               <ShieldCheck className="h-4 w-4 shrink-0" />
               <p>
-                Privacy shield active. Your stake and position remain encrypted through
-                submission and settlement.
+                {side === 'BUY'
+                  ? 'Estimating secure trade path. The quote is public; your resulting position is not.'
+                  : 'Preparing exit quote. Final execution may move slightly if market state changes before confirmation.'}
               </p>
             </div>
           </div>
@@ -98,7 +161,7 @@ export default function BetModal({
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
               <label className="font-mono text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
-                Stake Amount ({collateralSymbol})
+                {side === 'BUY' ? `Collateral (${collateralSymbol})` : 'Shares to sell'}
               </label>
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                 Market #{marketId}
@@ -111,20 +174,64 @@ export default function BetModal({
                 value={amount}
                 placeholder="0.00"
               />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2">
-                <button
-                  className="rounded-lg bg-white/5 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] hover:bg-white/10"
-                  type="button"
-                >
-                  Max
-                </button>
-              </div>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <ArrowUpDown className="h-4 w-4 text-primary" />
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                Quote Preview
+              </p>
+            </div>
+
+            {quote.isLoading ? (
+              <p className="text-sm text-muted-foreground">Estimating...</p>
+            ) : quote.data ? (
+              <div className="grid gap-3 text-sm md:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    {side === 'BUY' ? 'Shares received' : 'Collateral received'}
+                  </p>
+                  <p className="font-mono text-foreground">
+                    {formatAmount(
+                      side === 'BUY' ? quote.data.sharesAmount : quote.data.collateralAmount,
+                      collateralDecimals,
+                    )}{' '}
+                    {side === 'BUY' ? 'shares' : collateralSymbol}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Average price
+                  </p>
+                  <p className="font-mono text-foreground">{Number(quote.data.averagePrice) / 1e16}%</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Fee
+                  </p>
+                  <p className="font-mono text-foreground">
+                    {formatAmount(quote.data.feeAmount, collateralDecimals)} {collateralSymbol}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Slippage
+                  </p>
+                  <p className="font-mono text-foreground">{quote.data.slippageBps / 100}%</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Enter an amount to estimate, decrypt, and prepare the secure trade.
+              </p>
+            )}
           </div>
         </div>
 
         <AnimatePresence mode="wait">
-          {data?.step === 'encrypting' && (
+          {transactionState?.step === 'encrypting' ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -138,48 +245,30 @@ export default function BetModal({
                   <span className="h-9 w-2 animate-pulse rounded-full bg-primary/60 [animation-delay:240ms]" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">Encrypting position...</p>
+                  <p className="text-sm font-semibold text-foreground">Finalizing secure computation...</p>
                   <p className="text-xs text-muted-foreground">
-                    Fhenix confidential runtime is sealing your stake before submission.
+                    Encrypting your resulting position before network submission.
                   </p>
                 </div>
               </div>
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
-                <motion.div
-                  className="h-full rounded-full bg-primary/60"
-                  initial={{ x: '-100%' }}
-                  animate={{ x: '100%' }}
-                  transition={{ repeat: Infinity, duration: 1.6, ease: 'linear' }}
-                />
-              </div>
             </motion.div>
-          )}
+          ) : null}
 
-          {data?.step === 'awaiting_wallet' && (
+          {transactionState?.step === 'awaiting_wallet' ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="rounded-2xl border border-primary/20 bg-primary/5 p-6 flex items-center gap-4"
+              className="rounded-2xl border border-primary/20 bg-primary/5 p-6"
             >
-              <div className="flex h-12 flex-1 items-center px-4 rounded-2xl border border-white/10 bg-white/[0.03]">
-                <span className="flex-1 font-mono text-sm font-semibold text-foreground">
-                  {amount || '0.00'}
-                </span>
-                <span className="font-mono text-xs uppercase tracking-[0.18em] text-primary">
-                  {collateralSymbol}
-                </span>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-foreground">Confirm in Wallet</p>
-                <p className="text-xs text-muted-foreground">
-                  Review the encrypted order and sign the transaction to continue.
-                </p>
-              </div>
+              <p className="text-sm font-semibold text-foreground">Confirm in Wallet</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Review the order, then sign to send the transaction on-chain.
+              </p>
             </motion.div>
-          )}
+          ) : null}
 
-          {data?.step === 'success' && (
+          {transactionState?.step === 'success' || ('txHash' in (transactionState ?? {}) && transactionState?.txHash) ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -190,45 +279,37 @@ export default function BetModal({
                   <CheckCircle2 className="h-6 w-6" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">Bet Placed Privately</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {side === 'BUY' ? 'Shares bought' : 'Shares sold'}
+                  </p>
                   <p className="font-mono text-xs text-primary/80">
-                    Tx: {truncateAddress(data.txHash ?? collateralToken)}
+                    Tx: {truncateAddress(transactionState?.txHash ?? collateralToken)}
                   </p>
                 </div>
               </div>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
 
-        {isError && error && (
+        {isError && error ? (
           <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-xs font-medium text-destructive">
             {error.message}
           </div>
-        )}
+        ) : null}
 
-        <div className="flex items-center gap-4 pt-4 border-t border-white/5">
+        <div className="flex items-center gap-4 border-t border-white/5 pt-4">
           <Button className="flex-1" variant="outline" size="lg" onClick={handleClose} type="button">
             Cancel
           </Button>
           <Button
             className="flex-1 gap-2"
             size="lg"
-            disabled={true}
-            // onClick={() =>
-            //   placeBet({
-            //     amount,
-            //     marketId,
-            //     marketTitle,
-            //     outcomeId: outcome.id,
-            //     collateralToken,
-            //     collateralSymbol,
-            //     collateralDecimals,
-            //   })
-            // }
+            disabled={!quote.data || isLoading}
+            onClick={() => void handleSubmit()}
             type="button"
           >
             <Sparkles className="h-4 w-4" />
-            Coming Soon
+            {isLoading ? 'Processing...' : side === 'BUY' ? 'Buy Shares' : 'Sell Shares'}
           </Button>
         </div>
       </div>

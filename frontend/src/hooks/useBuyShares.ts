@@ -1,47 +1,40 @@
 'use client';
 
 import { useState } from 'react';
-import { useCofheEncrypt } from '@cofhe/react';
-import { Encryptable } from '@cofhe/sdk';
 import { toast } from 'sonner';
 import { parseUnits, zeroAddress } from 'viem';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import {
+  ERC20_ABI,
   formatContractError,
   getContractAddresses,
-  MOCK_USDC_ABI,
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
-import type { BetDraft } from '@/types/market';
+import type { TradeDraft } from '@/types/market';
 
-export interface PlaceBetState {
+export interface BuySharesState {
   step: 'idle' | 'encrypting' | 'awaiting_wallet' | 'success';
   txHash: string | null;
 }
 
-export interface UsePlaceBetResult {
-  data: PlaceBetState | null;
+export interface UseBuySharesResult {
+  data: BuySharesState | null;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
-  placeBet: (draft: BetDraft) => Promise<void>;
+  buyShares: (draft: TradeDraft) => Promise<void>;
   reset: () => void;
 }
 
-/**
- * Encrypts stake input and submits a real singleton-market bet transaction.
- * @returns Mutation state and the contract-backed placeBet action.
- */
-export default function usePlaceBet(): UsePlaceBetResult {
+export default function useBuyShares(): UseBuySharesResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const { encryptInputsAsync } = useCofheEncrypt();
-  const [data, setData] = useState<PlaceBetState | null>(null);
+  const [data, setData] = useState<BuySharesState | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const placeBet = async (draft: BetDraft): Promise<void> => {
+  const buyShares = async (draft: TradeDraft): Promise<void> => {
     try {
       const addresses = getContractAddresses(chainId);
       const predictionMarketAddress = addresses?.predictionMarket;
@@ -54,25 +47,23 @@ export default function usePlaceBet(): UsePlaceBetResult {
         throw new Error('Public client is not available.');
       }
 
-      const stakeAmount = parseUnits(draft.amount || '0', draft.collateralDecimals);
-      if (stakeAmount <= 0n) {
-        throw new Error('Enter a valid stake amount.');
+      const collateralAmount = parseUnits(draft.amount || '0', draft.collateralDecimals);
+      if (collateralAmount <= 0n) {
+        throw new Error('Enter a valid trade amount.');
       }
 
       setError(null);
       setIsLoading(true);
       setData({ step: 'encrypting', txHash: null });
 
-      const [encryptedStake] = await encryptInputsAsync([Encryptable.uint128(stakeAmount)]);
-
       if (draft.collateralToken.toLowerCase() !== zeroAddress) {
         setData({ step: 'awaiting_wallet', txHash: null });
 
         const approvalHash = await writeContractAsync({
           address: draft.collateralToken,
-          abi: MOCK_USDC_ABI,
+          abi: ERC20_ABI,
           functionName: 'approve',
-          args: [predictionMarketAddress, stakeAmount],
+          args: [predictionMarketAddress, collateralAmount],
         });
 
         await publicClient.waitForTransactionReceipt({ hash: approvalHash });
@@ -80,31 +71,31 @@ export default function usePlaceBet(): UsePlaceBetResult {
 
       setData({ step: 'awaiting_wallet', txHash: null });
 
-      const betHash = await writeContractAsync({
+      const buyHash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'placeBet',
+        functionName: 'buyShares',
         args: [
           BigInt(draft.marketId),
           Number.parseInt(draft.outcomeId, 10),
-          stakeAmount,
-          encryptedStake,
+          collateralAmount,
+          draft.minAmountOut ?? 0n,
         ],
-        value: draft.collateralToken.toLowerCase() === zeroAddress ? stakeAmount : 0n,
+        value: draft.collateralToken.toLowerCase() === zeroAddress ? collateralAmount : 0n,
       });
 
-      await publicClient.waitForTransactionReceipt({ hash: betHash });
+      await publicClient.waitForTransactionReceipt({ hash: buyHash });
 
       setData({
         step: 'success',
-        txHash: betHash,
+        txHash: buyHash,
       });
-      toast.success(`Bet placed privately on ${draft.marketTitle}.`);
+      toast.success(`Shares purchased in ${draft.marketTitle}.`);
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))
-          : new Error('Unable to place bet.');
+          : new Error('Unable to buy shares.');
 
       setError(nextError);
       toast.error(nextError.message);
@@ -124,7 +115,7 @@ export default function usePlaceBet(): UsePlaceBetResult {
     isLoading,
     isError: error !== null,
     error,
-    placeBet,
+    buyShares,
     reset,
   };
 }
