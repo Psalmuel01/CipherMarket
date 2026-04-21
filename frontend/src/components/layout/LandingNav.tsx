@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
@@ -7,6 +8,15 @@ import { ArrowRight } from 'lucide-react';
 export default function LandingNav() {
   const pathname = usePathname();
   const isHomePage = pathname === '/';
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const navItems = [
     { label: 'Technology', href: isHomePage ? '#how-it-works' : '/#how-it-works' },
@@ -16,7 +26,11 @@ export default function LandingNav() {
   ];
 
   return (
-    <nav className="relative z-50 border-b border-white/[0.07] bg-[#07090c]/80 backdrop-blur-xl sticky top-0">
+    <nav className={`relative z-50 sticky top-0 transition-all duration-500 ${
+      scrolled 
+        ? 'border-b border-white/[0.08] bg-[#000000]/80 backdrop-blur-xl py-0' 
+        : 'border-b border-white/0 bg-transparent py-2'
+    }`}>
       <div className="mx-auto max-w-6xl px-6 lg:px-10 flex items-center justify-between h-16">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">

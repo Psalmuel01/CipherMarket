@@ -172,7 +172,7 @@ function TerminalMockup(): JSX.Element {
 
 export default function LandingPage(): JSX.Element {
   return (
-    <main className="min-h-screen bg-[#07090c] text-[#e8e4df] antialiased overflow-x-hidden font-sans">
+    <main className="min-h-screen bg-[#000000] text-[#e8e4df] antialiased overflow-x-hidden font-sans">
 
       {/* Noise overlay */}
       <div
@@ -206,30 +206,37 @@ export default function LandingPage(): JSX.Element {
               Live on Ethereum Sepolia · FHE enabled
             </div>
 
-            <h1 className="text-[52px] lg:text-[68px] xl:text-[78px] leading-[0.95] tracking-[-0.04em] mb-6">
-              <span className="font-serif italic text-[#e8e4df]">Predict.</span>
-              <br />
-              <span className="font-sans font-light text-white/35">Stay sealed.</span>
-            </h1>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <h1 className="text-[52px] lg:text-[68px] xl:text-[78px] leading-[0.95] tracking-[-0.04em] mb-6">
+                <span className="font-serif italic text-[#e8e4df]">Predict.</span>
+                <br />
+                <span className="font-sans font-light text-white/35">Stay sealed.</span>
+              </h1>
 
-            <p className="text-[16px] leading-[1.85] text-white/45 font-light max-w-[520px] mb-8">
-              The first prediction market where your positions are encrypted end-to-end using Fully Homomorphic Encryption. Place bets without exposing your strategy, wallet, or stake to anyone — on-chain or off.
-            </p>
+              <p className="text-[16px] leading-[1.85] text-white/45 font-light max-w-[520px] mb-8">
+                The first prediction market where your positions are encrypted end-to-end using Fully Homomorphic Encryption. Place bets without exposing your strategy, wallet, or stake to anyone — on-chain or off.
+              </p>
 
-            <div className="flex flex-wrap gap-3 mb-12">
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2 bg-[#e8533a] text-white text-[14px] font-medium px-5 py-3 rounded-xl hover:bg-[#d44830] transition-all hover:-translate-y-0.5 shadow-[0_8px_32px_rgba(232,83,58,0.25)]"
-              >
-                Open Markets <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link
-                href="#how-it-works"
-                className="inline-flex items-center gap-2 text-[14px] text-white/50 border border-white/10 px-5 py-3 rounded-xl hover:text-white/80 hover:border-white/20 hover:bg-white/[0.03] transition-all"
-              >
-                How it works
-              </Link>
-            </div>
+              <div className="flex flex-wrap gap-3 mb-12">
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-2 bg-[#e8533a] text-white text-[14px] font-medium px-5 py-3 rounded-xl hover:bg-[#d44830] transition-all hover:-translate-y-0.5 shadow-[0_8px_32px_rgba(232,83,58,0.25)]"
+                >
+                  Open Markets <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  href="#how-it-works"
+                  className="inline-flex items-center gap-2 text-[14px] text-white/50 border border-white/10 px-5 py-3 rounded-xl hover:text-white/80 hover:border-white/20 hover:bg-white/[0.03] transition-all"
+                >
+                  How it works
+                </Link>
+              </div>
+            </motion.div>
 
             {/* Stats bar */}
             <div className="flex items-center gap-10 pb-8 border-b border-white/[0.07]">
@@ -349,12 +356,28 @@ export default function LandingPage(): JSX.Element {
             FHE lets the smart contract compute on ciphertexts directly — no trusted relay, no off-chain coordinator. Your position stays encrypted throughout its entire lifecycle.
           </p>
 
-          <div className="grid lg:grid-cols-4 gap-4 mb-16">
+          <motion.div 
+            className="grid lg:grid-cols-4 gap-4 mb-16"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: { staggerChildren: 0.1 }
+              }
+            }}
+          >
             {workflowSteps.map((step) => {
               const Icon = step.icon;
               return (
-                <article
+                <motion.article
                   key={step.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    show: { opacity: 1, y: 0 }
+                  }}
                   className="group rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-6 hover:border-white/[0.12] hover:bg-white/[0.035] transition-all relative overflow-hidden"
                 >
                   <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#e8533a]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -366,10 +389,10 @@ export default function LandingPage(): JSX.Element {
                   </div>
                   <h3 className="font-serif italic text-[18px] text-[#e8e4df] leading-[1.2] tracking-[-0.01em] mb-3">{step.title}</h3>
                   <p className="text-[12px] leading-[1.85] text-white/35 font-light">{step.body}</p>
-                </article>
+                </motion.article>
               );
             })}
-          </div>
+          </motion.div>
 
           {/* Code snippet */}
           <div className="rounded-[20px] border border-white/[0.08] bg-[#0a0d12] overflow-hidden">
@@ -495,10 +518,26 @@ export default function LandingPage(): JSX.Element {
             </Link>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-4">
+          <motion.div 
+            className="grid lg:grid-cols-3 gap-4"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-100px" }}
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: { staggerChildren: 0.1 }
+              }
+            }}
+          >
             {featuredMarkets.map((market) => (
-              <article
+              <motion.article
                 key={market.id}
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  show: { opacity: 1, y: 0 }
+                }}
                 className="rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-6 hover:border-white/[0.12] hover:bg-white/[0.035] transition-all cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-4">
@@ -537,9 +576,9 @@ export default function LandingPage(): JSX.Element {
                   </span>
                   <ArrowRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
                 </div>
-              </article>
+              </motion.article>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 

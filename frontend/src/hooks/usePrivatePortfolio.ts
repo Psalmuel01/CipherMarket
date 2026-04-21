@@ -57,7 +57,13 @@ export default function usePrivatePortfolio(
   });
 
   const revealedQuery = useQuery({
-    queryKey: ['private-portfolio', chainId, address, markets, handlesQuery.data],
+    queryKey: [
+      'private-portfolio',
+      chainId,
+      address,
+      markets.map((m) => m.marketId),
+      handlesQuery.data?.map((r) => (r.status === 'success' ? String(r.result) : r.status)),
+    ],
     enabled:
       enabled &&
       Boolean(client) &&

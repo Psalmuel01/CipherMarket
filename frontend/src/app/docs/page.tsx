@@ -143,7 +143,7 @@ function toAnchor(label: string): string {
 
 export default function DocsPage() {
   return (
-    <main className="min-h-screen bg-[#07090c] text-[#e8e4df] antialiased overflow-x-hidden font-sans">
+    <main className="min-h-screen bg-[#000000] text-[#e8e4df] antialiased overflow-x-hidden font-sans">
       {/* Noise overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-0 opacity-[0.035]"

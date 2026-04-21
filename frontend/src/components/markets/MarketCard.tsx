@@ -13,11 +13,16 @@ export interface MarketCardProps {
 export default function MarketCard({ index, market }: MarketCardProps): JSX.Element {
   return (
     <motion.article
-      className="glass-card group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_40px_rgba(170,58,49,0.12)]"
-      initial={{ opacity: 0, y: 18 }}
+      className="glass-card group relative flex flex-col overflow-hidden rounded-2xl p-6 transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_20px_40px_-12px_rgba(232,83,58,0.15)]"
+      initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4, delay: index * 0.05 }}
+      viewport={{ once: true, margin: "-100px" }}
+      transition={{ 
+        type: "spring",
+        damping: 20,
+        stiffness: 100,
+        delay: index * 0.08 
+      }}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-3">

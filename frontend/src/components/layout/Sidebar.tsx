@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutGrid, PlusSquare, ShieldAlert, Activity, Ticket, BookOpenText } from 'lucide-react';
 import clsx from 'clsx';
 import useAppStore from '@/store/useAppStore';
+import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Markets', icon: LayoutGrid },
@@ -60,20 +61,27 @@ export default function Sidebar({ className }: SidebarProps): JSX.Element {
                 <Link
                   key={item.href}
                   className={clsx(
-                    'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200',
+                    'group relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-300',
                     isActive
-                      ? 'bg-primary/10 text-primary shadow-[0_0_24px_rgba(170,58,49,0.16)]'
+                      ? 'text-primary'
                       : 'text-muted-foreground hover:bg-white/[0.03] hover:text-foreground',
                   )}
                   href={item.href}
                 >
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-nav-item"
+                      className="absolute inset-0 rounded-xl bg-primary/10 shadow-[0_0_24px_rgba(170,58,49,0.12)] border border-primary/20"
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
                   <Icon
                     className={clsx(
-                      'h-5 w-5 transition-colors',
+                      'relative z-10 h-5 w-5 transition-colors duration-300',
                       isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground',
                     )}
                   />
-                  <span>{item.label}</span>
+                  <span className="relative z-10">{item.label}</span>
                 </Link>
               );
             })}
