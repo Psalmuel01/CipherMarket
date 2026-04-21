@@ -7,14 +7,14 @@ import { motion } from 'framer-motion';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DocSection = {
-  tag:   string;
+  tag: string;
   title: string;
-  body:  string;
+  body: string;
   note?: string;
 };
 
 type DocGroup = {
-  label:    string;
+  label: string;
   sections: DocSection[];
 };
 
@@ -24,20 +24,20 @@ const DOC_GROUPS: DocGroup[] = [
     label: 'The Basics',
     sections: [
       {
-        tag:   'Overview',
+        tag: 'Overview',
         title: 'What CipherMarket is',
-        body:  'CipherMarket is a share-based prediction market. You buy or sell outcome shares that settle at 1 unit of collateral if correct, and 0 if wrong. The market runs on Ethereum Sepolia using Fully Homomorphic Encryption to keep your positions private.',
+        body: 'CipherMarket is a share-based prediction market. You buy or sell outcome shares that settle at 1 unit of collateral if correct, and 0 if wrong. The market runs on Ethereum Sepolia using Fully Homomorphic Encryption to keep your positions private.',
       },
       {
-        tag:   'Pricing',
+        tag: 'Pricing',
         title: 'How prices are determined',
-        body:  'Each market uses a Fixed-Product Market Maker (FPMM). Pool reserves, implied probabilities, and trade quotes are all public — this keeps the market readable and lets you review a price before you commit. When you buy shares in one outcome, its price rises and all others fall proportionally.',
+        body: 'Each market uses a Fixed-Product Market Maker (FPMM). Pool reserves, implied probabilities, and trade quotes are all public — this keeps the market readable and lets you review a price before you commit. When you buy shares in one outcome, its price rises and all others fall proportionally.',
       },
       {
-        tag:   'Privacy',
+        tag: 'Privacy',
         title: 'What stays private',
-        body:  'Your cumulative position is encrypted on-chain using FHE. Nobody reading contract storage can determine whether you hold shares, how many you hold, or which outcome you chose. Trade events on-chain do not reveal size, direction, or outcome.',
-        note:  'Pool-level data — reserves, total liquidity, probabilities, and lifecycle state — remains public. This is a deliberate tradeoff that keeps quotes honest and FPMM mechanics intact.',
+        body: 'Your cumulative position is encrypted on-chain using FHE. Nobody reading contract storage can determine whether you hold shares, how many you hold, or which outcome you chose. Trade events on-chain do not reveal size, direction, or outcome.',
+        note: 'Pool-level data — reserves, total liquidity, probabilities, and lifecycle state — remains public. This is a deliberate tradeoff that keeps quotes honest and FPMM mechanics intact.',
       },
     ],
   },
@@ -45,20 +45,20 @@ const DOC_GROUPS: DocGroup[] = [
     label: 'Trading',
     sections: [
       {
-        tag:   'Buying',
+        tag: 'Buying',
         title: 'How to buy shares',
-        body:  'Select a market, choose an outcome, and enter a collateral amount. The trade panel shows your estimated shares, average price, fee, and how the market probability shifts after your trade. Confirm in your wallet — the pool updates immediately.',
+        body: 'Select a market, choose an outcome, and enter a collateral amount. The trade panel shows your estimated shares, average price, fee, and how the market probability shifts after your trade. Confirm in your wallet — the pool updates immediately.',
       },
       {
-        tag:   'Selling',
+        tag: 'Selling',
         title: 'How to sell shares',
-        body:  'Selling requires a two-step flow. First, a decrypt request verifies your private balance with the FHE coprocessor. Once confirmed, you submit the sell transaction against the current pool state. The interface will show a verification step between these two actions — that is expected, not a freeze.',
-        note:  'If a market expires between your decrypt request and your sell transaction, the sell will be rejected. Your shares are not lost — they go through the normal redemption path after resolution.',
+        body: 'Selling requires a two-step flow. First, a decrypt request verifies your private balance with the FHE coprocessor. Once confirmed, you submit the sell transaction against the current pool state. The interface will show a verification step between these two actions — that is expected, not a freeze.',
+        note: 'If a market expires between your decrypt request and your sell transaction, the sell will be rejected. Your shares are not lost — they go through the normal redemption path after resolution.',
       },
       {
-        tag:   'Quotes',
+        tag: 'Quotes',
         title: 'Understanding the quote panel',
-        body:  'The quote panel shows: estimated shares out, average price per share, fee amount, and post-trade probabilities. Quotes are based on the current pool state and may shift slightly between estimate and execution. Set a slippage tolerance before confirming.',
+        body: 'The quote panel shows: estimated shares out, average price per share, fee amount, and post-trade probabilities. Quotes are based on the current pool state and may shift slightly between estimate and execution. Set a slippage tolerance before confirming.',
       },
     ],
   },
@@ -66,20 +66,20 @@ const DOC_GROUPS: DocGroup[] = [
     label: 'Markets',
     sections: [
       {
-        tag:   'Creation',
+        tag: 'Creation',
         title: 'Creating a market',
-        body:  'A market creator defines the title, description, oracle source, outcome labels, expiry time, collateral type, minimum trade size, and seed liquidity. Seed liquidity is split equally across all outcomes at launch — it must be evenly divisible by the outcome count.',
+        body: 'A market creator defines the title, description, oracle source, outcome labels, expiry time, collateral type, minimum trade size, and seed liquidity. Seed liquidity is split equally across all outcomes at launch — it must be evenly divisible by the outcome count.',
       },
       {
-        tag:   'Lifecycle',
+        tag: 'Lifecycle',
         title: 'Market states',
-        body:  'Every market passes through explicit states. ACTIVE means trading is open. EXPIRED means the expiry time has passed and trading is closed. PROPOSED means an oracle has submitted an outcome. DISPUTED means a challenge has been raised. FINALIZED means the outcome is locked and redemptions are open.',
+        body: 'Every market passes through explicit states. ACTIVE means trading is open. EXPIRED means the expiry time has passed and trading is closed. PROPOSED means an oracle has submitted an outcome. DISPUTED means a challenge has been raised. FINALIZED means the outcome is locked and redemptions are open.',
       },
       {
-        tag:   'Expiry',
+        tag: 'Expiry',
         title: 'What happens at expiry',
-        body:  'When a market reaches its expiry time, trading stops automatically. No further buys or sells are accepted. The market waits for an oracle to propose the outcome. If no oracle proposes within a reasonable period, positions remain in place until resolution occurs.',
-        note:  'Shares cannot be sold after expiry. If you hold a position in an expired market, wait for resolution and redeem through the finalized market page.',
+        body: 'When a market reaches its expiry time, trading stops automatically. No further buys or sells are accepted. The market waits for an oracle to propose the outcome. If no oracle proposes within a reasonable period, positions remain in place until resolution occurs.',
+        note: 'Shares cannot be sold after expiry. If you hold a position in an expired market, wait for resolution and redeem through the finalized market page.',
       },
     ],
   },
@@ -87,20 +87,20 @@ const DOC_GROUPS: DocGroup[] = [
     label: 'Resolution',
     sections: [
       {
-        tag:   'Oracle',
+        tag: 'Oracle',
         title: 'How a market resolves',
-        body:  'A registered oracle reviews the oracle source listed on the market and submits the outcome they believe is correct. This opens a fixed dispute window. If nobody disputes before the window closes, the proposal finalizes automatically.',
+        body: 'A registered oracle reviews the oracle source listed on the market and submits the outcome they believe is correct. This opens a fixed dispute window. If nobody disputes before the window closes, the proposal finalizes automatically.',
       },
       {
-        tag:   'Disputes',
+        tag: 'Disputes',
         title: 'Disputing a result',
-        body:  'Anyone can dispute a proposed outcome by staking collateral during the dispute window. If the dispute succeeds and the oracle is overturned, disputers receive their stake back. If the dispute fails and the original proposal is upheld, the dispute stake is not refunded — it goes to the protocol.',
-        note:  'Disputing has a real cost if you are wrong. Review the oracle source carefully before challenging.',
+        body: 'Anyone can dispute a proposed outcome by staking collateral during the dispute window. If the dispute succeeds and the oracle is overturned, disputers receive their stake back. If the dispute fails and the original proposal is upheld, the dispute stake is not refunded — it goes to the protocol.',
+        note: 'Disputing has a real cost if you are wrong. Review the oracle source carefully before challenging.',
       },
       {
-        tag:   'Finalization',
+        tag: 'Finalization',
         title: 'After a market finalizes',
-        body:  'Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral. Losing shares are worth zero. The LP creator can claim any surplus collateral after all winners have redeemed.',
+        body: 'Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral. Losing shares are worth zero. The LP creator can claim any surplus collateral after all winners have redeemed.',
       },
     ],
   },
@@ -108,14 +108,14 @@ const DOC_GROUPS: DocGroup[] = [
     label: 'Oracles',
     sections: [
       {
-        tag:   'Registration',
+        tag: 'Registration',
         title: 'Becoming an oracle',
-        body:  'Go to the Oracle page and register by locking the minimum ETH stake. Once registered, you can propose outcomes on expired markets. Your stake is at risk if a disputed proposal is overturned by the protocol.',
+        body: 'Go to the Oracle page and register by locking the minimum ETH stake. Once registered, you can propose outcomes on expired markets. Your stake is at risk if a disputed proposal is overturned by the protocol.',
       },
       {
-        tag:   'Slashing',
+        tag: 'Slashing',
         title: 'Oracle accountability',
-        body:  'If you propose an outcome that is disputed and overturned, a portion of your staked ETH can be slashed and sent to the protocol. You cannot deregister as an oracle while a proposal you made is still under dispute. Registration unlocks after the market finalizes.',
+        body: 'If you propose an outcome that is disputed and overturned, a portion of your staked ETH can be slashed and sent to the protocol. You cannot deregister as an oracle while a proposal you made is still under dispute. Registration unlocks after the market finalizes.',
       },
     ],
   },
@@ -123,14 +123,14 @@ const DOC_GROUPS: DocGroup[] = [
     label: 'Redemption',
     sections: [
       {
-        tag:   'Claiming',
+        tag: 'Claiming',
         title: 'Redeeming winning shares',
-        body:  'After finalization, go to the market page and start the redemption flow. Like selling, redemption requires a decrypt step to verify your private winning balance. Once verified, submit the claim transaction to receive your collateral.',
+        body: 'After finalization, go to the market page and start the redemption flow. Like selling, redemption requires a decrypt step to verify your private winning balance. Once verified, submit the claim transaction to receive your collateral.',
       },
       {
-        tag:   'Timing',
+        tag: 'Timing',
         title: 'When to expect delays',
-        body:  'Secure computation adds latency to any flow that touches your private balance: selling, redeeming, and viewing your portfolio. When the interface shows a verification or decryption state, it is waiting for the FHE coprocessor to confirm your balance. This typically resolves within a few seconds to a minute depending on network conditions.',
+        body: 'Secure computation adds latency to any flow that touches your private balance: selling, redeeming, and viewing your portfolio. When the interface shows a verification or decryption state, it is waiting for the FHE coprocessor to confirm your balance. This typically resolves within a few seconds to a minute depending on network conditions.',
       },
     ],
   },
@@ -143,11 +143,11 @@ function toAnchor(label: string): string {
 
 export default function DocsPage() {
   return (
-    <div className="relative z-10 font-sans">
+    <div className="relative z-10 font-sans mx-auto max-w-[75%] px-8 lg:px-16 ">
 
       {/* ── HERO ── */}
       {/* <header className="relative z-10 border-b border-white/[0.07] bg-white/[0.01]">
-        <div className="mx-auto max-w-6xl px-6 lg:px-10 py-20 lg:py-24">
+        <div className="py-20 lg:py-24">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
             <div className="max-w-[640px]">
               <div className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.25em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-4 py-2 mb-8">
@@ -184,21 +184,21 @@ export default function DocsPage() {
       </header> */}
 
       {/* ── BODY ── */}
-      <div className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 py-16 lg:py-24">
+      <div className="relative z-10 mx-auto py-12 lg:py-16">
         <div className="grid lg:grid-cols-[240px_1fr] gap-16 lg:gap-24 items-start">
-          
+
           {/* Sidebar Navigation */}
           <aside className="sticky top-32 hidden lg:block">
             <div className="flex flex-col gap-10">
               {DOC_GROUPS.map((group) => (
                 <div key={group.label}>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/20 mb-4">{group.label}</p>
+                  <p className="font-mono font-semibold text-sm uppercase tracking-[0.2em] text-white/20 mb-4">{group.label}</p>
                   <nav className="flex flex-col gap-2">
                     {group.sections.map((section) => (
                       <Link
                         key={section.title}
                         href={`#${toAnchor(group.label)}`}
-                        className="text-[13px] text-white/40 hover:text-white/80 transition-colors py-1"
+                        className="text-[13px] text-white/40 font-medium hover:text-white/80 transition-colors py-1"
                       >
                         {section.tag}
                       </Link>
@@ -231,7 +231,7 @@ export default function DocsPage() {
                       className="group rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-8 hover:border-white/[0.12] hover:bg-white/[0.035] transition-all relative overflow-hidden"
                     >
                       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#e8533a]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                      
+
                       <div className="flex items-start justify-between mb-6">
                         <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-3 py-1">
                           {section.tag}
@@ -241,7 +241,7 @@ export default function DocsPage() {
                       <h3 className="font-serif italic text-[22px] text-[#e8e4df] leading-[1.2] tracking-[-0.01em] mb-4">
                         {section.title}
                       </h3>
-                      
+
                       <p className="text-[14px] leading-[1.8] text-white/45 font-light max-w-[640px]">
                         {section.body}
                       </p>

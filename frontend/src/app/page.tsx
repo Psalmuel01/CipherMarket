@@ -172,9 +172,9 @@ function TerminalMockup(): JSX.Element {
 
 export default function LandingPage(): JSX.Element {
   return (
-    <div className="relative z-10 font-sans">
+    <div className="relative z-10 font-sans max-w-[75%] px-8 lg:px-16 mx-auto">
       {/* ── HERO ── */}
-      <section className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 pt-24 pb-20 lg:pt-32 lg:pb-24">
+      <section className="relative z-10 pt-18 pb-20 lg:pt-24 lg:pb-24">
         <div className="grid lg:grid-cols-[1fr_1fr] gap-32 items-center">
 
           {/* Left */}
@@ -239,7 +239,7 @@ export default function LandingPage(): JSX.Element {
             transition={{ duration: 0.7, delay: 0.25 }}
           > */}
 
-          <aside className="rounded-[28px] border border-white/[0.09] bg-[#0d1017]/95 backdrop-blur-2xl p-6 shadow-[0_32px_80px_rgba(0,0,0,0.5)] w-full max-w-[480px] mx-auto lg:mx-0">
+          <aside className="rounded-[28px] border border-white/[0.09] bg-[#0d1017]/95 backdrop-blur-2xl p-6 shadow-[0_32px_80px_rgba(0,0,0,0.5)] w-full mx-auto lg:mx-0">
 
             <TerminalMockup />
 
@@ -325,7 +325,7 @@ export default function LandingPage(): JSX.Element {
 
       {/* ── HOW IT WORKS ── */}
       <section id="how-it-works" className="relative z-10 border-t border-white/[0.07]">
-        <div className="mx-auto max-w-6xl px-6 lg:px-10 py-16 lg:py-24">
+        <div className="py-16 lg:py-24">
           <p className="font-mono text-[9px] uppercase tracking-[0.26em] text-[#e8533a] mb-4">How it works</p>
           <h2 className="font-serif italic text-[36px] lg:text-[48px] tracking-[-0.03em] text-[#e8e4df] leading-[1.05] mb-4">
             Encrypted from input<br />to settlement.
@@ -334,7 +334,7 @@ export default function LandingPage(): JSX.Element {
             FHE lets the smart contract compute on ciphertexts directly — no trusted relay, no off-chain coordinator. Your position stays encrypted throughout its entire lifecycle.
           </p>
 
-          <motion.div 
+          <motion.div
             className="grid lg:grid-cols-4 gap-4 mb-16"
             initial="hidden"
             whileInView="show"
@@ -407,7 +407,7 @@ export default function LandingPage(): JSX.Element {
 
       {/* ── SECURITY MODEL ── */}
       <section id="security" className="relative z-10 border-t border-white/[0.07]">
-        <div className="mx-auto max-w-6xl px-6 lg:px-10 py-16 lg:py-24">
+        <div className="py-16 lg:py-24">
           <p className="font-mono text-[9px] uppercase tracking-[0.26em] text-[#e8533a] mb-4">Security model</p>
           <h2 className="font-serif italic text-[36px] lg:text-[48px] tracking-[-0.03em] text-[#e8e4df] leading-[1.05] mb-4">
             What even the contract<br />owner cant see.
@@ -479,7 +479,7 @@ export default function LandingPage(): JSX.Element {
 
       {/* ── MARKETS ── */}
       <section id="markets" className="relative z-10 border-t border-white/[0.07]">
-        <div className="mx-auto max-w-6xl px-6 lg:px-10 py-16 lg:py-24">
+        <div className="py-16 lg:py-24">
           <div className="flex items-end justify-between mb-12">
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.26em] text-[#e8533a] mb-4">Live Markets</p>
@@ -496,7 +496,7 @@ export default function LandingPage(): JSX.Element {
             </Link>
           </div>
 
-          <motion.div 
+          <motion.div
             className="grid lg:grid-cols-3 gap-4"
             initial="hidden"
             whileInView="show"
@@ -562,7 +562,7 @@ export default function LandingPage(): JSX.Element {
 
       {/* ── FINAL CTA ── */}
       <section className="relative z-10 border-t border-white/[0.07]">
-        <div className="mx-auto max-w-6xl px-6 lg:px-10 py-16 lg:py-24">
+        <div className="py-16 lg:py-24">
           <div className="rounded-[28px] border border-[#e8533a]/20 bg-[#e8533a]/[0.02] p-10 lg:p-16 text-center relative overflow-hidden">
             <div
               className="pointer-events-none absolute inset-0 rounded-[28px]"
@@ -572,7 +572,7 @@ export default function LandingPage(): JSX.Element {
             <h2 className="relative font-serif italic text-[40px] lg:text-[58px] tracking-[-0.035em] text-[#e8e4df] leading-[1.0] mb-5">
               Your positions.<br />Your secret.
             </h2>
-            <p className="relative text-[16px] leading-[1.85] text-white/40 font-light max-w-[480px] mx-auto mb-10">
+            <p className="relative text-[16px] leading-[1.85] text-white/40 font-light mx-auto mb-10">
               Join the only prediction market where the protocol itself cannot see your strategy.
             </p>
             <Link
