@@ -40,7 +40,12 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                     {data?.isRegistered ? 'Oracle Node Active' : 'Oracle Seat Available'}
                   </span>
                 </div>
-                <h2 className="text-3xl font-black tracking-tight text-foreground">Resolution</h2>
+                {/* <h2 className="text-3xl font-black tracking-tight text-foreground">Resolution</h2> */}
+                <h1 className="text-[30px] lg:text-[40px] leading-[1.1] tracking-[-0.04em] mb-4">
+                  <span className="font-serif italic text-[#e8e4df]">Oracle</span>
+                  {/* <br /> */}
+                  <span className="font-sans font-light text-white/35 ml-2">governance.</span>
+                </h1>
                 <p className="text-sm text-muted-foreground">Manage your locked stake and participate in optimistic market resolution.</p>
               </div>
               <Button

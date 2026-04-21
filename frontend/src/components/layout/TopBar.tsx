@@ -1,7 +1,7 @@
 'use client';
 
-import { Menu, ShieldCheck } from 'lucide-react';
-import useAppStore from '@/store/useAppStore';
+import Link from 'next/link';
+import { ShieldCheck } from 'lucide-react';
 import WalletButton from '@/components/layout/WalletButton';
 
 export interface TopBarProps {
@@ -10,19 +10,22 @@ export interface TopBarProps {
 }
 
 export default function TopBar({ eyebrow, title }: TopBarProps): JSX.Element {
-  const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
-
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-background/80 backdrop-blur-xl">
-      <div className="flex h-20 items-center justify-between px-4 lg:px-10">
+      <div className="mx-auto max-w-6xl flex h-20 items-center justify-between px-6 lg:px-10">
         <div className="flex items-center gap-6">
-          <button
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card/50 text-muted-foreground transition-all hover:bg-card hover:text-foreground lg:hidden"
-            onClick={() => setSidebarOpen(true)}
-            type="button"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
+              <rect width="28" height="28" rx="8" fill="rgba(199,80,72,0.12)" />
+              <path
+                d="M8 14h4m4 0h4M14 8v4m0 4v4"
+                stroke="#D66A61"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <rect x="11" y="11" width="6" height="6" rx="1" stroke="#D66A61" strokeWidth="1" />
+            </svg>
+          </Link>
           <div className="flex flex-col">
             {eyebrow ? (
               <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-primary/80">

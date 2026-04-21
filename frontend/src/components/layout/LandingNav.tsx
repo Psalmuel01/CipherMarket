@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
+import WalletButton from '@/components/layout/WalletButton';
 
 export default function LandingNav() {
   const pathname = usePathname();
@@ -19,9 +20,6 @@ export default function LandingNav() {
   }, []);
 
   const navItems = [
-    { label: 'Technology', href: isHomePage ? '#how-it-works' : '/#how-it-works' },
-    { label: 'Security', href: isHomePage ? '#security' : '/#security' },
-    { label: 'Markets', href: isHomePage ? '#markets' : '/#markets' },
     { label: 'Documentation', href: '/docs' },
   ];
 
@@ -63,12 +61,7 @@ export default function LandingNav() {
               {item.label}
             </Link>
           ))}
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-1.5 text-[13px] font-medium bg-[#e8533a] text-white px-4 py-2 rounded-lg hover:bg-[#d44830] transition-colors"
-          >
-            Launch App <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <WalletButton />
         </div>
       </div>
     </nav>

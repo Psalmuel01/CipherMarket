@@ -1,10 +1,5 @@
-import dynamic from 'next/dynamic';
 import type { ReactNode } from 'react';
 import LayoutWrapper from '@/components/layout/LayoutWrapper';
-
-const Providers = dynamic(() => import('@/app/providers'), {
-  ssr: false,
-});
 
 export default function DeskLayout({
   children,
@@ -12,8 +7,6 @@ export default function DeskLayout({
   children: ReactNode;
 }>): JSX.Element {
   return (
-    <Providers>
-      <LayoutWrapper>{children}</LayoutWrapper>
-    </Providers>
+    <LayoutWrapper>{children}</LayoutWrapper>
   );
 }

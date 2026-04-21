@@ -68,40 +68,50 @@ export default function ProposeOutcomeForm({ className }: ProposeOutcomeFormProp
           <label className="px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Market
           </label>
-          <select
-            className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-            onChange={(event) => {
-              setMarketId(event.target.value);
-              setOutcomeIndex('0');
-            }}
-            value={marketId}
-          >
-            <option value="">Select a market</option>
-            {markets
-              .filter((market) => market.status === 'EXPIRED' || market.status === 'PROPOSED')
-              .map((market) => (
-                <option key={market.marketId} value={String(market.marketId)}>
-                  #{market.marketId} · {market.title}
-                </option>
-              ))}
-          </select>
+          <div className='relative'>
+            <select
+              className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+              onChange={(event) => {
+                setMarketId(event.target.value);
+                setOutcomeIndex('0');
+              }}
+              value={marketId}
+            >
+              <option value="">Select a market</option>
+              {markets
+                .filter((market) => market.status === 'EXPIRED' || market.status === 'PROPOSED')
+                .map((market) => (
+                  <option key={market.marketId} value={String(market.marketId)}>
+                    #{market.marketId} · {market.title}
+                  </option>
+                ))}
+            </select>
+            <div className="pointer-events-none text-xs absolute inset-y-0 right-3 flex items-center text-white/40">
+              ▼
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3">
           <label className="px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Proposed Outcome
           </label>
-          <select
-            className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-            onChange={(event) => setOutcomeIndex(event.target.value)}
-            value={outcomeIndex}
-          >
-            {(proposedMarket?.outcomes ?? []).map((outcome) => (
-              <option key={outcome.id} className="bg-background" value={outcome.outcomeIndex}>
-                Outcome: {outcome.label}
-              </option>
-            ))}
-          </select>
+          <div className='relative'>
+            <select
+              className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+              onChange={(event) => setOutcomeIndex(event.target.value)}
+              value={outcomeIndex}
+            >
+              {(proposedMarket?.outcomes ?? []).map((outcome) => (
+                <option key={outcome.id} className="bg-background" value={outcome.outcomeIndex}>
+                  Outcome: {outcome.label}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none text-xs absolute inset-y-0 right-3 flex items-center text-white/40">
+              ▼
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3">

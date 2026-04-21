@@ -143,30 +143,10 @@ function toAnchor(label: string): string {
 
 export default function DocsPage() {
   return (
-    <main className="min-h-screen bg-[#000000] text-[#e8e4df] antialiased overflow-x-hidden font-sans">
-      {/* Noise overlay */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-[0.035]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-          backgroundSize: '200px 200px',
-        }}
-      />
-
-      {/* Accent glows */}
-      <div
-        className="pointer-events-none fixed -top-40 -left-20 w-[600px] h-[600px] rounded-full z-0"
-        style={{ background: 'radial-gradient(circle, rgba(232,83,58,0.07) 0%, transparent 70%)' }}
-      />
-      <div
-        className="pointer-events-none fixed top-1/4 -right-20 w-[500px] h-[500px] rounded-full z-0"
-        style={{ background: 'radial-gradient(circle, rgba(232,83,58,0.04) 0%, transparent 70%)' }}
-      />
-
-      <LandingNav />
+    <div className="relative z-10 font-sans">
 
       {/* ── HERO ── */}
-      <header className="relative z-10 border-b border-white/[0.07] bg-white/[0.01]">
+      {/* <header className="relative z-10 border-b border-white/[0.07] bg-white/[0.01]">
         <div className="mx-auto max-w-6xl px-6 lg:px-10 py-20 lg:py-24">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
             <div className="max-w-[640px]">
@@ -186,7 +166,6 @@ export default function DocsPage() {
               </p>
             </div>
 
-            {/* Quick Stats/Links */}
             <div className="flex flex-col gap-3 min-w-[200px]">
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/20 mb-1">On this page</p>
               {DOC_GROUPS.map((group) => (
@@ -202,7 +181,7 @@ export default function DocsPage() {
             </div>
           </div>
         </div>
-      </header>
+      </header> */}
 
       {/* ── BODY ── */}
       <div className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 py-16 lg:py-24">
@@ -282,7 +261,6 @@ export default function DocsPage() {
         </div>
       </div>
 
-      <LandingFooter />
-    </main>
+    </div>
   );
 }

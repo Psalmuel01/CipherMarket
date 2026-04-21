@@ -62,17 +62,17 @@
 
 @layer components {
   .glass-card {
-    @apply border border-white/[0.08] bg-card/70 backdrop-blur-2xl transition-all duration-500 shadow-[0_12px_44px_-12px_rgba(0,0,0,0.5)];
+    @apply border border-white/[0.08] bg-[#0d1017]/70 backdrop-blur-3xl transition-all duration-500;
     box-shadow: 
       inset 0 1px 1px 0 rgba(255, 255, 255, 0.05),
-      0 24px 48px -12px rgba(0, 0, 0, 0.6);
+      0 32px 64px -16px rgba(0, 0, 0, 0.6);
   }
 
   .glass-card:hover {
-    @apply border-white/20 bg-card/80;
+    @apply border-white/20 bg-[#0d1017]/80;
     box-shadow: 
       inset 0 1px 2px 0 rgba(255, 255, 255, 0.1),
-      0 32px 64px -16px rgba(0, 0, 0, 0.7);
+      0 40px 80px -20px rgba(0, 0, 0, 0.8);
   }
 
   .shimmer {
