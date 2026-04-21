@@ -91,6 +91,11 @@ const config: Config = {
       backdropFilter: {
         terminal: 'blur(12px)',
       },
+      fontFamily: {
+        serif: ['Instrument Serif', 'Georgia', 'serif'],
+        sans:  ['var(--font-geist-sans)', 'Geist', 'sans-serif'],
+        mono:  ['var(--font-geist-mono)', 'Geist Mono', 'monospace'],
+      },
     },
   },
   plugins: [require('tailwindcss-animate')],

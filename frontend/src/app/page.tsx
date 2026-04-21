@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { ArrowRight, Eye, EyeOff, Gavel, Lock, Shield, TrendingUp, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import LandingNav from '@/components/layout/LandingNav';
+import LandingFooter from '@/components/layout/LandingFooter';
 
 /*
   FONTS — add to globals.css:
@@ -191,48 +193,7 @@ export default function LandingPage(): JSX.Element {
       />
 
       {/* ── NAV ── */}
-      <nav className="relative z-50 border-b border-white/[0.07] bg-[#07090c]/80 backdrop-blur-xl sticky top-0">
-        <div className="mx-auto max-w-6xl px-6 lg:px-10 flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <rect width="28" height="28" rx="8" fill="rgba(199,80,72,0.12)" />
-              <path
-                d="M8 14h4m4 0h4M14 8v4m0 4v4"
-                stroke="#D66A61"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <rect x="11" y="11" width="6" height="6" rx="1" stroke="#D66A61" strokeWidth="1" />
-            </svg>
-            <div>
-              <p className="font-serif text-[15px] text-[#e8e4df] leading-none">CipherMarket</p>
-              <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/30 mt-0.5">Private Prediction Market</p>
-            </div>
-          </div>
-
-          <div className="hidden md:flex items-center gap-7">
-            {[
-              { label: 'Technology', href: '#how-it-works' },
-              { label: 'Security', href: '#security' },
-              { label: 'Markets', href: '#markets' },
-            ].map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="text-[13px] text-white/40 hover:text-white/80 transition-colors tracking-[-0.01em]"
-              >
-                {item.label}
-              </Link>
-            ))}
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-1.5 text-[13px] font-medium bg-[#e8533a] text-white px-4 py-2 rounded-lg hover:bg-[#d44830] transition-colors"
-            >
-              Launch App <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <LandingNav />
 
       {/* ── HERO ── */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 lg:px-10 pt-24 pb-20 lg:pt-32 lg:pb-24">
@@ -608,32 +569,7 @@ export default function LandingPage(): JSX.Element {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="relative z-10 border-t border-white/[0.07] py-6">
-        <div className="mx-auto max-w-6xl px-6 lg:px-10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <rect width="28" height="28" rx="8" fill="rgba(199,80,72,0.12)" />
-              <path
-                d="M8 14h4m4 0h4M14 8v4m0 4v4"
-                stroke="#D66A61"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-              <rect x="11" y="11" width="6" height="6" rx="1" stroke="#D66A61" strokeWidth="1" />
-            </svg>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/20">
-              CipherMarket · v1.0.0-beta · Built on Fhenix CoFHE · Ethereum Sepolia
-            </p>
-          </div>
-          <div className="flex items-center gap-5">
-            {['GitHub', 'Docs', 'Telegram'].map((item) => (
-              <Link key={item} href="#" className="text-[12px] text-white/25 hover:text-white/50 transition-colors">
-                {item}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </footer>
+      <LandingFooter />
 
     </main>
   );

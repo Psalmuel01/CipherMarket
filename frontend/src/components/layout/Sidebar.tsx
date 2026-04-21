@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { href: '/my-bets', label: 'My Positions', icon: Ticket },
   { href: '/markets/create', label: 'Create Market', icon: PlusSquare },
   { href: '/oracle', label: 'Oracle', icon: ShieldAlert },
-  { href: '/docs', label: 'Docs', icon: BookOpenText },
 ];
 
 export interface SidebarProps {
