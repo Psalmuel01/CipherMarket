@@ -1,7 +1,9 @@
 'use client';
 
-import { ShieldCheck, Activity, Target, Zap, ChevronRight, Gavel } from 'lucide-react';
+import { useState } from 'react';
+import { ShieldCheck, Activity, Target, Zap, ChevronRight, Gavel, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import Skeleton from '@/components/ui/Skeleton';
 import useOracleStatus from '@/hooks/useOracleStatus';
 import ProposeOutcomeForm from '@/components/oracle/ProposeOutcomeForm';
@@ -9,6 +11,8 @@ import clsx from 'clsx';
 import useRegisterOracle from '@/hooks/useRegisterOracle';
 import useMarkets from '@/hooks/useMarkets';
 import Link from 'next/link';
+import { formatEther } from 'viem';
+import { DEFAULT_ORACLE_STAKE } from '@/lib/contracts';
 
 export interface OracleDashboardProps {
   className?: string;
@@ -26,6 +30,16 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
   const pendingMarkets = markets.filter(
     (market) => market.status === 'EXPIRED' || market.status === 'PROPOSED' || market.status === 'DISPUTED',
   );
+
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  const stakeDisplay = formatEther(DEFAULT_ORACLE_STAKE);
+  const minimumStakeDisplay = data?.minimumStakeFormatted ?? `${stakeDisplay} ETH`;
+
+  const handleConfirmRegister = async (): Promise<void> => {
+    setShowRegisterModal(false);
+    await registerOracle();
+  };
 
   return (
     <section className={clsx("space-y-8", className)}>
@@ -52,7 +66,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                 variant="primary"
                 className="gap-2"
                 disabled={isRegisterLoading || data?.isRegistered}
-                onClick={() => registerOracle()}
+                onClick={() => setShowRegisterModal(true)}
                 type="button"
               >
                 <Zap className="h-4 w-4" />
@@ -157,6 +171,75 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
           <ProposeOutcomeForm />
         </aside>
       </div>
+
+      {/* Register Oracle Confirmation Modal */}
+      <Modal
+        open={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        title="Register as Oracle"
+        description="Review the details below before staking."
+      >
+        <div className="space-y-6 py-2">
+          <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-6 space-y-3">
+            <div className="flex items-start gap-3 rounded-xl bg-amber-500/8 border border-amber-500/15 p-4">
+              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">Staking Required</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Registering as an oracle requires locking ETH as collateral.
+                  This stake can be slashed if your proposals are successfully disputed.
+                </p>
+              </div>
+            </div>
+
+            <div className="divide-y divide-white/5">
+              <div className="flex items-center justify-between py-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Stake amount</span>
+                <span className="font-mono text-lg font-bold text-foreground">{stakeDisplay} ETH</span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Registry minimum</span>
+                <span className="font-mono text-sm text-muted-foreground">{minimumStakeDisplay}</span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Role</span>
+                <span className="text-sm text-foreground">Optimistic Oracle Node</span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Slashing risk</span>
+                <span className="text-sm text-amber-400">Yes — if disputed and overturned</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-4 text-xs leading-relaxed text-muted-foreground">
+            By registering, you agree to propose truthful outcomes backed by the designated oracle source.
+            Your stake remains locked while you are an active oracle and may be partially or fully slashed
+            in the event of a successful dispute against your proposal.
+          </div>
+
+          <div className="flex items-center gap-4 border-t border-white/5 pt-4">
+            <Button
+              className="flex-1"
+              variant="outline"
+              size="lg"
+              onClick={() => setShowRegisterModal(false)}
+              type="button"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 gap-2"
+              size="lg"
+              onClick={() => void handleConfirmRegister()}
+              type="button"
+            >
+              <Zap className="h-4 w-4" />
+              Confirm & Stake {stakeDisplay} ETH
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </section>
   );
 }

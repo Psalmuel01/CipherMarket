@@ -22,6 +22,7 @@ import useCreateMarket from '@/hooks/useCreateMarket';
 import { getContractAddresses, NATIVE_ETH_ADDRESS } from '@/lib/contracts';
 import clsx from 'clsx';
 import type { MarketType } from '@/types/market';
+import { formatUnits, parseUnits } from 'viem';
 import type { Address } from 'viem';
 
 const STEPS = [
@@ -40,7 +41,7 @@ export interface CreateMarketFormProps {
 export default function CreateMarketForm({ className }: CreateMarketFormProps): JSX.Element {
   const chainId = useChainId();
   const addresses = getContractAddresses(chainId);
-  const { createMarket, data, error, isError, isLoading } = useCreateMarket();
+  const { createMarket, data, error, isError, isLoading, reset } = useCreateMarket();
   const [stepIndex, setStepIndex] = useState<number>(0);
   const [marketType, setMarketType] = useState<MarketType>('BINARY');
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
@@ -50,9 +51,9 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
   );
   const [oracleSource, setOracleSource] = useState<string>('https://example.com/eth-june-settlement');
   const [outcomes, setOutcomes] = useState<string[]>(['YES', 'NO']);
-  const [expiryTime, setExpiryTime] = useState<string>('2026-06-30T16:00');
+  const [expiryTime, setExpiryTime] = useState<string>('');
   const [minimumTrade, setMinimumTrade] = useState<string>('0.01');
-  const [seedLiquidity, setSeedLiquidity] = useState<string>('250');
+  const [seedLiquidity, setSeedLiquidity] = useState<string>('0.1');
   const [collateralToken, setCollateralToken] = useState<Address>(NATIVE_ETH_ADDRESS);
 
   const collateralOptions = useMemo(
@@ -62,6 +63,42 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
     ],
     [addresses?.usdc],
   );
+
+  const collateralDecimals = collateralToken === NATIVE_ETH_ADDRESS ? 18 : 6;
+  const collateralSymbol = collateralToken === NATIVE_ETH_ADDRESS ? 'ETH' : 'USDC';
+  const minimumTradePlaceholder = collateralToken === NATIVE_ETH_ADDRESS ? '0.01' : '1';
+  const seedLiquidityPlaceholder = collateralToken === NATIVE_ETH_ADDRESS ? '0.1' : '10';
+  const expiryTimestamp = new Date(expiryTime).getTime();
+  const isExpiryInvalid = Number.isNaN(expiryTimestamp);
+  const isExpiryInPast = !isExpiryInvalid && expiryTimestamp <= Date.now();
+
+  const minimumRequiredSeedLiquidity = useMemo(() => {
+    try {
+      const parsedMinimumTrade = parseUnits(minimumTrade || '0', collateralDecimals);
+      return parsedMinimumTrade * BigInt(outcomes.length);
+    } catch {
+      return 0n;
+    }
+  }, [collateralDecimals, minimumTrade, outcomes.length]);
+
+  const parsedSeedLiquidity = useMemo(() => {
+    try {
+      return parseUnits(seedLiquidity || '0', collateralDecimals);
+    } catch {
+      return 0n;
+    }
+  }, [collateralDecimals, seedLiquidity]);
+
+  const isSeedLiquidityTooSmall =
+    minimumRequiredSeedLiquidity > 0n && parsedSeedLiquidity < minimumRequiredSeedLiquidity;
+
+  const minimumLiquidityLabel = useMemo(() => {
+    if (minimumRequiredSeedLiquidity === 0n) {
+      return null;
+    }
+
+    return formatUnits(minimumRequiredSeedLiquidity, collateralDecimals);
+  }, [collateralDecimals, minimumRequiredSeedLiquidity]);
 
   const handleAddOutcome = (): void => {
     setOutcomes((current) => [...current, `Outcome ${current.length + 1}`]);
@@ -80,6 +117,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
   };
 
   const handleTypeChange = (nextType: MarketType): void => {
+    reset();
     setMarketType(nextType);
 
     if (nextType === 'BINARY') {
@@ -87,6 +125,20 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
     } else if (outcomes.length < 2) {
       setOutcomes(['Outcome A', 'Outcome B']);
     }
+  };
+
+  const handleCollateralChange = (nextCollateral: Address): void => {
+    reset();
+    setCollateralToken(nextCollateral);
+
+    if (nextCollateral === NATIVE_ETH_ADDRESS) {
+      setMinimumTrade('0.01');
+      setSeedLiquidity('0.1');
+      return;
+    }
+
+    setMinimumTrade('1');
+    setSeedLiquidity('10');
   };
 
   const handleSubmit = async (): Promise<void> => {
@@ -248,7 +300,10 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                   </label>
                   <input
                     className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                    onChange={(event) => setTitle(event.target.value)}
+                    onChange={(event) => {
+                      reset();
+                      setTitle(event.target.value);
+                    }}
                     placeholder="What is being predicted?"
                     value={title}
                   />
@@ -259,7 +314,10 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                   </label>
                   <textarea
                     className="min-h-28 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm font-medium text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                    onChange={(event) => setDescription(event.target.value)}
+                    onChange={(event) => {
+                      reset();
+                      setDescription(event.target.value);
+                    }}
                     placeholder="State the exact settlement condition and any important caveats."
                     value={description}
                   />
@@ -271,7 +329,10 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                   <div className="relative">
                     <select
                       className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-background px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                      onChange={(event) => setCategory(event.target.value)}
+                      onChange={(event) => {
+                        reset();
+                        setCategory(event.target.value);
+                      }}
                       value={category}
                     >
                       {CATEGORIES.map((item) => (
@@ -322,7 +383,10 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                             : 'focus:border-primary/50 focus:ring-4 focus:ring-primary/10',
                         )}
                         disabled={marketType === 'BINARY'}
-                        onChange={(event) => updateOutcome(index, event.target.value)}
+                        onChange={(event) => {
+                          reset();
+                          updateOutcome(index, event.target.value);
+                        }}
                         placeholder={`Outcome ${index + 1}`}
                         value={outcome}
                       />
@@ -353,10 +417,19 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                 </label>
                 <input
                   className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                  onChange={(event) => setExpiryTime(event.target.value)}
+                  onChange={(event) => {
+                    reset();
+                    setExpiryTime(event.target.value);
+                  }}
                   type="datetime-local"
                   value={expiryTime}
                 />
+                {isExpiryInvalid ? (
+                  <p className="text-xs text-destructive">Enter a valid expiry date and time.</p>
+                ) : null}
+                {isExpiryInPast ? (
+                  <p className="text-xs text-destructive">Expiry must be in the future.</p>
+                ) : null}
               </div>
               <div className="space-y-3">
                 <label className="text-sm font-black uppercase tracking-widest text-muted-foreground">
@@ -365,7 +438,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                 <div className="relative">
                 <select
                   className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-background px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                  onChange={(event) => setCollateralToken(event.target.value as Address)}
+                  onChange={(event) => handleCollateralChange(event.target.value as Address)}
                   value={collateralToken}
                 >
                   {collateralOptions.map((option) => (
@@ -385,7 +458,10 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                 </label>
                 <input
                   className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                  onChange={(event) => setOracleSource(event.target.value)}
+                  onChange={(event) => {
+                    reset();
+                    setOracleSource(event.target.value);
+                  }}
                   placeholder="https://publisher.example/settlement-source"
                   value={oracleSource}
                 />
@@ -396,8 +472,11 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                 </label>
                 <input
                   className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                  onChange={(event) => setMinimumTrade(event.target.value)}
-                  placeholder="0.01"
+                  onChange={(event) => {
+                    reset();
+                    setMinimumTrade(event.target.value);
+                  }}
+                  placeholder={minimumTradePlaceholder}
                   value={minimumTrade}
                 />
               </div>
@@ -407,14 +486,28 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                 </label>
                 <input
                   className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                  onChange={(event) => setSeedLiquidity(event.target.value)}
-                  placeholder="250"
+                  onChange={(event) => {
+                    reset();
+                    setSeedLiquidity(event.target.value);
+                  }}
+                  placeholder={seedLiquidityPlaceholder}
                   value={seedLiquidity}
                 />
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   Enter the total deposit. CipherMarket splits it evenly across every outcome to
                   initialize the pool.
                 </p>
+                {minimumLiquidityLabel ? (
+                  <p
+                    className={clsx(
+                      'text-xs leading-relaxed',
+                      isSeedLiquidityTooSmall ? 'text-destructive' : 'text-muted-foreground',
+                    )}
+                  >
+                    Minimum required liquidity with {outcomes.length} outcomes: {minimumLiquidityLabel}{' '}
+                    {collateralSymbol}.
+                  </p>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -453,6 +546,12 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Seed Liquidity</p>
                     <p className="font-bold text-foreground">{seedLiquidity}</p>
                   </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Minimum Required</p>
+                    <p className={clsx('font-bold', isSeedLiquidityTooSmall ? 'text-destructive' : 'text-foreground')}>
+                      {minimumLiquidityLabel ? `${minimumLiquidityLabel} ${collateralSymbol}` : '—'}
+                    </p>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</p>
@@ -484,7 +583,12 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
               Back
             </Button>
             {stepIndex === STEPS.length - 1 ? (
-              <Button className="gap-2" disabled={isLoading} onClick={handleSubmit} type="button">
+              <Button
+                className="gap-2"
+                disabled={isLoading || isSeedLiquidityTooSmall || isExpiryInvalid || isExpiryInPast}
+                onClick={handleSubmit}
+                type="button"
+              >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {isLoading ? 'Deploying...' : 'Deploy Market'}
               </Button>

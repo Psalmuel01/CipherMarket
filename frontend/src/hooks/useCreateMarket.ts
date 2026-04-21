@@ -23,6 +23,7 @@ export interface UseCreateMarketResult {
   isError: boolean;
   error: Error | null;
   createMarket: (draft: CreateMarketDraft) => Promise<void>;
+  reset: () => void;
 }
 
 /**
@@ -39,6 +40,7 @@ export default function useCreateMarket(): UseCreateMarketResult {
 
   const createMarket = async (draft: CreateMarketDraft): Promise<void> => {
     try {
+      setData(null);
       const addresses = getContractAddresses(chainId);
       const predictionMarketAddress = addresses?.predictionMarket;
 
@@ -53,9 +55,18 @@ export default function useCreateMarket(): UseCreateMarketResult {
       const collateral = getCollateralMetadata(draft.collateralToken, chainId);
       const minimumTrade = parseUnits(draft.minimumTrade || '0', collateral.decimals);
       const seedLiquidity = parseUnits(draft.seedLiquidity || '0', collateral.decimals);
+      const expiryTimestamp = Math.floor(new Date(draft.expiryTime).getTime() / 1000);
 
       if (minimumTrade <= 0n) {
         throw new Error('Minimum trade must be greater than zero.');
+      }
+
+      if (!Number.isFinite(expiryTimestamp)) {
+        throw new Error('Enter a valid expiry date and time.');
+      }
+
+      if (expiryTimestamp <= Math.floor(Date.now() / 1000)) {
+        throw new Error('Expiry must be in the future.');
       }
 
       if (seedLiquidity <= 0n) {
@@ -66,8 +77,29 @@ export default function useCreateMarket(): UseCreateMarketResult {
         throw new Error('Seed liquidity must split evenly across all outcomes.');
       }
 
+      if (seedLiquidity < minimumTrade * BigInt(draft.outcomes.length)) {
+        throw new Error(
+          'Seed liquidity is too small for the selected minimum trade and outcome count.',
+        );
+      }
+
       setError(null);
       setIsLoading(true);
+
+      if (draft.collateralToken !== zeroAddress) {
+        const isAccepted = await publicClient.readContract({
+          address: predictionMarketAddress,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'acceptedCollateral',
+          args: [draft.collateralToken],
+        });
+
+        if (!isAccepted) {
+          throw new Error(
+            'USDC is not whitelisted on the deployed PredictionMarket contract.',
+          );
+        }
+      }
 
       if (draft.collateralToken !== zeroAddress) {
         const approvalHash = await writeContractAsync({
@@ -92,19 +124,26 @@ export default function useCreateMarket(): UseCreateMarketResult {
           draft.oracleSource,
           marketType === 'BINARY' ? 0 : 1,
           draft.outcomes,
-          BigInt(Math.floor(new Date(draft.expiryTime).getTime() / 1000)),
+          BigInt(expiryTimestamp),
           draft.collateralToken || zeroAddress,
           minimumTrade,
           seedLiquidity,
         ],
         value: draft.collateralToken === zeroAddress ? seedLiquidity : 0n,
+        gas: draft.collateralToken === zeroAddress ? 1_600_000n : 2_200_000n,
       });
 
-      await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      if (receipt.status !== 'success') {
+        throw new Error('Market creation transaction failed.');
+      }
 
       setData({ txHash: hash });
       toast.success('Market created with seeded liquidity.');
     } catch (caughtError) {
+      console.error('CipherMarket createMarket failed:', caughtError);
+
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))
@@ -117,11 +156,18 @@ export default function useCreateMarket(): UseCreateMarketResult {
     }
   };
 
+  const reset = (): void => {
+    setData(null);
+    setError(null);
+    setIsLoading(false);
+  };
+
   return {
     data,
     isLoading,
     isError: error !== null,
     error,
     createMarket,
+    reset,
   };
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpDown, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowUpDown, CheckCircle2, ShieldCheck, Sparkles, XCircle, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import useBuyShares from '@/hooks/useBuyShares';
@@ -22,6 +22,8 @@ export interface BetModalProps {
   outcome: MarketOutcome;
   side: 'BUY' | 'SELL';
   onClose: () => void;
+  /** Max shares the user holds for sell-side capping */
+  userShares?: bigint;
 }
 
 export default function BetModal({
@@ -34,8 +36,9 @@ export default function BetModal({
   open,
   outcome,
   side,
+  userShares,
 }: BetModalProps): JSX.Element {
-  const [amount, setAmount] = useState<string>('1');
+  const [amount, setAmount] = useState<string>('0.1');
   const { data: buyState, error: buyError, isError: isBuyError, isLoading: isBuyLoading, buyShares, reset } =
     useBuyShares();
   const {
@@ -59,9 +62,37 @@ export default function BetModal({
   const error = side === 'BUY' ? buyError : sellError;
   const isError = side === 'BUY' ? isBuyError : isSellError;
 
+  // Derive max shares for sell side
+  const maxSharesFormatted =
+    side === 'SELL' && userShares != null
+      ? formatAmount(userShares, collateralDecimals)
+      : null;
+
+  // Check if sell amount exceeds user's shares
+  const exceedsMax = (() => {
+    if (side !== 'SELL' || userShares == null) return false;
+    try {
+      const parsed = parseFloat(amount || '0');
+      const maxParsed = parseFloat(formatAmount(userShares, collateralDecimals).replace(/,/g, ''));
+      return parsed > maxParsed;
+    } catch {
+      return false;
+    }
+  })();
+
+  const handleSetMax = (): void => {
+    if (side === 'SELL' && userShares != null) {
+      const formatted = formatAmount(userShares, collateralDecimals);
+      setAmount(formatted.replace(/,/g, ''));
+    }
+  };
+
+  const isSuccess = transactionState?.step === 'success' || ('txHash' in (transactionState ?? {}) && transactionState?.txHash);
+
   const handleClose = (): void => {
     reset();
     resetSellState();
+    setAmount('1');
     onClose();
   };
 
@@ -104,13 +135,127 @@ export default function BetModal({
   ];
 
   const currentStepIndex =
-    transactionState?.step === 'success'
+    isSuccess
       ? 3
-      : transactionState?.step === 'awaiting_wallet'
-        ? 2
-        : transactionState?.step === 'encrypting'
-          ? 1
-          : 0;
+      : isError
+        ? 3
+        : transactionState?.step === 'awaiting_wallet'
+          ? 2
+          : transactionState?.step === 'encrypting'
+            ? 1
+            : 0;
+
+  // Full-screen success/failure overlay
+  if (isSuccess) {
+    return (
+      <Modal onClose={handleClose} open={open} title="" description="">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          className="flex flex-col items-center text-center py-6 space-y-6"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.1, type: 'spring', damping: 12 }}
+            className="w-20 h-20 rounded-full bg-emerald-500/15 border-2 border-emerald-500/30 flex items-center justify-center"
+          >
+            <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+          </motion.div>
+
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold text-foreground">
+              {side === 'BUY' ? 'Shares Purchased!' : 'Shares Sold!'}
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              {side === 'BUY'
+                ? `You successfully bought ${outcome.label} shares in "${marketTitle}".`
+                : `You successfully sold ${outcome.label} shares from "${marketTitle}".`}
+            </p>
+          </div>
+
+          <div className="w-full rounded-2xl border border-white/8 bg-white/[0.03] p-5 space-y-3 text-left">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Market</span>
+              <span className="text-foreground font-medium">#{marketId}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Outcome</span>
+              <span className="text-foreground font-medium">{outcome.label}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Amount</span>
+              <span className="text-foreground font-mono">{amount} {side === 'BUY' ? collateralSymbol : 'shares'}</span>
+            </div>
+            {transactionState?.txHash ? (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Transaction</span>
+                <span className="font-mono text-primary/80 text-xs">{truncateAddress(transactionState.txHash)}</span>
+              </div>
+            ) : null}
+          </div>
+
+          <Button size="lg" className="w-full" onClick={handleClose} type="button">
+            Done
+          </Button>
+        </motion.div>
+      </Modal>
+    );
+  }
+
+  if (isError && error) {
+    return (
+      <Modal onClose={handleClose} open={open} title="" description="">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+          className="flex flex-col items-center text-center py-6 space-y-6"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.1, type: 'spring', damping: 12 }}
+            className="w-20 h-20 rounded-full bg-red-500/15 border-2 border-red-500/30 flex items-center justify-center"
+          >
+            <XCircle className="h-10 w-10 text-red-400" />
+          </motion.div>
+
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold text-foreground">Transaction Failed</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              {side === 'BUY' ? 'Unable to purchase shares.' : 'Unable to sell shares.'} Please try again.
+            </p>
+          </div>
+
+          <div className="w-full rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-left">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-red-300 break-all">{error.message}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 w-full">
+            <Button variant="outline" size="lg" className="flex-1" onClick={handleClose} type="button">
+              Close
+            </Button>
+            <Button
+              size="lg"
+              className="flex-1"
+              onClick={() => {
+                reset();
+                resetSellState();
+              }}
+              type="button"
+            >
+              Try Again
+            </Button>
+          </div>
+        </motion.div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -163,18 +308,39 @@ export default function BetModal({
               <label className="font-mono text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
                 {side === 'BUY' ? `Collateral (${collateralSymbol})` : 'Shares to sell'}
               </label>
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                Market #{marketId}
-              </span>
+              <div className="flex items-center gap-2">
+                {side === 'SELL' && maxSharesFormatted ? (
+                  <button
+                    type="button"
+                    onClick={handleSetMax}
+                    className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-primary transition-colors hover:bg-primary/20"
+                  >
+                    Max: {maxSharesFormatted}
+                  </button>
+                ) : null}
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Market #{marketId}
+                </span>
+              </div>
             </div>
             <div className="relative">
               <input
-                className="h-16 w-full rounded-2xl border border-white/10 bg-white/[0.02] px-6 font-mono text-2xl font-semibold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+                className={clsx(
+                  "h-16 w-full rounded-2xl border bg-white/[0.02] px-6 font-mono text-2xl font-semibold text-foreground outline-none transition-all focus:ring-4",
+                  exceedsMax
+                    ? "border-red-500/50 focus:border-red-500/70 focus:ring-red-500/10"
+                    : "border-white/10 focus:border-primary/50 focus:ring-primary/10"
+                )}
                 onChange={(event) => setAmount(event.target.value)}
                 value={amount}
                 placeholder="0.00"
               />
             </div>
+            {exceedsMax ? (
+              <p className="text-xs text-red-400 px-1">
+                You only hold {maxSharesFormatted} shares for this outcome. Reduce the amount or click Max.
+              </p>
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
@@ -267,35 +433,7 @@ export default function BetModal({
               </p>
             </motion.div>
           ) : null}
-
-          {transactionState?.step === 'success' || ('txHash' in (transactionState ?? {}) && transactionState?.txHash) ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="rounded-2xl border border-primary/20 bg-primary/5 p-6 space-y-3"
-            >
-              <div className="flex items-center gap-4">
-                <div className="rounded-full bg-primary/20 p-2 text-primary">
-                  <CheckCircle2 className="h-6 w-6" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">
-                    {side === 'BUY' ? 'Shares bought' : 'Shares sold'}
-                  </p>
-                  <p className="font-mono text-xs text-primary/80">
-                    Tx: {truncateAddress(transactionState?.txHash ?? collateralToken)}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          ) : null}
         </AnimatePresence>
-
-        {isError && error ? (
-          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-xs font-medium text-destructive">
-            {error.message}
-          </div>
-        ) : null}
 
         <div className="flex items-center gap-4 border-t border-white/5 pt-4">
           <Button className="flex-1" variant="outline" size="lg" onClick={handleClose} type="button">
@@ -304,12 +442,12 @@ export default function BetModal({
           <Button
             className="flex-1 gap-2"
             size="lg"
-            disabled={!quote.data || isLoading}
+            disabled={!quote.data || isLoading || exceedsMax}
             onClick={() => void handleSubmit()}
             type="button"
           >
             <Sparkles className="h-4 w-4" />
-            {isLoading ? 'Processing...' : side === 'BUY' ? 'Buy Shares' : 'Sell Shares'}
+            {isLoading ? 'Processing...' : exceedsMax ? 'Exceeds Balance' : side === 'BUY' ? 'Buy Shares' : 'Sell Shares'}
           </Button>
         </div>
       </div>

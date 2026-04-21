@@ -472,7 +472,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-xs text-muted-foreground">
                   {tradeSide === 'BUY'
                     ? 'Estimate the quote, confirm in wallet, and the pool updates immediately while your resulting position stays private.'
                     : 'Selling requires a verified private balance. Reveal locally first, then CipherMarket verifies that balance before execution.'}
@@ -544,6 +544,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               open={isModalOpen}
               outcome={selectedOutcome}
               side={tradeSide}
+              userShares={isPortfolioVisible ? (selectedOutcome.revealedShares ?? undefined) : undefined}
             />
           ) : null}
         </>

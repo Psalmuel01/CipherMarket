@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Activity, Eye, EyeOff, ShieldCheck, Ticket, Trophy } from 'lucide-react';
+import { Activity, Eye, EyeOff, Loader2, ShieldCheck, Ticket, Trophy } from 'lucide-react';
 import CofheBetProvider from '@/components/betting/CofheBetProvider';
 import Button from '@/components/ui/Button';
 import useMarkets from '@/hooks/useMarkets';
@@ -30,7 +30,29 @@ function PortfolioDesk(): JSX.Element {
         shares: position.shares,
       };
     })
-    .filter((item): item is NonNullable<typeof item> => item !== null);
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    // Sort by market ID, then outcome index for consistent ordering
+    .sort((a, b) => {
+      if (a.market.marketId !== b.market.marketId) {
+        return a.market.marketId - b.market.marketId;
+      }
+      return a.outcome.outcomeIndex - b.outcome.outcomeIndex;
+    });
+
+  // Group positions by market for a cleaner table
+  const groupedByMarket = openPositions.reduce<
+    Record<number, { market: typeof openPositions[0]['market']; entries: typeof openPositions }>
+  >((acc, pos) => {
+    if (!acc[pos.market.marketId]) {
+      acc[pos.market.marketId] = { market: pos.market, entries: [] };
+    }
+    acc[pos.market.marketId].entries.push(pos);
+    return acc;
+  }, {});
+
+  const sortedMarketGroups = Object.values(groupedByMarket).sort(
+    (a, b) => a.market.marketId - b.market.marketId,
+  );
 
   return (
     <div className="pt-8 pb-12">
@@ -95,57 +117,114 @@ function PortfolioDesk(): JSX.Element {
                 Reveal locally to decrypt your current holdings. <br />Nothing public is added to the chain.
               </p>
             </div>
+          ) : privatePortfolio.isLoading ? (
+            /* Loading state while decrypting positions */
+            <div className="glass-card rounded-[32px] p-12 flex flex-col items-center justify-center gap-4">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-full border-2 border-[#e8533a]/20 border-t-[#e8533a] animate-spin" />
+                <Loader2 className="absolute inset-0 m-auto h-5 w-5 text-[#e8533a] animate-pulse" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-sm text-[#e8e4df] font-medium">Decrypting your positions...</p>
+                <p className="text-xs text-white/30 font-light">
+                  Creating a self-permit and revealing encrypted balances. This may take a moment.
+                </p>
+              </div>
+            </div>
           ) : openPositions.length === 0 ? (
             <div className="glass-card rounded-[32px] p-12 text-center text-sm text-white/30 font-light">
-              No revealed positions found for this wallet yet.
+              No positions found for this wallet. Trade on any active market to get started.
             </div>
           ) : (
-            <div className="space-y-3">
-              {openPositions.map(({ market, outcome, shares }) => (
-                <div
-                  key={`${market.marketId}-${outcome.id}`}
-                  className="glass-card interactive-glow flex flex-col gap-8 rounded-[32px] p-8 md:flex-row md:items-center md:justify-between"
-                >
-                  <div className="space-y-2">
-                    <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#e8533a]">
-                      {market.category}
-                    </p>
-                    <h3 className="text-[19px] font-semibold text-[#e8e4df] leading-snug">{market.title}</h3>
-                    <p className="text-[13px] text-white/35 font-light max-w-sm">{market.description}</p>
-                  </div>
+            /* Properly structured table view */
+            <div className="glass-card rounded-[32px] overflow-hidden">
+              {/* Table header */}
+              <div className="hidden md:grid md:grid-cols-[2fr,1fr,1fr,1fr,auto] gap-4 px-8 py-4 border-b border-white/5 bg-white/[0.02]">
+                <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/30">Market</p>
+                <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/30">Outcome</p>
+                <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/30">Shares</p>
+                <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/30">Status</p>
+                <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/30">Action</p>
+              </div>
 
-                  <div className="grid gap-8 sm:grid-cols-3">
-                    <div>
-                      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                        Outcome
-                      </p>
-                      <p className="mt-2 text-sm text-foreground">{outcome.label}</p>
-                    </div>
-                    <div>
-                      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                        Shares
-                      </p>
-                      <p className="mt-2 font-mono text-sm text-foreground">
-                        {formatTokenAmount(
-                          shares,
-                          market.collateralSymbol === 'USDC' ? 6 : 18,
-                          'shares',
+              {/* Table rows */}
+              <div className="divide-y divide-white/5">
+                {sortedMarketGroups.map((group) =>
+                  group.entries.map(({ market, outcome, shares }, idx) => (
+                    <div
+                      key={`${market.marketId}-${outcome.id}`}
+                      className="grid grid-cols-1 gap-3 px-8 py-5 transition-colors hover:bg-white/[0.02] md:grid-cols-[2fr,1fr,1fr,1fr,auto] md:items-center md:gap-4"
+                    >
+                      {/* Market */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#e8533a]">
+                            #{market.marketId}
+                          </span>
+                          {idx === 0 ? (
+                            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/20">
+                              {market.category}
+                            </span>
+                          ) : null}
+                        </div>
+                        {idx === 0 ? (
+                          <h3 className="text-[15px] font-semibold text-[#e8e4df] leading-snug line-clamp-1">
+                            {market.title}
+                          </h3>
+                        ) : (
+                          <p className="text-[13px] text-white/25 italic">same market</p>
                         )}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                        Status
-                      </p>
-                      <p className="mt-2 text-sm text-foreground">{market.status}</p>
-                    </div>
-                  </div>
+                      </div>
 
-                  <Link href={`/markets/${market.marketId}`}>
-                    <Button variant="outline">Open Market</Button>
-                  </Link>
-                </div>
-              ))}
+                      {/* Outcome */}
+                      <div>
+                        <p className="md:hidden font-mono text-[9px] uppercase tracking-[0.22em] text-white/30 mb-1">Outcome</p>
+                        <p className="text-sm text-foreground">{outcome.label}</p>
+                      </div>
+
+                      {/* Shares */}
+                      <div>
+                        <p className="md:hidden font-mono text-[9px] uppercase tracking-[0.22em] text-white/30 mb-1">Shares</p>
+                        <p className="font-mono text-sm text-foreground">
+                          {formatTokenAmount(
+                            shares,
+                            market.collateralSymbol === 'USDC' ? 6 : 18,
+                            'shares',
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Status */}
+                      <div>
+                        <p className="md:hidden font-mono text-[9px] uppercase tracking-[0.22em] text-white/30 mb-1">Status</p>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${
+                          market.status === 'ACTIVE'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : market.status === 'FINALIZED'
+                              ? 'bg-primary/10 text-primary border border-primary/20'
+                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            market.status === 'ACTIVE'
+                              ? 'bg-emerald-400'
+                              : market.status === 'FINALIZED'
+                                ? 'bg-primary'
+                                : 'bg-amber-400'
+                          }`} />
+                          {market.status}
+                        </span>
+                      </div>
+
+                      {/* Action */}
+                      <div className="flex justify-end">
+                        <Link href={`/markets/${market.marketId}`}>
+                          <Button variant="outline" size="sm">Open</Button>
+                        </Link>
+                      </div>
+                    </div>
+                  )),
+                )}
+              </div>
             </div>
           )}
         </section>

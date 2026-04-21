@@ -75,47 +75,52 @@ export default function usePrivatePortfolio(
         return [];
       }
 
-      await client.permits.getOrCreateSelfPermit(chainId, address, {
-        issuer: predictionMarketAddress,
-        name: 'CipherMarket portfolio view',
-      });
+      try {
+        const permit = await client.permits.getOrCreateSelfPermit(chainId, address, {
+          issuer: address,
+          name: 'CipherMarket portfolio view',
+        });
 
-      const positions: RevealedPortfolioPosition[] = [];
-      let cursor = 0;
+        const positions: RevealedPortfolioPosition[] = [];
+        let cursor = 0;
 
-      for (const market of markets) {
-        for (const outcome of market.outcomes) {
-          const handleResult = handlesQuery.data?.[cursor];
-          cursor += 1;
+        for (const market of markets) {
+          for (const outcome of market.outcomes) {
+            const handleResult = handlesQuery.data?.[cursor];
+            cursor += 1;
 
-          const handle =
-            handleResult?.status === 'success' && typeof handleResult.result === 'bigint'
-              ? handleResult.result
-              : 0n;
+            const handle =
+              handleResult?.status === 'success' && typeof handleResult.result === 'bigint'
+                ? handleResult.result
+                : 0n;
 
-          if (handle === 0n) {
-            continue;
-          }
+            if (handle === 0n) {
+              continue;
+            }
 
-          const unsealed = await client
-            .decryptForView(handle, FheTypes.Uint128)
-            .setAccount(address)
-            .setChainId(chainId ?? 11155111)
-            .withPermit()
-            .execute();
+            const unsealed = await client
+              .decryptForView(handle, FheTypes.Uint128)
+              .setAccount(address)
+              .setChainId(chainId ?? 11155111)
+              .withPermit(permit)
+              .execute();
 
-          const shares = BigInt(unsealed);
-          if (shares > 0n) {
-            positions.push({
-              marketId: market.marketId,
-              outcomeIndex: outcome.outcomeIndex,
-              shares,
-            });
+            const shares = BigInt(unsealed);
+            if (shares > 0n) {
+              positions.push({
+                marketId: market.marketId,
+                outcomeIndex: outcome.outcomeIndex,
+                shares,
+              });
+            }
           }
         }
-      }
 
-      return positions;
+        return positions;
+      } catch (decryptError) {
+        console.error('CipherMarket portfolio decrypt failed:', decryptError);
+        throw decryptError;
+      }
     },
     staleTime: 30_000,
   });

@@ -72,33 +72,38 @@ export default function usePrivatePositions(
         return outcomeIndexes.map(() => 0n);
       }
 
-      await client.permits.getOrCreateSelfPermit(chainId, address, {
-        issuer: predictionMarketAddress,
-        name: `CipherMarket ${marketId} position view`,
-      });
+      try {
+        const permit = await client.permits.getOrCreateSelfPermit(chainId, address, {
+          issuer: address,
+          name: `CipherMarket ${marketId} position view`,
+        });
 
-      const values = await Promise.all(
-        outcomeIndexes.map(async (outcomeIndex) => {
-          const result = handlesQuery.data?.[outcomeIndex];
-          const handle =
-            result?.status === 'success' && typeof result.result === 'bigint' ? result.result : 0n;
+        const values = await Promise.all(
+          outcomeIndexes.map(async (outcomeIndex) => {
+            const result = handlesQuery.data?.[outcomeIndex];
+            const handle =
+              result?.status === 'success' && typeof result.result === 'bigint' ? result.result : 0n;
 
-          if (handle === 0n) {
-            return 0n;
-          }
+            if (handle === 0n) {
+              return 0n;
+            }
 
-          const unsealed = await client
-            .decryptForView(handle, FheTypes.Uint128)
-            .setAccount(address)
-            .setChainId(chainId ?? 11155111)
-            .withPermit()
-            .execute();
+            const unsealed = await client
+              .decryptForView(handle, FheTypes.Uint128)
+              .setAccount(address)
+              .setChainId(chainId ?? 11155111)
+              .withPermit(permit)
+              .execute();
 
-          return BigInt(unsealed);
-        }),
-      );
+            return BigInt(unsealed);
+          }),
+        );
 
-      return values;
+        return values;
+      } catch (decryptError) {
+        console.error('CipherMarket private position decrypt failed:', decryptError);
+        throw decryptError;
+      }
     },
     staleTime: 30_000,
   });
