@@ -268,17 +268,22 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                   <label className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                     Category
                   </label>
-                  <select
-                    className="h-12 w-full rounded-2xl border border-white/10 bg-background px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-                    onChange={(event) => setCategory(event.target.value)}
-                    value={category}
-                  >
-                    {CATEGORIES.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-background px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+                      onChange={(event) => setCategory(event.target.value)}
+                      value={category}
+                    >
+                      {CATEGORIES.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none text-xs absolute inset-y-0 right-3 flex items-center text-white/40">
+                      ▼
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -357,8 +362,9 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                 <label className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                   Collateral
                 </label>
+                <div className="relative">
                 <select
-                  className="h-12 w-full rounded-2xl border border-white/10 bg-background px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+                  className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-background px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
                   onChange={(event) => setCollateralToken(event.target.value as Address)}
                   value={collateralToken}
                 >
@@ -368,6 +374,10 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                     </option>
                   ))}
                 </select>
+                <div className="pointer-events-none text-xs absolute inset-y-0 right-3 flex items-center text-white/40">
+                      ▼
+                </div>
+                </div>
               </div>
               <div className="space-y-3 md:col-span-2">
                 <label className="text-sm font-black uppercase tracking-widest text-muted-foreground">

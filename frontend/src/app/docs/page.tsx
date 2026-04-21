@@ -143,7 +143,7 @@ function toAnchor(label: string): string {
 
 export default function DocsPage() {
   return (
-    <div className="relative z-10 font-sans mx-auto max-w-[75%] px-8 lg:px-16 ">
+    <div className="relative z-10 font-sans mx-auto max-w-[80%] px-8 lg:px-16 ">
 
       {/* ── HERO ── */}
       {/* <header className="relative z-10 border-b border-white/[0.07] bg-white/[0.01]">

@@ -172,7 +172,7 @@ function TerminalMockup(): JSX.Element {
 
 export default function LandingPage(): JSX.Element {
   return (
-    <div className="relative z-10 font-sans max-w-[75%] px-8 lg:px-16 mx-auto">
+    <div className="relative z-10 font-sans max-w-[80%] px-8 lg:px-16 mx-auto">
       {/* ── HERO ── */}
       <section className="relative z-10 pt-18 pb-20 lg:pt-24 lg:pb-24">
         <div className="grid lg:grid-cols-[1fr_1fr] gap-32 items-center">

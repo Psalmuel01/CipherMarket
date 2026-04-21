@@ -24,11 +24,11 @@ export default function LandingNav() {
   ];
 
   return (
-    <nav className={`relative z-50 sticky top-0 transition-all duration-500 ${scrolled
-        ? 'border-b border-white/[0.08] bg-[#000000]/80 backdrop-blur-xl py-0'
-        : 'border-b border-white/0 bg-transparent py-2'
+    <nav className={`relative z-50 sticky top-0 transition-all duration-500 mt-5 ${scrolled
+      ? 'border-b border-white/[0.08] bg-[#000000]/80 backdrop-blur-xl py-0'
+      : 'border-b border-white/0 bg-transparent py-2'
       }`}>
-      <div className="mx-auto max-w-[75%] px-8 lg:px-16 flex items-center justify-between h-16">
+      <div className="mx-auto max-w-[80%] px-8 lg:px-16 flex items-center justify-between h-16">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
             <rect width="28" height="28" rx="8" fill="rgba(199,80,72,0.12)" />
@@ -52,8 +52,8 @@ export default function LandingNav() {
               key={item.label}
               href={item.href}
               className={`text-[14px] transition-colors tracking-tight font-medium ${pathname === item.href
-                  ? 'text-white/70'
-                  : 'text-white/55 hover:text-white/90'
+                ? 'text-white/70'
+                : 'text-white/55 hover:text-white/90'
                 }`}
             >
               {item.label}
