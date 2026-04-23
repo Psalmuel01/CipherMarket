@@ -100,7 +100,7 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Finalization',
         title: 'After a market finalizes',
-        body: 'Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral. Losing shares are worth zero. The LP creator can claim any surplus collateral after all winners have redeemed.',
+        body: 'Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral. Losing shares are worth zero. LPs claim the remaining market surplus pro rata after winner and protocol obligations are covered.',
       },
     ],
   },

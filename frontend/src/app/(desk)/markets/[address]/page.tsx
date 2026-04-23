@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { parseUnits } from 'viem';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import {
   Activity,
@@ -24,15 +25,19 @@ import OutcomeSelector from '@/components/betting/OutcomeSelector';
 import PoolDisplay from '@/components/betting/PoolDisplay';
 import Button from '@/components/ui/Button';
 import Skeleton from '@/components/ui/Skeleton';
+import useAddLiquidity from '@/hooks/useAddLiquidity';
+import useClaimLpPayout from '@/hooks/useClaimLpPayout';
 import useDisputeOutcome from '@/hooks/useDisputeOutcome';
 import useFinalizeMarket from '@/hooks/useFinalizeMarket';
 import useMarketDetails from '@/hooks/useMarketDetails';
 import usePrivatePositions from '@/hooks/usePrivatePositions';
 import useProposeOutcome from '@/hooks/useProposeOutcome';
 import useRedeemShares from '@/hooks/useRedeemShares';
+import useRemoveLiquidity from '@/hooks/useRemoveLiquidity';
 import useResolveDispute from '@/hooks/useResolveDispute';
 import useVoteOnResolution from '@/hooks/useVoteOnResolution';
 import {
+  formatAmount,
   formatDateTime,
   formatTokenAmount,
   truncateAddress,
@@ -54,6 +59,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const [disputeAmount, setDisputeAmount] = useState<string>('0.01');
   const [disputeOutcomeId, setDisputeOutcomeId] = useState<string>('0');
   const [resolutionOutcomeId, setResolutionOutcomeId] = useState<string>('0');
+  const [addLiquidityAmount, setAddLiquidityAmount] = useState<string>('1');
+  const [removeLiquidityAmount, setRemoveLiquidityAmount] = useState<string>('0');
   const { data, error, isError, isLoading } = useMarketDetails(marketIdParam);
   const privatePositions = usePrivatePositions(
     data?.marketId ?? 0,
@@ -61,9 +68,12 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     Boolean(data) && isPortfolioVisible,
   );
   const proposeOutcomeMutation = useProposeOutcome();
+  const addLiquidityMutation = useAddLiquidity();
+  const claimLpPayoutMutation = useClaimLpPayout();
   const disputeOutcomeMutation = useDisputeOutcome();
   const finalizeMarketMutation = useFinalizeMarket();
   const redeemMutation = useRedeemShares();
+  const removeLiquidityMutation = useRemoveLiquidity();
   const resolveDisputeMutation = useResolveDispute();
   const voteOnResolutionMutation = useVoteOnResolution();
   const ownerQuery = useReadContract({
@@ -75,6 +85,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     },
   });
   const collateralDecimals = data?.collateralSymbol === 'USDC' ? 6 : 18;
+  const isNativeCollateral =
+    data?.collateralToken === '0x0000000000000000000000000000000000000000';
 
   const enrichedOutcomes = useMemo(() => {
     if (!data) {
@@ -108,6 +120,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     enrichedOutcomes.find((outcome) => outcome.id === disputeOutcomeId) ?? null;
   const voteLeaderboard = [...enrichedOutcomes]
     .sort((left, right) => Number((data?.voteWeights[right.outcomeIndex] ?? 0n) - (data?.voteWeights[left.outcomeIndex] ?? 0n)));
+  const lpMaxFormatted =
+    data && data.myLpShares > 0n ? formatAmount(data.myLpShares, collateralDecimals) : '0';
 
   useEffect(() => {
     if (!data || enrichedOutcomes.length === 0) {
@@ -164,6 +178,43 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     }
 
     await resolveDisputeMutation.resolveDispute(data.marketId, selectedResolutionOutcome.outcomeIndex);
+  };
+
+  const handleAddLiquidity = async (): Promise<void> => {
+    if (!data) {
+      return;
+    }
+
+    await addLiquidityMutation.addLiquidity(
+      data.marketId,
+      addLiquidityAmount,
+      collateralDecimals,
+      isNativeCollateral,
+    );
+  };
+
+  const handleRemoveLiquidity = async (): Promise<void> => {
+    if (!data) {
+      return;
+    }
+
+    const lpSharesAmount = parseUnits(removeLiquidityAmount || '0', collateralDecimals);
+    const minCollateralOut =
+      data.myLpShares === 0n || data.totalLpShares === 0n
+        ? 0n
+        : (data.estimatedLpCollateralOut * lpSharesAmount * 95n) /
+          (data.myLpShares * 100n);
+
+    await removeLiquidityMutation.removeLiquidity(
+      data.marketId,
+      removeLiquidityAmount,
+      minCollateralOut,
+      collateralDecimals,
+    );
+  };
+
+  const handleSetLpMax = (): void => {
+    setRemoveLiquidityAmount(lpMaxFormatted.replace(/,/g, ''));
   };
 
   const lifecyclePanel = (() => {
@@ -654,6 +705,132 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                     from contract storage.
                   </p>
                 </div>
+              </div>
+
+              <div className="glass-card space-y-6 rounded-3xl p-8">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
+                      LP Position
+                    </h3>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Non-transferable market shares
+                  </span>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Your LP Shares
+                    </p>
+                    <p className="mt-2 font-mono text-xl text-foreground">
+                      {formatTokenAmount(data.myLpShares, collateralDecimals, data.collateralSymbol)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Total LP Shares
+                    </p>
+                    <p className="mt-2 font-mono text-xl text-foreground">
+                      {formatTokenAmount(data.totalLpShares, collateralDecimals, data.collateralSymbol)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Active Exit Estimate
+                    </p>
+                    <p className="mt-2 font-mono text-xl text-foreground">
+                      {formatTokenAmount(
+                        data.estimatedLpCollateralOut,
+                        collateralDecimals,
+                        data.collateralSymbol,
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {data.status === 'ACTIVE' ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3 rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                      <p className="text-sm font-semibold text-foreground">Add liquidity</p>
+                      <input
+                        className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                        value={addLiquidityAmount}
+                        onChange={(event) => setAddLiquidityAmount(event.target.value)}
+                      />
+                      <Button
+                        className="w-full"
+                        type="button"
+                        onClick={() => void handleAddLiquidity()}
+                        disabled={addLiquidityMutation.isLoading}
+                      >
+                        {addLiquidityMutation.isLoading ? 'Adding...' : `Add ${data.collateralSymbol}`}
+                      </Button>
+                    </div>
+                    <div className="space-y-3 rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-foreground">Remove liquidity</p>
+                        <button
+                          type="button"
+                          className="text-xs text-primary hover:underline disabled:text-muted-foreground"
+                          onClick={handleSetLpMax}
+                          disabled={data.myLpShares === 0n}
+                        >
+                          Max
+                        </button>
+                      </div>
+                      <input
+                        className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                        value={removeLiquidityAmount}
+                        onChange={(event) => setRemoveLiquidityAmount(event.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Available: {formatTokenAmount(data.myLpShares, collateralDecimals, data.collateralSymbol)}
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        type="button"
+                        onClick={() => void handleRemoveLiquidity()}
+                        disabled={removeLiquidityMutation.isLoading || data.myLpShares === 0n}
+                      >
+                        {removeLiquidityMutation.isLoading ? 'Removing...' : 'Remove Liquidity'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : data.status === 'FINALIZED' ? (
+                  <div className="space-y-3 rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                    <p className="text-sm text-muted-foreground">
+                      LP exits are settled after finalization. Claim your pro-rata residual market
+                      value once winner and protocol reserves are accounted for.
+                    </p>
+                    <Button
+                      className="w-full"
+                      type="button"
+                      onClick={() => void claimLpPayoutMutation.claimLpPayout(data.marketId)}
+                      disabled={claimLpPayoutMutation.isLoading || data.myLpShares === 0n}
+                    >
+                      {claimLpPayoutMutation.isLoading ? 'Claiming...' : 'Claim LP Payout'}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    LP add/remove stays available only while the market is active. Once resolution
+                    starts, liquidity is locked until the final LP payout stage.
+                  </p>
+                )}
+
+                {addLiquidityMutation.isError && addLiquidityMutation.error ? (
+                  <p className="text-xs text-destructive">{addLiquidityMutation.error.message}</p>
+                ) : null}
+                {removeLiquidityMutation.isError && removeLiquidityMutation.error ? (
+                  <p className="text-xs text-destructive">{removeLiquidityMutation.error.message}</p>
+                ) : null}
+                {claimLpPayoutMutation.isError && claimLpPayoutMutation.error ? (
+                  <p className="text-xs text-destructive">{claimLpPayoutMutation.error.message}</p>
+                ) : null}
               </div>
             </div>
 

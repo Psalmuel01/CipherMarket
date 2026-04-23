@@ -9,10 +9,18 @@ describe('PredictionMarket Wave 3A', () => {
     const registry = await ethers.deployContract('OracleRegistry', [ethers.parseEther('1')]);
     await registry.waitForDeployment();
 
-    const predictionMarket = await ethers.deployContract('PredictionMarket', [
+    const predictionMarketMath = await ethers.deployContract('PredictionMarketMath');
+    await predictionMarketMath.waitForDeployment();
+
+    const predictionMarketFactory = await ethers.getContractFactory('PredictionMarket', {
+      libraries: {
+        PredictionMarketMath: await predictionMarketMath.getAddress(),
+      },
+    });
+    const predictionMarket = await predictionMarketFactory.deploy(
       await registry.getAddress(),
       3600,
-    ]);
+    );
     await predictionMarket.waitForDeployment();
 
     await registry.setPredictionMarket(await predictionMarket.getAddress());
@@ -59,6 +67,21 @@ describe('PredictionMarket Wave 3A', () => {
     await moveTime(11);
   }
 
+  async function getReserves(predictionMarket: any, marketId: bigint | number, outcomeCount: number): Promise<bigint[]> {
+    const reserves: bigint[] = [];
+    for (let outcomeIndex = 0; outcomeIndex < outcomeCount; outcomeIndex += 1) {
+      reserves.push(await predictionMarket.poolBalances(marketId, outcomeIndex));
+    }
+    return reserves;
+  }
+
+  function getProbabilitiesFromReserves(reserves: bigint[]): bigint[] {
+    const scale = 10n ** 18n;
+    const inverseBalances = reserves.map((reserve) => (scale * scale) / reserve);
+    const inverseSum = inverseBalances.reduce((sum, value) => sum + value, 0n);
+    return inverseBalances.map((value) => (value * scale) / inverseSum);
+  }
+
   it('creates an ETH market with metadata, equal reserve splits, and stable buy quotes', async () => {
     const { creator, predictionMarket } = await deployFixture();
     const expiryTime = (await latestTimestamp()) + 60;
@@ -81,7 +104,7 @@ describe('PredictionMarket Wave 3A', () => {
     expect(market.seedLiquidity).to.equal(1_000n);
     expect(market.description).to.equal('Tracks the year-end ETH close against a fixed threshold.');
     expect(market.oracleSource).to.equal('https://example.com/eth-settlement');
-    expect(await predictionMarket.getOutcomeReserves(0)).to.deep.equal([500n, 500n]);
+    expect(await getReserves(predictionMarket, 0, 2)).to.deep.equal([500n, 500n]);
 
     const quote = await predictionMarket.quoteBuy(0, 0, 500n);
     expect(quote.sharesOut).to.be.greaterThan(0n);
@@ -114,7 +137,7 @@ describe('PredictionMarket Wave 3A', () => {
     });
 
     expect(await predictionMarket.getEncryptedUserPositionHandle(0, traderA.address, 0)).to.not.equal(0n);
-    expect(await predictionMarket.getOutcomeReserves(0)).to.deep.equal([251n, 995n]);
+    expect(await getReserves(predictionMarket, 0, 2)).to.deep.equal([251n, 995n]);
 
     await predictionMarket.connect(traderA).requestSellPositionDecrypt(0, 0);
     await settleDecryptResult();
@@ -123,7 +146,49 @@ describe('PredictionMarket Wave 3A', () => {
       predictionMarket.connect(traderA).sellShares(0, 0, 100n, sellQuote.collateralOut),
     ).to.changeEtherBalances([predictionMarket, traderA], [-sellQuote.collateralOut, sellQuote.collateralOut]);
 
-    expect(await predictionMarket.getOutcomeReserves(0)).to.deep.equal([273n, 917n]);
+    expect(await getReserves(predictionMarket, 0, 2)).to.deep.equal([273n, 917n]);
+  });
+
+  it('mints public LP shares, preserves prices, and supports active liquidity removal', async () => {
+    const { creator, traderB, predictionMarket } = await deployFixture();
+    const expiryTime = (await latestTimestamp()) + 60;
+
+    await predictionMarket.connect(creator).createMarket(
+      'Will ETH settle above $5,000 by year end?',
+      'Tracks the year-end ETH close against a fixed threshold.',
+      'Macro',
+      'https://example.com/eth-settlement',
+      0,
+      ['YES', 'NO'],
+      expiryTime,
+      ethers.ZeroAddress,
+      100n,
+      1_000n,
+      { value: 1_000n },
+    );
+
+    expect(await predictionMarket.lpShares(0, creator.address)).to.equal(1_000n);
+    expect(await predictionMarket.totalLpShares(0)).to.equal(1_000n);
+
+    await predictionMarket.connect(traderB).addLiquidity(0, 500n, { value: 500n });
+
+    expect(await predictionMarket.lpShares(0, traderB.address)).to.equal(500n);
+    expect(await predictionMarket.totalLpShares(0)).to.equal(1_500n);
+
+    const reservesAfterAdd = await getReserves(predictionMarket, 0, 2);
+    expect(reservesAfterAdd).to.deep.equal([750n, 750n]);
+    expect(getProbabilitiesFromReserves(reservesAfterAdd)).to.deep.equal([
+      500000000000000000n,
+      500000000000000000n,
+    ]);
+
+    await expect(() =>
+      predictionMarket.connect(traderB).removeLiquidity(0, 250n, 250n),
+    ).to.changeEtherBalances([predictionMarket, traderB], [-250n, 250n]);
+
+    expect(await predictionMarket.lpShares(0, traderB.address)).to.equal(250n);
+    expect(await predictionMarket.totalLpShares(0)).to.equal(1_250n);
+    expect(await getReserves(predictionMarket, 0, 2)).to.deep.equal([625n, 625n]);
   });
 
   it('supports committee finalization, successful disputes, proposer slashing, and winner redemption', async () => {
@@ -161,8 +226,8 @@ describe('PredictionMarket Wave 3A', () => {
     await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
     await predictionMarket.connect(committeeOracle).voteOnResolution(0, 1);
 
-    const voteWeights = await predictionMarket.getOutcomeVoteWeight(0);
-    expect(voteWeights).to.deep.equal([ethers.parseEther('2'), ethers.parseEther('3')]);
+    expect(await predictionMarket.oracleVoteWeight(0, 0)).to.equal(ethers.parseEther('2'));
+    expect(await predictionMarket.oracleVoteWeight(0, 1)).to.equal(ethers.parseEther('3'));
 
     await moveTime(3601);
     await predictionMarket.finalizeByQuorum(0);
@@ -187,7 +252,48 @@ describe('PredictionMarket Wave 3A', () => {
 
     await expect(
       predictionMarket.connect(committeeOracle).claimOracleResolutionReward(0),
-    ).to.be.revertedWith('No oracle reward pool available');
+    ).to.be.revertedWith('No oracle reward pool');
+  });
+
+  it('settles final LP payouts pro rata across multiple liquidity providers', async () => {
+    const { creator, traderB, proposerOracle, committeeOracle, registry, predictionMarket } =
+      await deployFixture();
+    const expiryTime = (await latestTimestamp()) + 60;
+
+    await predictionMarket.connect(creator).createMarket(
+      'Will the protocol ship Wave 3B?',
+      'Resolves against the tagged production release.',
+      'Product',
+      'https://example.com/releases',
+      0,
+      ['YES', 'NO'],
+      expiryTime,
+      ethers.ZeroAddress,
+      100n,
+      1_000n,
+      { value: 1_000n },
+    );
+
+    await predictionMarket.connect(traderB).addLiquidity(0, 500n, { value: 500n });
+
+    await registry.connect(proposerOracle).register({ value: ethers.parseEther('2') });
+    await registry.connect(committeeOracle).register({ value: ethers.parseEther('3') });
+
+    await moveTime(61);
+    await predictionMarket.connect(proposerOracle).proposeOutcome(0, 0);
+    await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
+    await predictionMarket.connect(committeeOracle).voteOnResolution(0, 0);
+
+    await moveTime(3601);
+    await predictionMarket.finalizeByQuorum(0);
+
+    await expect(() =>
+      predictionMarket.connect(creator).claimLpPayout(0),
+    ).to.changeEtherBalances([predictionMarket, creator], [-1_000n, 1_000n]);
+
+    await expect(() =>
+      predictionMarket.connect(traderB).claimLpPayout(0),
+    ).to.changeEtherBalances([predictionMarket, traderB], [-500n, 500n]);
   });
 
   it('routes failed dispute stake to winning oracle voters and protocol using vote-time stake snapshots', async () => {
@@ -246,7 +352,7 @@ describe('PredictionMarket Wave 3A', () => {
     ).to.changeEtherBalances([predictionMarket, owner], [-21n, 21n]);
 
     await expect(predictionMarket.connect(disputer).claimDisputeRefund(0)).to.be.revertedWith(
-      'Dispute refund is not available',
+      'No dispute refund',
     );
   });
 
@@ -293,7 +399,7 @@ describe('PredictionMarket Wave 3A', () => {
 
     await expect(
       predictionMarket.connect(committeeOracle).claimOracleResolutionReward(0),
-    ).to.be.revertedWith('Oracle rewards require committee finalization');
+    ).to.be.revertedWith('Need committee finalize');
   });
 
   it('rejects invalid market creation, invalid secure sells, premature finalization, and late oracle votes', async () => {
@@ -377,12 +483,34 @@ describe('PredictionMarket Wave 3A', () => {
     await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
 
     await expect(predictionMarket.finalizeByQuorum(0)).to.be.revertedWith(
-      'Resolution window is still open',
+      'Window open',
     );
 
     await moveTime(3601);
     await expect(
       predictionMarket.connect(proposerOracle).voteOnResolution(0, 1),
-    ).to.be.revertedWith('Resolution window has closed');
+    ).to.be.revertedWith('Window closed');
+
+    await expect(predictionMarket.connect(creator).removeLiquidity(0, 100n, 100n)).to.be.revertedWith(
+      'Market is not active',
+    );
+
+    await predictionMarket.connect(creator).createMarket(
+      'Thin liquidity test',
+      'Checks the active-market reserve floor on LP removal.',
+      'Ops',
+      'https://example.com/floor',
+      0,
+      ['YES', 'NO'],
+      (await latestTimestamp()) + 60,
+      ethers.ZeroAddress,
+      100n,
+      1_000n,
+      { value: 1_000n },
+    );
+
+    await expect(
+      predictionMarket.connect(creator).removeLiquidity(1, 900n, 900n),
+    ).to.be.revertedWith('LP remove drains pool');
   });
 });

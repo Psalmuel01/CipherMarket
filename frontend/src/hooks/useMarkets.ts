@@ -9,6 +9,7 @@ import {
   MARKET_TYPE_LABELS,
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
+import { computeProbabilitiesFromReserves } from '@/lib/marketMath';
 import useAppStore from '@/store/useAppStore';
 import type { MarketLifecycle, MarketOutcome, MarketSummary } from '@/types/market';
 import type { Address } from 'viem';
@@ -135,57 +136,64 @@ export default function useMarkets(): UseMarketsResult {
 
   const marketReads = useReadContracts({
     contracts: predictionMarketAddress
-      ? marketIds.flatMap((marketId) => [
-          {
-            address: predictionMarketAddress,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getMarket',
-            args: [marketId],
-          },
-          {
-            address: predictionMarketAddress,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getMarketProbabilities',
-            args: [marketId],
-          },
-          {
-            address: predictionMarketAddress,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getOutcomeReserves',
-            args: [marketId],
-          },
-        ])
+      ? marketIds.map((marketId) => ({
+          address: predictionMarketAddress,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'getMarket',
+          args: [marketId],
+        }))
       : [],
     query: {
       enabled: Boolean(predictionMarketAddress) && marketIds.length > 0,
     },
   });
 
+  const marketViews = useMemo(
+    () =>
+      (marketReads.data ?? [])
+        .filter((result): result is NonNullable<typeof result> => Boolean(result))
+        .filter((result) => result.status === 'success' && Boolean(result.result))
+        .map((result) => result.result as unknown as PredictionMarketView),
+    [marketReads.data],
+  );
+
+  const reserveReads = useReadContracts({
+    contracts: predictionMarketAddress
+      ? marketViews.flatMap((view) =>
+          Array.from({ length: Number(view.outcomeCount) }, (_, outcomeIndex) => ({
+            address: predictionMarketAddress,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'poolBalances',
+            args: [view.marketId, BigInt(outcomeIndex)],
+          })),
+        )
+      : [],
+    query: {
+      enabled: Boolean(predictionMarketAddress) && marketViews.length > 0,
+    },
+  });
+
   const data = useMemo(() => {
-    const items = marketReads.data ?? [];
     const mappedMarkets: MarketSummary[] = [];
+    const reserveItems = reserveReads.data ?? [];
+    let reserveCursor = 0;
 
-    for (let index = 0; index < items.length; index += 3) {
-      const marketResult = items[index];
-      const probabilityResult = items[index + 1];
-      const reserveResult = items[index + 2];
-
-      if (
-        marketResult?.status !== 'success' ||
-        probabilityResult?.status !== 'success' ||
-        reserveResult?.status !== 'success' ||
-        !marketResult.result ||
-        !probabilityResult.result ||
-        !reserveResult.result
-      ) {
-        continue;
-      }
+    for (const marketView of marketViews) {
+      const outcomeCount = Number(marketView.outcomeCount);
+      const reserves = Array.from({ length: outcomeCount }, (_, outcomeIndex) => {
+        const result = reserveItems[reserveCursor + outcomeIndex];
+        return result?.status === 'success' && typeof result.result === 'bigint'
+          ? result.result
+          : 0n;
+      });
+      reserveCursor += outcomeCount;
+      const probabilities = computeProbabilitiesFromReserves(reserves);
 
       mappedMarkets.push(
         mapMarketSummary(
-          marketResult.result as unknown as PredictionMarketView,
-          probabilityResult.result as bigint[],
-          reserveResult.result as bigint[],
+          marketView,
+          probabilities,
+          reserves,
           chainId,
         ),
       );
@@ -194,16 +202,16 @@ export default function useMarkets(): UseMarketsResult {
     return deferredFilter === 'ALL'
       ? mappedMarkets
       : mappedMarkets.filter((market) => market.status === deferredFilter);
-  }, [chainId, deferredFilter, marketReads.data]);
+  }, [chainId, deferredFilter, marketViews, reserveReads.data]);
 
   const error =
     !predictionMarketAddress
       ? new Error('PredictionMarket is not configured for the current chain.')
-      : nextMarketIdQuery.error || marketReads.error || null;
+      : nextMarketIdQuery.error || marketReads.error || reserveReads.error || null;
 
   return {
     data: error ? [] : data,
-    isLoading: nextMarketIdQuery.isLoading || marketReads.isLoading,
+    isLoading: nextMarketIdQuery.isLoading || marketReads.isLoading || reserveReads.isLoading,
     isError: Boolean(error),
     error,
     availableStatuses: ['ALL', 'ACTIVE', 'EXPIRED', 'RESOLUTION_OPEN', 'ESCALATED', 'FINALIZED'],

@@ -9,6 +9,7 @@ import {
   MARKET_TYPE_LABELS,
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
+import { computeProbabilitiesFromReserves } from '@/lib/marketMath';
 import type { MarketDetail, MarketOutcome, PoolSnapshot } from '@/types/market';
 import type { Address } from 'viem';
 
@@ -110,26 +111,29 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
     },
   });
 
+  const marketView = marketQuery.data as PredictionMarketView | undefined;
+  const outcomeCount = marketView ? Number(marketView.outcomeCount) : 0;
+
   const detailReads = useReadContracts({
     contracts:
-      predictionMarketAddress && validMarketId !== null
+      predictionMarketAddress && validMarketId !== null && outcomeCount > 0
         ? [
+            ...Array.from({ length: outcomeCount }, (_, outcomeIndex) => ({
+              address: predictionMarketAddress,
+              abi: PREDICTION_MARKET_ABI,
+              functionName: 'poolBalances',
+              args: [validMarketId, BigInt(outcomeIndex)],
+            })),
+            ...Array.from({ length: outcomeCount }, (_, outcomeIndex) => ({
+              address: predictionMarketAddress,
+              abi: PREDICTION_MARKET_ABI,
+              functionName: 'oracleVoteWeight',
+              args: [validMarketId, outcomeIndex],
+            })),
             {
               address: predictionMarketAddress,
               abi: PREDICTION_MARKET_ABI,
-              functionName: 'getOutcomeReserves',
-              args: [validMarketId],
-            },
-            {
-              address: predictionMarketAddress,
-              abi: PREDICTION_MARKET_ABI,
-              functionName: 'getMarketProbabilities',
-              args: [validMarketId],
-            },
-            {
-              address: predictionMarketAddress,
-              abi: PREDICTION_MARKET_ABI,
-              functionName: 'getOutcomeVoteWeight',
+              functionName: 'totalLpShares',
               args: [validMarketId],
             },
             ...(address
@@ -137,7 +141,25 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
                   {
                     address: predictionMarketAddress,
                     abi: PREDICTION_MARKET_ABI,
-                    functionName: 'getOracleVote',
+                    functionName: 'lpShares',
+                    args: [validMarketId, address],
+                  },
+                  {
+                    address: predictionMarketAddress,
+                    abi: PREDICTION_MARKET_ABI,
+                    functionName: 'oracleHasVoted',
+                    args: [validMarketId, address],
+                  },
+                  {
+                    address: predictionMarketAddress,
+                    abi: PREDICTION_MARKET_ABI,
+                    functionName: 'oracleVoteChoice',
+                    args: [validMarketId, address],
+                  },
+                  {
+                    address: predictionMarketAddress,
+                    abi: PREDICTION_MARKET_ABI,
+                    functionName: 'oracleVoteWeightSnapshot',
                     args: [validMarketId, address],
                   },
                 ]
@@ -145,35 +167,59 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
           ]
         : [],
     query: {
-      enabled: Boolean(predictionMarketAddress) && validMarketId !== null,
+      enabled: Boolean(predictionMarketAddress) && validMarketId !== null && outcomeCount > 0,
     },
   });
 
   const data = useMemo(() => {
-    const marketView = marketQuery.data as PredictionMarketView | undefined;
-
     if (!marketView) {
       return null;
     }
 
-    const reserveResult = detailReads.data?.[0];
-    const probabilityResult = detailReads.data?.[1];
-    const voteWeightResult = detailReads.data?.[2];
-    const oracleVoteResult = detailReads.data?.[3];
-    const reserves =
-      reserveResult?.status === 'success' && reserveResult.result ? (reserveResult.result as bigint[]) : [];
-    const probabilities =
-      probabilityResult?.status === 'success' && probabilityResult.result
-        ? (probabilityResult.result as bigint[])
-        : [];
-    const voteWeights =
-      voteWeightResult?.status === 'success' && voteWeightResult.result
-        ? (voteWeightResult.result as bigint[])
-        : [];
-    const oracleVote =
-      oracleVoteResult?.status === 'success' && Array.isArray(oracleVoteResult.result)
-        ? (oracleVoteResult.result as [boolean, number, bigint])
+    const readResults = detailReads.data ?? [];
+    const reserves = Array.from({ length: outcomeCount }, (_, outcomeIndex) => {
+      const result = readResults[outcomeIndex];
+      return result?.status === 'success' && typeof result.result === 'bigint'
+        ? result.result
+        : 0n;
+    });
+    const voteWeights = Array.from({ length: outcomeCount }, (_, outcomeIndex) => {
+      const result = readResults[outcomeCount + outcomeIndex];
+      return result?.status === 'success' && typeof result.result === 'bigint'
+        ? result.result
+        : 0n;
+    });
+    const totalLpSharesResult = readResults[outcomeCount * 2];
+    const totalLpShares =
+      totalLpSharesResult?.status === 'success' && typeof totalLpSharesResult.result === 'bigint'
+        ? totalLpSharesResult.result
+        : 0n;
+    const myLpSharesResult = address ? readResults[outcomeCount * 2 + 1] : null;
+    const myLpShares =
+      myLpSharesResult?.status === 'success' && typeof myLpSharesResult.result === 'bigint'
+        ? myLpSharesResult.result
+        : 0n;
+    const probabilities = computeProbabilitiesFromReserves(reserves);
+    const oracleReadOffset = outcomeCount * 2 + 1 + (address ? 1 : 0);
+    const hasVotedResult = address ? readResults[oracleReadOffset] : null;
+    const voteChoiceResult = address ? readResults[oracleReadOffset + 1] : null;
+    const voteWeightSnapshotResult = address ? readResults[oracleReadOffset + 2] : null;
+    const hasVoted =
+      hasVotedResult?.status === 'success' && typeof hasVotedResult.result === 'boolean'
+        ? hasVotedResult.result
+        : false;
+    const myVoteOutcomeIndex =
+      hasVoted &&
+      voteChoiceResult?.status === 'success' &&
+      typeof voteChoiceResult.result === 'number' &&
+      voteChoiceResult.result !== 255
+        ? voteChoiceResult.result
         : null;
+    const myVoteWeightSnapshot =
+      voteWeightSnapshotResult?.status === 'success' &&
+      typeof voteWeightSnapshotResult.result === 'bigint'
+        ? voteWeightSnapshotResult.result
+        : 0n;
 
     const collateral = getCollateralMetadata(marketView.collateralToken, chainId);
     const outcomes = buildOutcomes(marketView.outcomes, probabilities, reserves);
@@ -219,10 +265,9 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       leadingOutcomeIndex: marketView.leadingOutcome === 255 ? null : Number(marketView.leadingOutcome),
       finalOutcomeIndex: marketView.finalOutcome === 255 ? null : Number(marketView.finalOutcome),
       voteWeights,
-      myVoteOutcomeIndex:
-        oracleVote && oracleVote[0] && oracleVote[1] !== 255 ? Number(oracleVote[1]) : null,
-      myVoteWeightSnapshot: oracleVote ? BigInt(oracleVote[2]) : 0n,
-      hasVotedOnResolution: oracleVote ? Boolean(oracleVote[0]) : false,
+      myVoteOutcomeIndex,
+      myVoteWeightSnapshot,
+      hasVotedOnResolution: hasVoted,
       reserves,
       probabilities,
       pools: buildPools(outcomes, collateral.symbol),
@@ -241,10 +286,16 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       disputeRefundsEnabled: marketView.disputeRefundsEnabled,
       disputeOpened: marketView.disputeOpened,
       committeeResolved: marketView.committeeResolved,
+      myLpShares,
+      totalLpShares,
+      estimatedLpCollateralOut:
+        totalLpShares === 0n
+          ? 0n
+          : (reserves.reduce((sum, reserve) => sum + reserve, 0n) * myLpShares) / totalLpShares,
       revealedWinningShares: null,
       canRevealPositions: Boolean(address),
     } satisfies MarketDetail;
-  }, [address, chainId, detailReads.data, marketQuery.data]);
+  }, [address, chainId, detailReads.data, marketView, outcomeCount]);
 
   const error =
     validMarketId === null
