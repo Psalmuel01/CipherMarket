@@ -168,7 +168,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
         </div>
 
         <aside>
-          <ProposeOutcomeForm />
+          <ProposeOutcomeForm isOracleRegistered={data?.isRegistered} />
         </aside>
       </div>
 

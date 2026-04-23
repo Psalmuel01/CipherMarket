@@ -1,10 +1,12 @@
 'use client';
 import Link from 'next/link';
 import { ArrowRight, Eye, EyeOff, Gavel, Lock, Shield, TrendingUp, Clock } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import LandingNav from '@/components/layout/LandingNav';
 import LandingFooter from '@/components/layout/LandingFooter';
+import useMarkets from '@/hooks/useMarkets';
+import { formatRelativeExpiry, formatTokenAmount } from '@/lib/formatters';
 
 /*
   FONTS — add to globals.css:
@@ -18,19 +20,6 @@ import LandingFooter from '@/components/layout/LandingFooter';
   }
 */
 
-type FeaturedMarket = {
-  id: string;
-  title: string;
-  category: string;
-  daysLeft: string;
-  volume: string;
-  outcomes: Array<{
-    label: string;
-    probability: number;
-    tone: 'signal' | 'neutral' | 'warning';
-  }>;
-};
-
 type WorkflowStep = {
   id: string;
   title: string;
@@ -43,42 +32,6 @@ type SecurityRow = {
   can: string[];
   cannot: string[];
 };
-
-const featuredMarkets: FeaturedMarket[] = [
-  {
-    id: '001',
-    title: 'Will ETH break $4K before Q3 2026?',
-    category: 'Crypto',
-    daysLeft: '42 days left',
-    volume: '$1.84M',
-    outcomes: [
-      { label: 'Yes', probability: 64, tone: 'signal' },
-      { label: 'No', probability: 36, tone: 'neutral' },
-    ],
-  },
-  {
-    id: '002',
-    title: 'Fed rate cut before September 2026?',
-    category: 'Finance',
-    daysLeft: '108 days left',
-    volume: '$620k',
-    outcomes: [
-      { label: 'Yes', probability: 38, tone: 'neutral' },
-      { label: 'No', probability: 62, tone: 'signal' },
-    ],
-  },
-  {
-    id: '003',
-    title: 'Will BTC reach $120K this cycle?',
-    category: 'Crypto',
-    daysLeft: '180 days left',
-    volume: '$420k',
-    outcomes: [
-      { label: 'Yes', probability: 51, tone: 'signal' },
-      { label: 'No', probability: 49, tone: 'neutral' },
-    ],
-  },
-];
 
 const workflowSteps: WorkflowStep[] = [
   {
@@ -115,10 +68,10 @@ const securityRows: SecurityRow[] = [
   { actor: 'Anyone', can: ['See aggregate pool totals'], cannot: [] },
 ];
 
-function toneBg(tone: FeaturedMarket['outcomes'][number]['tone']): string {
-  if (tone === 'signal') return 'bg-[#e8533a]/10 border-r border-[#e8533a]/25 text-[#e8533a]';
-  if (tone === 'warning') return 'bg-amber-500/10 border-r border-amber-500/20 text-amber-400';
-  return 'bg-white/[0.04] border-r border-white/10 text-white/30';
+function toneBg(index: number): string {
+  if (index === 0) return 'bg-[#e8533a]/10 border-r border-[#e8533a]/25 text-[#e8533a]';
+  if (index === 1) return 'bg-white/[0.04] border-r border-white/10 text-white/30';
+  return 'bg-amber-500/10 border-r border-amber-500/20 text-amber-400';
 }
 
 const TERMINAL_LINES = [
@@ -171,6 +124,13 @@ function TerminalMockup(): JSX.Element {
 }
 
 export default function LandingPage(): JSX.Element {
+  const { data: markets, isLoading: marketsLoading, isError: isMarketsError } = useMarkets();
+  const featuredMarkets = useMemo(() => {
+    const activeMarkets = markets.filter((market) => market.status === 'ACTIVE');
+    const source = activeMarkets.length >= 3 ? activeMarkets : markets;
+    return source.slice(0, 3);
+  }, [markets]);
+
   return (
     <div className="relative z-10 font-sans max-w-[80%] px-8 lg:px-16 mx-auto">
       {/* ── HERO ── */}
@@ -509,53 +469,102 @@ export default function LandingPage(): JSX.Element {
               }
             }}
           >
-            {featuredMarkets.map((market) => (
-              <motion.article
-                key={market.id}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  show: { opacity: 1, y: 0 }
-                }}
-                className="rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-6 hover:border-white/[0.12] hover:bg-white/[0.035] transition-all cursor-pointer group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/25 mb-1.5">{market.category}</p>
-                    <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/20">{market.daysLeft}</p>
-                  </div>
-                  <span className="font-mono text-[8px] uppercase tracking-[0.18em] text-emerald-400/60 bg-emerald-400/10 border border-emerald-400/15 rounded-full px-2.5 py-1">Active</span>
-                </div>
-
-                <h3 className="font-serif italic text-[20px] text-[#e8e4df] leading-[1.2] tracking-[-0.015em] mb-5">{market.title}</h3>
-
-                <div className="flex flex-col gap-2.5 mb-5">
-                  {market.outcomes.map((outcome) => (
-                    <div key={outcome.label}>
-                      <div className="flex justify-between text-[12px] mb-1.5">
-                        <span className="text-white/50">{outcome.label}</span>
-                        <span className="font-mono text-white/50">{outcome.probability}%</span>
-                      </div>
-                      <div className="h-8 rounded-lg bg-white/[0.03] border border-white/[0.05] overflow-hidden">
-                        <div
-                          className={`h-full flex items-center justify-between px-3 font-mono text-[8.5px] uppercase tracking-[0.12em] ${toneBg(outcome.tone)}`}
-                          style={{ width: `${outcome.probability}%` }}
-                        >
-                          <span>Buy</span>
-                          <ArrowRight className="w-2.5 h-2.5" />
-                        </div>
-                      </div>
+            {marketsLoading
+              ? Array.from({ length: 3 }, (_, index) => (
+                  <motion.div
+                    key={`market-skeleton-${index}`}
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: { opacity: 1, y: 0 },
+                    }}
+                    className="rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-6"
+                  >
+                    <div className="h-3 w-20 rounded bg-white/[0.06]" />
+                    <div className="mt-2 h-3 w-24 rounded bg-white/[0.04]" />
+                    <div className="mt-5 h-16 rounded bg-white/[0.04]" />
+                    <div className="mt-5 space-y-3">
+                      <div className="h-10 rounded bg-white/[0.04]" />
+                      <div className="h-10 rounded bg-white/[0.04]" />
                     </div>
-                  ))}
-                </div>
+                  </motion.div>
+                ))
+              : null}
 
-                <div className="flex items-center justify-between pt-4 border-t border-white/[0.06]">
-                  <span className="flex items-center gap-1.5 font-mono text-[10px] text-white/25">
-                    <TrendingUp className="w-3 h-3" />Total volume ████
-                  </span>
-                  <ArrowRight className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors" />
-                </div>
-              </motion.article>
-            ))}
+            {!marketsLoading && !isMarketsError
+              ? featuredMarkets.map((market) => (
+                  <motion.article
+                    key={market.marketId}
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: { opacity: 1, y: 0 },
+                    }}
+                    className="rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-6 hover:border-white/[0.12] hover:bg-white/[0.035] transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/25 mb-1.5">
+                          {market.category}
+                        </p>
+                        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/20">
+                          {formatRelativeExpiry(market.expiryTime)}
+                        </p>
+                      </div>
+                      <span className="font-mono text-[8px] uppercase tracking-[0.18em] text-emerald-400/60 bg-emerald-400/10 border border-emerald-400/15 rounded-full px-2.5 py-1">
+                        {market.status}
+                      </span>
+                    </div>
+
+                    <h3 className="font-serif italic text-[20px] text-[#e8e4df] leading-[1.2] tracking-[-0.015em] mb-5">
+                      {market.title}
+                    </h3>
+
+                    <div className="flex flex-col gap-2.5 mb-5">
+                      {market.outcomes.slice(0, 3).map((outcome, index) => (
+                        <div key={outcome.label}>
+                          <div className="flex justify-between text-[12px] mb-1.5">
+                            <span className="text-white/50">{outcome.label}</span>
+                            <span className="font-mono text-white/50">{outcome.impliedShare}%</span>
+                          </div>
+                          <div className="h-8 rounded-lg bg-white/[0.03] border border-white/[0.05] overflow-hidden">
+                            <div
+                              className={`h-full flex items-center justify-between px-3 font-mono text-[8.5px] uppercase tracking-[0.12em] ${toneBg(index)}`}
+                              style={{ width: `${Math.max(outcome.impliedShare, 8)}%` }}
+                            >
+                              <span>Trade</span>
+                              <ArrowRight className="w-2.5 h-2.5" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-white/[0.06]">
+                      <span className="flex items-center gap-1.5 font-mono text-[10px] text-white/25">
+                        <TrendingUp className="w-3 h-3" />
+                        {formatTokenAmount(
+                          market.totalLiquidity,
+                          market.collateralSymbol === 'USDC' ? 6 : 18,
+                          market.collateralSymbol,
+                        )}
+                      </span>
+                      <Link
+                        href={`/markets/${market.marketId}`}
+                        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white/35 transition-colors hover:text-white/70"
+                      >
+                        View
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </motion.article>
+                ))
+              : null}
+
+            {!marketsLoading && !isMarketsError && featuredMarkets.length === 0 ? (
+              <div className="rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-8 text-sm text-white/35 lg:col-span-3">
+                No markets are live yet. The landing page will surface new listings here as soon as
+                they are created.
+              </div>
+            ) : null}
           </motion.div>
         </div>
       </section>

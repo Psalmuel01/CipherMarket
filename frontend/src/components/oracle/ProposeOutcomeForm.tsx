@@ -8,9 +8,10 @@ import useProposeOutcome from '@/hooks/useProposeOutcome';
 
 export interface ProposeOutcomeFormProps {
   className?: string;
+  isOracleRegistered?: boolean;
 }
 
-export default function ProposeOutcomeForm({ className }: ProposeOutcomeFormProps): JSX.Element {
+export default function ProposeOutcomeForm({ className, isOracleRegistered }: ProposeOutcomeFormProps): JSX.Element {
   const { data: markets } = useMarkets();
   const [marketId, setMarketId] = useState<string>('');
   const [outcomeIndex, setOutcomeIndex] = useState<string>('0');
@@ -132,7 +133,7 @@ export default function ProposeOutcomeForm({ className }: ProposeOutcomeFormProp
         <Button
           className="w-full gap-2"
           size="lg"
-          disabled={isLoading || !proposedMarket}
+          disabled={isLoading || !proposedMarket || !isOracleRegistered}
           onClick={(e) => {
             e.preventDefault();
             handleStage();
@@ -141,6 +142,11 @@ export default function ProposeOutcomeForm({ className }: ProposeOutcomeFormProp
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {isLoading ? 'Submitting...' : 'Stage Proposal'}
         </Button>
+        {!isOracleRegistered && (
+          <p className="rounded-2xl text-center text-xs font-bold text-primary/80">
+            Oracle is not registered
+          </p>
+        )}
 
         {isError && error ? (
           <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-xs font-bold text-destructive">
