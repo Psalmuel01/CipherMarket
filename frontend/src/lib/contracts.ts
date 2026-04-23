@@ -30,8 +30,8 @@ export const MARKET_TYPE_LABELS = ['BINARY', 'CATEGORICAL'] as const;
 export const MARKET_STATE_LABELS = [
   'ACTIVE',
   'EXPIRED',
-  'PROPOSED',
-  'DISPUTED',
+  'RESOLUTION_OPEN',
+  'ESCALATED',
   'FINALIZED',
 ] as const;
 

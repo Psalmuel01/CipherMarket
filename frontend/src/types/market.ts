@@ -3,8 +3,8 @@ import type { Address } from 'viem';
 export type MarketLifecycle =
   | 'ACTIVE'
   | 'EXPIRED'
-  | 'PROPOSED'
-  | 'DISPUTED'
+  | 'RESOLUTION_OPEN'
+  | 'ESCALATED'
   | 'FINALIZED'
   | 'CANCELLED';
 
@@ -61,11 +61,19 @@ export interface MarketSummary {
 
 export interface MarketDetail extends MarketSummary {
   createdAt: string;
-  disputeWindowEndsAt: string | null;
+  resolutionWindowEndsAt: string | null;
+  escalationDeadline: string | null;
   creator: Address;
   proposedBy: Address | null;
+  disputeOpenedBy: Address | null;
   proposedOutcomeIndex: number | null;
+  disputeCounterOutcomeIndex: number | null;
+  leadingOutcomeIndex: number | null;
   finalOutcomeIndex: number | null;
+  voteWeights: bigint[];
+  myVoteOutcomeIndex: number | null;
+  myVoteWeightSnapshot: bigint;
+  hasVotedOnResolution: boolean;
   reserves: bigint[];
   probabilities: bigint[];
   pools: PoolSnapshot[];
@@ -75,10 +83,15 @@ export interface MarketDetail extends MarketSummary {
   reservePerOutcome: bigint;
   disputeStakeTotal: bigint;
   remainingWinningShares: bigint;
+  resolutionQuorumStake: bigint;
+  committeeRewardPool: bigint;
+  totalOracleVoteWeight: bigint;
   accruedProtocolFees: bigint;
   accruedLpFees: bigint;
   protocolDisputeFees: bigint;
   disputeRefundsEnabled: boolean;
+  disputeOpened: boolean;
+  committeeResolved: boolean;
   revealedWinningShares: bigint | null;
   canRevealPositions: boolean;
 }

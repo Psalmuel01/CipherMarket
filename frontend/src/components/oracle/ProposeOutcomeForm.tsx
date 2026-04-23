@@ -41,7 +41,10 @@ export default function ProposeOutcomeForm({ className, isOracleRegistered }: Pr
           </div>
         </div>
         <h3 className="text-xl font-black text-foreground">Proposal Staged</h3>
-        <p className="text-xs text-muted-foreground">The optimistic dispute window is now open. The market will finalize in 24 hours if undisputed.</p>
+        <p className="text-xs text-muted-foreground">
+          The committee resolution window is now open. Other registered oracles can vote, and
+          challengers can dispute with an explicit counter-outcome.
+        </p>
         {data ? (
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Tx: {data.txHash.slice(0, 10)}...
@@ -60,7 +63,7 @@ export default function ProposeOutcomeForm({ className, isOracleRegistered }: Pr
           <h3 className="text-sm font-black uppercase tracking-widest text-foreground">Propose Outcome</h3>
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Resolution proposals will open the optimistic dispute window for 24 hours.
+          Resolution proposals open the committee voting window for registered oracles.
         </p>
       </div>
 
@@ -80,7 +83,7 @@ export default function ProposeOutcomeForm({ className, isOracleRegistered }: Pr
             >
               <option value="">Select a market</option>
               {markets
-                .filter((market) => market.status === 'EXPIRED' || market.status === 'PROPOSED')
+                .filter((market) => market.status === 'EXPIRED')
                 .map((market) => (
                   <option key={market.marketId} value={String(market.marketId)}>
                     #{market.marketId} · {market.title}

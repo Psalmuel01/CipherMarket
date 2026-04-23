@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
-import { formatEther, parseEther } from 'viem';
 import {
   Activity,
   AlertTriangle,
@@ -14,6 +13,7 @@ import {
   Eye,
   EyeOff,
   Gavel,
+  Vote,
   ShieldCheck,
   Sparkles,
   TimerReset,
@@ -31,16 +31,13 @@ import usePrivatePositions from '@/hooks/usePrivatePositions';
 import useProposeOutcome from '@/hooks/useProposeOutcome';
 import useRedeemShares from '@/hooks/useRedeemShares';
 import useResolveDispute from '@/hooks/useResolveDispute';
+import useVoteOnResolution from '@/hooks/useVoteOnResolution';
 import {
   formatDateTime,
   formatTokenAmount,
   truncateAddress,
 } from '@/lib/formatters';
-import {
-  getContractAddresses,
-  ORACLE_REGISTRY_ABI,
-  PREDICTION_MARKET_ABI,
-} from '@/lib/contracts';
+import { getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 
 const BetModal = dynamic(() => import('@/components/betting/BetModal'), {
   ssr: false,
@@ -55,8 +52,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const [isModalOpen, setModalOpen] = useState<boolean>(false);
   const [isPortfolioVisible, setPortfolioVisible] = useState<boolean>(false);
   const [disputeAmount, setDisputeAmount] = useState<string>('0.01');
+  const [disputeOutcomeId, setDisputeOutcomeId] = useState<string>('0');
   const [resolutionOutcomeId, setResolutionOutcomeId] = useState<string>('0');
-  const [oracleSlashAmount, setOracleSlashAmount] = useState<string>('0');
   const { data, error, isError, isLoading } = useMarketDetails(marketIdParam);
   const privatePositions = usePrivatePositions(
     data?.marketId ?? 0,
@@ -68,6 +65,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const finalizeMarketMutation = useFinalizeMarket();
   const redeemMutation = useRedeemShares();
   const resolveDisputeMutation = useResolveDispute();
+  const voteOnResolutionMutation = useVoteOnResolution();
   const ownerQuery = useReadContract({
     address: addresses?.predictionMarket ?? undefined,
     abi: PREDICTION_MARKET_ABI,
@@ -76,16 +74,6 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
       enabled: Boolean(addresses?.predictionMarket),
     },
   });
-  const proposedOracleQuery = useReadContract({
-    address: addresses?.oracleRegistry ?? undefined,
-    abi: ORACLE_REGISTRY_ABI,
-    functionName: 'getOracle',
-    args: data?.proposedBy ? [data.proposedBy] : undefined,
-    query: {
-      enabled: Boolean(addresses?.oracleRegistry) && Boolean(data?.proposedBy),
-    },
-  });
-
   const collateralDecimals = data?.collateralSymbol === 'USDC' ? 6 : 18;
 
   const enrichedOutcomes = useMemo(() => {
@@ -108,7 +96,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const revealedWinningShares =
     finalOutcome && isPortfolioVisible ? (finalOutcome.revealedShares ?? 0n) : 0n;
   const sellDisabled = tradeSide === 'SELL' && (!isPortfolioVisible || (selectedOutcome?.revealedShares ?? 0n) === 0n);
-  const disputeDeadlineMs = data?.disputeWindowEndsAt ? Date.parse(data.disputeWindowEndsAt) : Number.NaN;
+  const disputeDeadlineMs = data?.resolutionWindowEndsAt ? Date.parse(data.resolutionWindowEndsAt) : Number.NaN;
   const isFinalizeWindowOpen =
     Number.isFinite(disputeDeadlineMs) && Date.now() >= disputeDeadlineMs;
   const contractOwner =
@@ -116,20 +104,46 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const isContractOwner = Boolean(address && contractOwner && address.toLowerCase() === contractOwner);
   const selectedResolutionOutcome =
     enrichedOutcomes.find((outcome) => outcome.id === resolutionOutcomeId) ?? enrichedOutcomes[0] ?? null;
-  const resolvesAgainstProposal =
-    data?.proposedOutcomeIndex !== null &&
-    data?.proposedOutcomeIndex !== undefined &&
-    selectedResolutionOutcome !== null
-      ? selectedResolutionOutcome.outcomeIndex !== data.proposedOutcomeIndex
-      : false;
-  const proposedOracleStake =
-    proposedOracleQuery.data && typeof proposedOracleQuery.data === 'object' && 'stakedAmount' in proposedOracleQuery.data
-      ? (proposedOracleQuery.data.stakedAmount as bigint)
-      : 0n;
-  const slashPresets = [10, 20, 50, 100].map((percent) => ({
-    percent,
-    amount: (proposedOracleStake * BigInt(percent)) / 100n,
-  }));
+  const selectedDisputeOutcome =
+    enrichedOutcomes.find((outcome) => outcome.id === disputeOutcomeId) ?? null;
+  const voteLeaderboard = [...enrichedOutcomes]
+    .sort((left, right) => Number((data?.voteWeights[right.outcomeIndex] ?? 0n) - (data?.voteWeights[left.outcomeIndex] ?? 0n)));
+
+  useEffect(() => {
+    if (!data || enrichedOutcomes.length === 0) {
+      return;
+    }
+
+    if (!selectedOutcomeId || !enrichedOutcomes.some((outcome) => outcome.id === selectedOutcomeId)) {
+      setSelectedOutcomeId(enrichedOutcomes[0]?.id ?? '0');
+    }
+
+    if (
+      !resolutionOutcomeId ||
+      !enrichedOutcomes.some((outcome) => outcome.id === resolutionOutcomeId)
+    ) {
+      setResolutionOutcomeId(enrichedOutcomes[0]?.id ?? '0');
+    }
+
+    const firstCounterOutcome =
+      enrichedOutcomes.find((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex) ?? null;
+
+    if (
+      firstCounterOutcome &&
+      (!disputeOutcomeId ||
+        !enrichedOutcomes.some((outcome) => outcome.id === disputeOutcomeId) ||
+        selectedDisputeOutcome?.outcomeIndex === data.proposedOutcomeIndex)
+    ) {
+      setDisputeOutcomeId(firstCounterOutcome.id);
+    }
+  }, [
+    data,
+    disputeOutcomeId,
+    enrichedOutcomes,
+    resolutionOutcomeId,
+    selectedDisputeOutcome?.outcomeIndex,
+    selectedOutcomeId,
+  ]);
 
   const handleRedeem = async (): Promise<void> => {
     if (!data) {
@@ -149,24 +163,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
       return;
     }
 
-    const parsedSlashAmount = oracleSlashAmount.trim().length
-      ? resolvesAgainstProposal
-        ? parseEther(oracleSlashAmount)
-        : 0n
-      : 0n;
-
-    await resolveDisputeMutation.resolveDispute(
-      data.marketId,
-      selectedResolutionOutcome.outcomeIndex,
-      parsedSlashAmount,
-    );
+    await resolveDisputeMutation.resolveDispute(data.marketId, selectedResolutionOutcome.outcomeIndex);
   };
-
-  useEffect(() => {
-    if (!resolvesAgainstProposal && oracleSlashAmount !== '0') {
-      setOracleSlashAmount('0');
-    }
-  }, [oracleSlashAmount, resolvesAgainstProposal]);
 
   const lifecyclePanel = (() => {
     if (!data) {
@@ -223,43 +221,125 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
       );
     }
 
-    if (data.status === 'PROPOSED') {
+    if (data.status === 'RESOLUTION_OPEN') {
       return (
         <div className="space-y-3 rounded-2xl border border-amber-500/20 bg-amber-500/8 p-5">
           <div className="flex items-start gap-3">
             <TimerReset className="mt-0.5 h-4 w-4 text-amber-300" />
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">Proposal live</p>
+              <p className="text-sm font-semibold text-foreground">Resolution window live</p>
               <p className="text-sm text-muted-foreground">
                 Proposed outcome: {enrichedOutcomes[data.proposedOutcomeIndex ?? 0]?.label ?? 'Unknown'}.
               </p>
             </div>
           </div>
-          <div className="grid gap-3 text-xs text-muted-foreground md:grid-cols-2">
+          <div className="grid gap-3 text-xs text-muted-foreground md:grid-cols-3">
             <p>Proposed by {data.proposedBy ? truncateAddress(data.proposedBy) : 'Unknown'}</p>
             <p>
-              Dispute deadline{' '}
-              {data.disputeWindowEndsAt ? formatDateTime(data.disputeWindowEndsAt) : 'Unavailable'}
+              Resolution deadline{' '}
+              {data.resolutionWindowEndsAt ? formatDateTime(data.resolutionWindowEndsAt) : 'Unavailable'}
+            </p>
+            <p>
+              Quorum {formatTokenAmount(data.totalOracleVoteWeight, 18, 'ETH')} /{' '}
+              {formatTokenAmount(data.resolutionQuorumStake, 18, 'ETH')}
             </p>
           </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">Committee voting</p>
+                <p className="text-xs text-muted-foreground">
+                  Registered oracles can cast one open, stake-weighted vote during this window.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {voteLeaderboard.map((outcome) => (
+                  <div
+                    key={outcome.id}
+                    className="flex items-center justify-between rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm text-foreground">{outcome.label}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {formatTokenAmount(
+                          data.voteWeights[outcome.outcomeIndex] ?? 0n,
+                          18,
+                          'ETH vote weight',
+                        )}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      disabled={voteOnResolutionMutation.isLoading || data.hasVotedOnResolution}
+                      onClick={() =>
+                        voteOnResolutionMutation.voteOnResolution(
+                          data.marketId,
+                          outcome.outcomeIndex,
+                        )
+                      }
+                      type="button"
+                    >
+                      <Vote className="h-4 w-4" />
+                      {voteOnResolutionMutation.isLoading &&
+                      selectedOutcome?.outcomeIndex === outcome.outcomeIndex
+                        ? 'Voting...'
+                        : data.hasVotedOnResolution &&
+                            data.myVoteOutcomeIndex === outcome.outcomeIndex
+                          ? 'Voted'
+                          : 'Vote'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {data.hasVotedOnResolution ? (
+                <p className="text-xs text-muted-foreground">
+                  Your vote weight snapshot:{' '}
+                  {formatTokenAmount(data.myVoteWeightSnapshot, 18, 'ETH')}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">Open dispute</p>
+                <p className="text-xs text-muted-foreground">
+                  Challenge the proposal by selecting a counter-outcome and posting dispute stake.
+                </p>
+              </div>
+              <select
+                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                onChange={(event) => setDisputeOutcomeId(event.target.value)}
+                value={selectedDisputeOutcome?.id ?? ''}
+              >
+                {enrichedOutcomes
+                  .filter((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex)
+                  .map((outcome) => (
+                    <option key={outcome.id} value={outcome.id}>
+                      {outcome.label}
+                    </option>
+                  ))}
+              </select>
+              <input
+                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                onChange={(event) => setDisputeAmount(event.target.value)}
+                value={disputeAmount}
+              />
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-3">
-            <input
-              className="h-11 rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
-              onChange={(event) => setDisputeAmount(event.target.value)}
-              value={disputeAmount}
-            />
             <Button
               variant="outline"
               className="gap-2"
               onClick={() =>
                 disputeOutcomeMutation.disputeOutcome(
                   data.marketId,
+                  selectedDisputeOutcome?.outcomeIndex ?? 0,
                   disputeAmount,
                   collateralDecimals,
                   data.collateralToken === '0x0000000000000000000000000000000000000000',
                 )
               }
-              disabled={disputeOutcomeMutation.isLoading}
+              disabled={disputeOutcomeMutation.isLoading || !selectedDisputeOutcome}
               type="button"
             >
               <AlertTriangle className="h-4 w-4" />
@@ -268,7 +348,12 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             <Button
               className="gap-2"
               onClick={() => finalizeMarketMutation.finalizeMarket(data.marketId)}
-              disabled={finalizeMarketMutation.isLoading || !isFinalizeWindowOpen}
+              disabled={
+                finalizeMarketMutation.isLoading ||
+                !isFinalizeWindowOpen ||
+                data.disputeOpened ||
+                data.totalOracleVoteWeight < data.resolutionQuorumStake
+              }
               type="button"
             >
               <CheckCircle2 className="h-4 w-4" />
@@ -277,39 +362,53 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
           </div>
           {!isFinalizeWindowOpen ? (
             <p className="text-xs text-muted-foreground">
-              Finalization becomes available after the dispute deadline has passed.
+              Quorum finalization becomes available after the resolution window has passed.
+            </p>
+          ) : data.disputeOpened ? (
+            <p className="text-xs text-muted-foreground">
+              This market has an open dispute. It will resolve by committee result or move into
+              escalation if no decisive outcome is reached.
+            </p>
+          ) : data.totalOracleVoteWeight < data.resolutionQuorumStake ? (
+            <p className="text-xs text-muted-foreground">
+              Finalization stays disabled until participating oracle stake reaches quorum.
             </p>
           ) : null}
         </div>
       );
     }
 
-    if (data.status === 'DISPUTED') {
+    if (data.status === 'ESCALATED') {
       return (
         <div className="space-y-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-5">
           <div className="flex items-start gap-3">
             <Gavel className="mt-0.5 h-4 w-4 text-destructive" />
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">Dispute pending</p>
+              <p className="text-sm font-semibold text-foreground">Escalated resolution</p>
               <p className="text-sm text-muted-foreground">
-                Resolution is now under review. Trading is closed until the final outcome is set.
+                The oracle committee did not produce a decisive result. Admin fallback is now
+                required to finalize the market.
               </p>
             </div>
           </div>
-          <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-2">
+          <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
             <p>Dispute stake locked: {formatTokenAmount(data.disputeStakeTotal, collateralDecimals, data.collateralSymbol)}</p>
             <p>Oracle source: {data.oracleSource}</p>
+            <p>
+              Escalation deadline:{' '}
+              {data.escalationDeadline ? formatDateTime(data.escalationDeadline) : 'Unavailable'}
+            </p>
           </div>
           {isContractOwner ? (
             <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">Admin resolution</p>
                 <p className="text-xs text-muted-foreground">
-                  Only the contract owner can resolve disputed markets. This action stays locked
-                  until the dispute deadline has passed.
+                  Only the contract owner can resolve escalated markets. This path is fallback-only
+                  and should be used when quorum or vote tie prevented committee finalization.
                 </p>
               </div>
-              <div className="grid gap-3 md:grid-cols-">
+              <div className="grid gap-3">
                 <label className="space-y-2 text-xs text-muted-foreground">
                   <span className="block">Final outcome</span>
                   <div className="relative">
@@ -329,42 +428,6 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                     </div>
                   </div>
                 </label>
-                <label className="space-y-2 text-xs text-muted-foreground">
-                  <span className="block">Oracle slash amount (ETH)</span>
-                  <input
-                    className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
-                    disabled={!resolvesAgainstProposal}
-                    onChange={(event) => setOracleSlashAmount(event.target.value)}
-                    placeholder={resolvesAgainstProposal ? '0' : 'Only enabled when overturning proposal'}
-                    value={oracleSlashAmount}
-                  />
-                </label>
-              </div>
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <p>
-                    Proposing oracle stake:{' '}
-                    <span className="text-foreground">
-                      {proposedOracleStake > 0n ? `${formatEther(proposedOracleStake)} ETH` : 'Unavailable'}
-                    </span>
-                  </p>
-                  <p>
-                    Leave this at `0` if you do not want to slash the proposing oracle.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {slashPresets.map((preset) => (
-                    <button
-                      key={preset.percent}
-                      className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
-                      disabled={preset.amount === 0n || !resolvesAgainstProposal}
-                      onClick={() => setOracleSlashAmount(formatEther(preset.amount))}
-                      type="button"
-                    >
-                      {preset.percent}%
-                    </button>
-                  ))}
-                </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <Button
@@ -378,24 +441,17 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   type="button"
                 >
                   <Gavel className="h-4 w-4" />
-                  {resolveDisputeMutation.isLoading ? 'Resolving...' : 'Resolve Disputed Market'}
+                  {resolveDisputeMutation.isLoading ? 'Resolving...' : 'Resolve Escalated Market'}
                 </Button>
-                {!isFinalizeWindowOpen ? (
-                  <p className="text-xs text-muted-foreground">
-                    Resolution unlocks after {formatDateTime(data.disputeWindowEndsAt ?? data.expiryTime)}.
-                  </p>
-                ) : null}
               </div>
               <p className="text-xs text-muted-foreground">
-                {resolvesAgainstProposal
-                  ? 'Slash amount only affects the proposing oracle. Successful disputes unlock refunds for disputers.'
-                  : 'Oracle slashing is disabled while upholding the original proposal. In that case, failed disputers simply forfeit their dispute stake.'}
+                Oracle slashing is rule-based in committee-resolved markets. The admin fallback path
+                here is outcome-only.
               </p>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Disputed markets can be resolved only by the contract admin after the dispute
-              deadline has passed.
+              Escalated markets can be resolved only by the contract admin.
             </p>
           )}
         </div>
@@ -671,6 +727,9 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 ) : null}
                 {finalizeMarketMutation.isError && finalizeMarketMutation.error ? (
                   <p className="text-xs text-destructive">{finalizeMarketMutation.error.message}</p>
+                ) : null}
+                {voteOnResolutionMutation.isError && voteOnResolutionMutation.error ? (
+                  <p className="text-xs text-destructive">{voteOnResolutionMutation.error.message}</p>
                 ) : null}
                 {resolveDisputeMutation.isError && resolveDisputeMutation.error ? (
                   <p className="text-xs text-destructive">{resolveDisputeMutation.error.message}</p>

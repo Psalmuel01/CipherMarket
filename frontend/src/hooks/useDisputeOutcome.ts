@@ -15,7 +15,13 @@ export interface UseDisputeOutcomeResult {
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
-  disputeOutcome: (marketId: number, amount: string, decimals: number, isNative: boolean) => Promise<void>;
+  disputeOutcome: (
+    marketId: number,
+    counterOutcomeIndex: number,
+    amount: string,
+    decimals: number,
+    isNative: boolean,
+  ) => Promise<void>;
 }
 
 export default function useDisputeOutcome(): UseDisputeOutcomeResult {
@@ -28,6 +34,7 @@ export default function useDisputeOutcome(): UseDisputeOutcomeResult {
 
   const disputeOutcome = async (
     marketId: number,
+    counterOutcomeIndex: number,
     amount: string,
     decimals: number,
     isNative: boolean,
@@ -55,8 +62,8 @@ export default function useDisputeOutcome(): UseDisputeOutcomeResult {
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'disputeOutcome',
-        args: [BigInt(marketId), stakeAmount],
+        functionName: 'openDispute',
+        args: [BigInt(marketId), counterOutcomeIndex, stakeAmount],
         value: isNative ? stakeAmount : 0n,
       });
 

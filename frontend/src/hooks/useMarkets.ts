@@ -18,25 +18,36 @@ interface PredictionMarketView {
   creator: Address;
   collateralToken: Address;
   proposedBy: Address;
+  disputeOpenedBy: Address;
   createdAt: bigint;
   expiryTime: bigint;
-  disputeWindowEndsAt: bigint;
+  resolutionWindowEndsAt: bigint;
+  escalationDeadline: bigint;
   minimumTrade: bigint;
   seedLiquidity: bigint;
   totalCollateralCollected: bigint;
   disputeStakeTotal: bigint;
   remainingWinningShares: bigint;
+  resolutionQuorumStake: bigint;
+  committeeRewardPool: bigint;
+  totalOracleVoteWeight: bigint;
   accruedProtocolFees: bigint;
   accruedLpFees: bigint;
+  protocolDisputeFees: bigint;
   tradeFeeBps: number;
   protocolFeeShareBps: number;
   outcomeCount: number;
   proposedOutcome: number;
+  disputeCounterOutcome: number;
+  leadingOutcome: number;
   finalOutcome: number;
   marketType: number;
   state: number;
   lpClaimed: boolean;
   protocolFeesClaimed: boolean;
+  disputeRefundsEnabled: boolean;
+  disputeOpened: boolean;
+  committeeResolved: boolean;
   title: string;
   description: string;
   category: string;
@@ -195,6 +206,6 @@ export default function useMarkets(): UseMarketsResult {
     isLoading: nextMarketIdQuery.isLoading || marketReads.isLoading,
     isError: Boolean(error),
     error,
-    availableStatuses: ['ALL', 'ACTIVE', 'EXPIRED', 'PROPOSED', 'DISPUTED', 'FINALIZED'],
+    availableStatuses: ['ALL', 'ACTIVE', 'EXPIRED', 'RESOLUTION_OPEN', 'ESCALATED', 'FINALIZED'],
   };
 }

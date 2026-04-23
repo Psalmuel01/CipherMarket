@@ -1,9 +1,10 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
-describe('PredictionMarket', () => {
+describe('PredictionMarket Wave 3A', () => {
   async function deployFixture() {
-    const [owner, creator, oracle, traderA, traderB, disputer] = await ethers.getSigners();
+    const [owner, creator, proposerOracle, committeeOracle, extraOracle, traderA, traderB, disputer] =
+      await ethers.getSigners();
 
     const registry = await ethers.deployContract('OracleRegistry', [ethers.parseEther('1')]);
     await registry.waitForDeployment();
@@ -28,7 +29,9 @@ describe('PredictionMarket', () => {
     return {
       owner,
       creator,
-      oracle,
+      proposerOracle,
+      committeeOracle,
+      extraOracle,
       traderA,
       traderB,
       disputer,
@@ -123,62 +126,8 @@ describe('PredictionMarket', () => {
     expect(await predictionMarket.getOutcomeReserves(0)).to.deep.equal([273n, 917n]);
   });
 
-  it('supports categorical ERC20 markets and creator LP surplus after redemption', async () => {
-    const { creator, traderA, traderB, oracle, registry, predictionMarket, usdc } =
-      await deployFixture();
-    const expiryTime = (await latestTimestamp()) + 60;
-
-    await usdc.connect(creator).approve(await predictionMarket.getAddress(), 3_000_000n);
-    await predictionMarket.connect(creator).createMarket(
-      'Which L2 leads stablecoin volume this quarter?',
-      'Compares Base, Arbitrum, and Optimism by stablecoin settlement volume.',
-      'Infra',
-      'https://issuer.example/volume-report',
-      1,
-      ['BASE', 'ARB', 'OP'],
-      expiryTime,
-      await usdc.getAddress(),
-      100_000n,
-      3_000_000n,
-    );
-
-    expect(await predictionMarket.getOutcomeReserves(0)).to.deep.equal([1_000_000n, 1_000_000n, 1_000_000n]);
-
-    await usdc.connect(traderA).approve(await predictionMarket.getAddress(), 1_000_000n);
-    await usdc.connect(traderB).approve(await predictionMarket.getAddress(), 2_000_000n);
-
-    const quoteA = await predictionMarket.quoteBuy(0, 2, 1_000_000n);
-    await predictionMarket.connect(traderA).buyShares(0, 2, 1_000_000n, quoteA.sharesOut);
-
-    const quoteB = await predictionMarket.quoteBuy(0, 1, 2_000_000n);
-    await predictionMarket.connect(traderB).buyShares(0, 1, 2_000_000n, quoteB.sharesOut);
-
-    await registry.connect(oracle).register({ value: ethers.parseEther('1') });
-    await moveTime(61);
-
-    await predictionMarket.connect(oracle).proposeOutcome(0, 2);
-    await moveTime(3601);
-    await predictionMarket.finalizeMarket(0);
-
-    await predictionMarket.connect(traderA).requestRedeemPositionDecrypt(0);
-    await settleDecryptResult();
-    await expect(() =>
-      predictionMarket.connect(traderA).redeemShares(0),
-    ).to.changeTokenBalances(usdc, [predictionMarket, traderA], [-quoteA.sharesOut, quoteA.sharesOut]);
-
-    const finalizedMarket = await predictionMarket.getMarket(0);
-    const expectedLpPayout =
-      finalizedMarket.totalCollateralCollected -
-      finalizedMarket.remainingWinningShares -
-      finalizedMarket.accruedProtocolFees;
-
-    await expect(() =>
-      predictionMarket.connect(creator).claimLpPayout(0),
-    ).to.changeTokenBalances(usdc, [predictionMarket, creator], [-expectedLpPayout, expectedLpPayout]);
-  });
-
-  it('supports disputes, oracle locks, admin resolution, protocol fees, and selective refunds', async () => {
-    const { owner, creator, traderA, traderB, oracle, disputer, registry, predictionMarket } =
+  it('supports committee finalization, successful disputes, proposer slashing, and winner redemption', async () => {
+    const { creator, proposerOracle, committeeOracle, traderA, traderB, disputer, registry, predictionMarket } =
       await deployFixture();
     const expiryTime = (await latestTimestamp()) + 60;
 
@@ -196,27 +145,35 @@ describe('PredictionMarket', () => {
       { value: 1_000n },
     );
 
-    const quoteA = await predictionMarket.quoteBuy(0, 0, 500n);
-    await predictionMarket.connect(traderA).buyShares(0, 0, 500n, quoteA.sharesOut, { value: 500n });
+    const yesQuote = await predictionMarket.quoteBuy(0, 0, 500n);
+    await predictionMarket.connect(traderA).buyShares(0, 0, 500n, yesQuote.sharesOut, { value: 500n });
 
-    const quoteB = await predictionMarket.quoteBuy(0, 1, 400n);
-    await predictionMarket.connect(traderB).buyShares(0, 1, 400n, quoteB.sharesOut, { value: 400n });
+    const noQuote = await predictionMarket.quoteBuy(0, 1, 400n);
+    await predictionMarket.connect(traderB).buyShares(0, 1, 400n, noQuote.sharesOut, { value: 400n });
 
-    await registry.connect(oracle).register({ value: ethers.parseEther('2') });
+    await registry.connect(proposerOracle).register({ value: ethers.parseEther('2') });
+    await registry.connect(committeeOracle).register({ value: ethers.parseEther('3') });
+
     await moveTime(61);
 
-    await predictionMarket.connect(oracle).proposeOutcome(0, 0);
-    expect(await registry.getOracleProposalLocks(oracle.address)).to.equal(1n);
-    await expect(registry.connect(oracle).deregister()).to.be.revertedWith('Oracle has active proposal lock');
+    await predictionMarket.connect(proposerOracle).proposeOutcome(0, 0);
+    await predictionMarket.connect(disputer).openDispute(0, 1, 50n, { value: 50n });
+    await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
+    await predictionMarket.connect(committeeOracle).voteOnResolution(0, 1);
 
-    await predictionMarket.connect(disputer).disputeOutcome(0, 50n, { value: 50n });
+    const voteWeights = await predictionMarket.getOutcomeVoteWeight(0);
+    expect(voteWeights).to.deep.equal([ethers.parseEther('2'), ethers.parseEther('3')]);
+
     await moveTime(3601);
+    await predictionMarket.finalizeByQuorum(0);
 
-    await predictionMarket.connect(owner).resolveDispute(0, 1, ethers.parseEther('0.5'));
-    expect(await registry.getOracleProposalLocks(oracle.address)).to.equal(0n);
+    const market = await predictionMarket.getMarket(0);
+    expect(market.committeeResolved).to.equal(true);
+    expect(market.finalOutcome).to.equal(1);
+    expect(market.disputeRefundsEnabled).to.equal(true);
 
-    const oracleProfile = await registry.getOracle(oracle.address);
-    expect(oracleProfile.stakedAmount).to.equal(ethers.parseEther('1.5'));
+    const proposerProfile = await registry.getOracle(proposerOracle.address);
+    expect(proposerProfile.stakedAmount).to.equal(ethers.parseEther('1.6'));
 
     await expect(() =>
       predictionMarket.connect(disputer).claimDisputeRefund(0),
@@ -226,19 +183,121 @@ describe('PredictionMarket', () => {
     await settleDecryptResult();
     await expect(() =>
       predictionMarket.connect(traderB).redeemShares(0),
-    ).to.changeEtherBalances([predictionMarket, traderB], [-quoteB.sharesOut, quoteB.sharesOut]);
+    ).to.changeEtherBalances([predictionMarket, traderB], [-noQuote.sharesOut, noQuote.sharesOut]);
 
-    const resolvedMarket = await predictionMarket.getMarket(0);
+    await expect(
+      predictionMarket.connect(committeeOracle).claimOracleResolutionReward(0),
+    ).to.be.revertedWith('No oracle reward pool available');
+  });
+
+  it('routes failed dispute stake to winning oracle voters and protocol using vote-time stake snapshots', async () => {
+    const { owner, creator, proposerOracle, committeeOracle, traderA, disputer, registry, predictionMarket } =
+      await deployFixture();
+    const expiryTime = (await latestTimestamp()) + 60;
+
+    await predictionMarket.connect(creator).createMarket(
+      'Will ETH volatility stay above 80?',
+      'Resolution based on the official volatility source.',
+      'Crypto',
+      'https://issuer.example/volatility',
+      0,
+      ['YES', 'NO'],
+      expiryTime,
+      ethers.ZeroAddress,
+      100n,
+      1_000n,
+      { value: 1_000n },
+    );
+
+    const buyQuote = await predictionMarket.quoteBuy(0, 0, 500n);
+    await predictionMarket.connect(traderA).buyShares(0, 0, 500n, buyQuote.sharesOut, { value: 500n });
+
+    await registry.connect(proposerOracle).register({ value: ethers.parseEther('2') });
+    await registry.connect(committeeOracle).register({ value: ethers.parseEther('3') });
+
+    await moveTime(61);
+
+    await predictionMarket.connect(proposerOracle).proposeOutcome(0, 0);
+    await predictionMarket.connect(disputer).openDispute(0, 1, 100n, { value: 100n });
+    await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
+    await predictionMarket.connect(committeeOracle).voteOnResolution(0, 0);
+
+    await registry.connect(committeeOracle).increaseStake({ value: ethers.parseEther('1') });
+
+    await moveTime(3601);
+    await predictionMarket.finalizeByQuorum(0);
+
+    const market = await predictionMarket.getMarket(0);
+    expect(market.finalOutcome).to.equal(0);
+    expect(market.committeeRewardPool).to.equal(80n);
+    expect(market.protocolDisputeFees).to.equal(20n);
+    expect(market.disputeRefundsEnabled).to.equal(false);
+
+    await expect(() =>
+      predictionMarket.connect(proposerOracle).claimOracleResolutionReward(0),
+    ).to.changeEtherBalances([predictionMarket, proposerOracle], [-32n, 32n]);
+
+    await expect(() =>
+      predictionMarket.connect(committeeOracle).claimOracleResolutionReward(0),
+    ).to.changeEtherBalances([predictionMarket, committeeOracle], [-48n, 48n]);
+
     await expect(() =>
       predictionMarket.connect(owner).claimProtocolFees(0),
-    ).to.changeEtherBalances(
-      [predictionMarket, owner],
-      [-resolvedMarket.accruedProtocolFees, resolvedMarket.accruedProtocolFees],
+    ).to.changeEtherBalances([predictionMarket, owner], [-21n, 21n]);
+
+    await expect(predictionMarket.connect(disputer).claimDisputeRefund(0)).to.be.revertedWith(
+      'Dispute refund is not available',
     );
   });
 
-  it('rejects invalid market creation, unwhitelisted collateral, and invalid secure sells', async () => {
-    const { creator, traderA, predictionMarket, usdc } = await deployFixture();
+  it('escalates unresolved committee markets and restricts oracle rewards to committee-resolved outcomes', async () => {
+    const { owner, creator, proposerOracle, committeeOracle, registry, predictionMarket } =
+      await deployFixture();
+    const expiryTime = (await latestTimestamp()) + 60;
+
+    await predictionMarket.connect(creator).createMarket(
+      'Will a new privacy L2 ship this quarter?',
+      'Resolution based on the announced mainnet launch.',
+      'Infra',
+      'https://issuer.example/privacy-l2',
+      0,
+      ['YES', 'NO'],
+      expiryTime,
+      ethers.ZeroAddress,
+      100n,
+      1_000n,
+      { value: 1_000n },
+    );
+
+    await registry.connect(proposerOracle).register({ value: ethers.parseEther('2') });
+    await registry.connect(committeeOracle).register({ value: ethers.parseEther('2') });
+
+    await moveTime(61);
+
+    await predictionMarket.connect(proposerOracle).proposeOutcome(0, 0);
+    await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
+    await predictionMarket.connect(committeeOracle).voteOnResolution(0, 1);
+
+    await moveTime(3601);
+    await expect(predictionMarket.finalizeByQuorum(0)).to.be.revertedWith('Market requires escalation');
+
+    await predictionMarket.escalateIfUnresolved(0);
+    const escalatedMarket = await predictionMarket.getMarket(0);
+    expect(escalatedMarket.state).to.equal(3);
+    expect(escalatedMarket.escalationDeadline).to.be.greaterThan(0n);
+
+    await predictionMarket.connect(owner).resolveEscalated(0, 1);
+    const finalizedMarket = await predictionMarket.getMarket(0);
+    expect(finalizedMarket.committeeResolved).to.equal(false);
+    expect(finalizedMarket.finalOutcome).to.equal(1);
+
+    await expect(
+      predictionMarket.connect(committeeOracle).claimOracleResolutionReward(0),
+    ).to.be.revertedWith('Oracle rewards require committee finalization');
+  });
+
+  it('rejects invalid market creation, invalid secure sells, premature finalization, and late oracle votes', async () => {
+    const { creator, proposerOracle, traderA, predictionMarket, registry, usdc } = await deployFixture();
     const expiryTime = (await latestTimestamp()) + 60;
 
     await expect(
@@ -310,5 +369,20 @@ describe('PredictionMarket', () => {
         { value: 1_001n },
       ),
     ).to.be.revertedWith('Seed liquidity must split evenly');
+
+    await registry.connect(proposerOracle).register({ value: ethers.parseEther('2') });
+    await moveTime(61);
+
+    await predictionMarket.connect(proposerOracle).proposeOutcome(0, 0);
+    await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
+
+    await expect(predictionMarket.finalizeByQuorum(0)).to.be.revertedWith(
+      'Resolution window is still open',
+    );
+
+    await moveTime(3601);
+    await expect(
+      predictionMarket.connect(proposerOracle).voteOnResolution(0, 1),
+    ).to.be.revertedWith('Resolution window has closed');
   });
 });

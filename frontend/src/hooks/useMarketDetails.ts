@@ -17,14 +17,19 @@ interface PredictionMarketView {
   creator: Address;
   collateralToken: Address;
   proposedBy: Address;
+  disputeOpenedBy: Address;
   createdAt: bigint;
   expiryTime: bigint;
-  disputeWindowEndsAt: bigint;
+  resolutionWindowEndsAt: bigint;
+  escalationDeadline: bigint;
   minimumTrade: bigint;
   seedLiquidity: bigint;
   totalCollateralCollected: bigint;
   disputeStakeTotal: bigint;
   remainingWinningShares: bigint;
+  resolutionQuorumStake: bigint;
+  committeeRewardPool: bigint;
+  totalOracleVoteWeight: bigint;
   accruedProtocolFees: bigint;
   accruedLpFees: bigint;
   protocolDisputeFees: bigint;
@@ -32,12 +37,16 @@ interface PredictionMarketView {
   protocolFeeShareBps: number;
   outcomeCount: number;
   proposedOutcome: number;
+  disputeCounterOutcome: number;
+  leadingOutcome: number;
   finalOutcome: number;
   marketType: number;
   state: number;
   lpClaimed: boolean;
   protocolFeesClaimed: boolean;
   disputeRefundsEnabled: boolean;
+  disputeOpened: boolean;
+  committeeResolved: boolean;
   title: string;
   description: string;
   category: string;
@@ -117,6 +126,22 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
               functionName: 'getMarketProbabilities',
               args: [validMarketId],
             },
+            {
+              address: predictionMarketAddress,
+              abi: PREDICTION_MARKET_ABI,
+              functionName: 'getOutcomeVoteWeight',
+              args: [validMarketId],
+            },
+            ...(address
+              ? [
+                  {
+                    address: predictionMarketAddress,
+                    abi: PREDICTION_MARKET_ABI,
+                    functionName: 'getOracleVote',
+                    args: [validMarketId, address],
+                  },
+                ]
+              : []),
           ]
         : [],
     query: {
@@ -133,12 +158,22 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
 
     const reserveResult = detailReads.data?.[0];
     const probabilityResult = detailReads.data?.[1];
+    const voteWeightResult = detailReads.data?.[2];
+    const oracleVoteResult = detailReads.data?.[3];
     const reserves =
       reserveResult?.status === 'success' && reserveResult.result ? (reserveResult.result as bigint[]) : [];
     const probabilities =
       probabilityResult?.status === 'success' && probabilityResult.result
         ? (probabilityResult.result as bigint[])
         : [];
+    const voteWeights =
+      voteWeightResult?.status === 'success' && voteWeightResult.result
+        ? (voteWeightResult.result as bigint[])
+        : [];
+    const oracleVote =
+      oracleVoteResult?.status === 'success' && Array.isArray(oracleVoteResult.result)
+        ? (oracleVoteResult.result as [boolean, number, bigint])
+        : null;
 
     const collateral = getCollateralMetadata(marketView.collateralToken, chainId);
     const outcomes = buildOutcomes(marketView.outcomes, probabilities, reserves);
@@ -160,18 +195,34 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       collateralToken: marketView.collateralToken,
       collateralSymbol: collateral.symbol,
       createdAt: new Date(Number(marketView.createdAt) * 1000).toISOString(),
-      disputeWindowEndsAt:
-        Number(marketView.disputeWindowEndsAt) > 0
-          ? new Date(Number(marketView.disputeWindowEndsAt) * 1000).toISOString()
+      resolutionWindowEndsAt:
+        Number(marketView.resolutionWindowEndsAt) > 0
+          ? new Date(Number(marketView.resolutionWindowEndsAt) * 1000).toISOString()
+          : null,
+      escalationDeadline:
+        Number(marketView.escalationDeadline) > 0
+          ? new Date(Number(marketView.escalationDeadline) * 1000).toISOString()
           : null,
       creator: marketView.creator,
       proposedBy:
         marketView.proposedBy.toLowerCase() === '0x0000000000000000000000000000000000000000'
           ? null
           : marketView.proposedBy,
+      disputeOpenedBy:
+        marketView.disputeOpenedBy.toLowerCase() === '0x0000000000000000000000000000000000000000'
+          ? null
+          : marketView.disputeOpenedBy,
       proposedOutcomeIndex:
         marketView.proposedOutcome === 255 ? null : Number(marketView.proposedOutcome),
+      disputeCounterOutcomeIndex:
+        marketView.disputeCounterOutcome === 255 ? null : Number(marketView.disputeCounterOutcome),
+      leadingOutcomeIndex: marketView.leadingOutcome === 255 ? null : Number(marketView.leadingOutcome),
       finalOutcomeIndex: marketView.finalOutcome === 255 ? null : Number(marketView.finalOutcome),
+      voteWeights,
+      myVoteOutcomeIndex:
+        oracleVote && oracleVote[0] && oracleVote[1] !== 255 ? Number(oracleVote[1]) : null,
+      myVoteWeightSnapshot: oracleVote ? BigInt(oracleVote[2]) : 0n,
+      hasVotedOnResolution: oracleVote ? Boolean(oracleVote[0]) : false,
       reserves,
       probabilities,
       pools: buildPools(outcomes, collateral.symbol),
@@ -181,10 +232,15 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       reservePerOutcome: reserves[0] ?? 0n,
       disputeStakeTotal: marketView.disputeStakeTotal,
       remainingWinningShares: marketView.remainingWinningShares,
+      resolutionQuorumStake: marketView.resolutionQuorumStake,
+      committeeRewardPool: marketView.committeeRewardPool,
+      totalOracleVoteWeight: marketView.totalOracleVoteWeight,
       accruedProtocolFees: marketView.accruedProtocolFees,
       accruedLpFees: marketView.accruedLpFees,
       protocolDisputeFees: marketView.protocolDisputeFees,
       disputeRefundsEnabled: marketView.disputeRefundsEnabled,
+      disputeOpened: marketView.disputeOpened,
+      committeeResolved: marketView.committeeResolved,
       revealedWinningShares: null,
       canRevealPositions: Boolean(address),
     } satisfies MarketDetail;
