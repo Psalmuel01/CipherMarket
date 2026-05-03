@@ -16,9 +16,9 @@
     "@reineira-os/sdk": "^0.2.0"
   },
   "pnpm": {
-  "supportedArchitectures": {
-    "os": ["darwin"],
-    "cpu": ["arm64"]
+    "overrides": {
+      "@tanstack/react-query": "5.90.20",
+      "@tanstack/query-core": "5.90.20"
+    }
   }
-}
 }
