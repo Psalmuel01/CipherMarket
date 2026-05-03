@@ -70,14 +70,17 @@ export default function useOracleStatus(): UseOracleStatusResult {
       active: false,
     };
     const activeAssignments = markets.filter(
-      (market) => market.status === 'EXPIRED' || market.status === 'PROPOSED' || market.status === 'DISPUTED',
+      (market) =>
+        market.status === 'EXPIRED' ||
+        market.status === 'RESOLUTION_OPEN' ||
+        market.status === 'ESCALATED',
     ).length;
 
     return {
       isRegistered: profile.active,
       stakeAmount: profile.stakedAmount,
       stakeFormatted: `${formatEther(profile.stakedAmount)} ETH`,
-      disputeExposure: `${markets.filter((market) => market.status === 'DISPUTED').length} disputed`,
+      disputeExposure: `${markets.filter((market) => market.status === 'ESCALATED').length} escalated`,
       activeAssignments,
       minimumStakeFormatted: `${formatEther((minimumStakeQuery.data as bigint | undefined) ?? 0n)} ETH`,
       proposalLocks: Number((proposalLocksQuery.data as bigint | undefined) ?? 0n),

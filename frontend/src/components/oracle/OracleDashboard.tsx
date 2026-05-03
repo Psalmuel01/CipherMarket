@@ -28,7 +28,10 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
   } = useRegisterOracle();
   const { data: markets } = useMarkets();
   const pendingMarkets = markets.filter(
-    (market) => market.status === 'EXPIRED' || market.status === 'PROPOSED' || market.status === 'DISPUTED',
+    (market) =>
+      market.status === 'EXPIRED' ||
+      market.status === 'RESOLUTION_OPEN' ||
+      market.status === 'ESCALATED',
   );
 
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -60,7 +63,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                   {/* <br /> */}
                   <span className="font-sans font-light text-white/35 ml-2">governance.</span>
                 </h1>
-                <p className="text-sm text-muted-foreground">Manage your locked stake and participate in optimistic market resolution.</p>
+                <p className="text-sm text-muted-foreground">Manage your locked stake and participate in committee-based market resolution.</p>
               </div>
               <Button
                 variant="primary"
@@ -96,7 +99,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                 <div className="rounded-2xl bg-white/[0.03] p-6 space-y-3">
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                     <Gavel className="h-3 w-3 text-primary" />
-                    <span>Active Disputes</span>
+                    <span>Escalated Markets</span>
                   </div>
                   <p className="text-2xl font-black text-foreground">{data.disputeExposure}</p>
                 </div>
@@ -135,8 +138,9 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
             <div className="space-y-3">
               <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-4 text-xs leading-relaxed text-muted-foreground">
                 Becoming an oracle is straightforward: stake at least the registry minimum, wait
-                for markets to expire, then propose the outcome backed by the listed source. If a
-                disputed proposal is overturned, your stake can be slashed.
+                for markets to expire, propose an initial outcome, and vote during the committee
+                resolution window. If your proposal is overturned by committee resolution, your
+                stake can be slashed.
               </div>
 
               {pendingMarkets.map((market) => (

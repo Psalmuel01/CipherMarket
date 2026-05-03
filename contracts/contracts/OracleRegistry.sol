@@ -139,6 +139,10 @@ contract OracleRegistry is Ownable {
     return oracleProfiles[oracle];
   }
 
+  function getOracleStake(address oracle) external view returns (uint256) {
+    return oracleProfiles[oracle].stakedAmount;
+  }
+
   function getOracleProposalLocks(address oracle) external view returns (uint256) {
     return oracleProposalLocks[oracle];
   }

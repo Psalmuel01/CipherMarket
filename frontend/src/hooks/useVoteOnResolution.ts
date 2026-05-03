@@ -5,30 +5,29 @@ import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 
-export interface ResolveDisputeReceipt {
+export interface VoteOnResolutionReceipt {
   txHash: string;
 }
 
-export interface UseResolveDisputeResult {
-  data: ResolveDisputeReceipt | null;
+export interface UseVoteOnResolutionResult {
+  data: VoteOnResolutionReceipt | null;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
-  resolveDispute: (marketId: number, finalOutcome: number) => Promise<void>;
+  voteOnResolution: (marketId: number, outcomeIndex: number) => Promise<void>;
 }
 
-export default function useResolveDispute(): UseResolveDisputeResult {
+export default function useVoteOnResolution(): UseVoteOnResolutionResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const [data, setData] = useState<ResolveDisputeReceipt | null>(null);
+  const [data, setData] = useState<VoteOnResolutionReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const resolveDispute = async (marketId: number, finalOutcome: number): Promise<void> => {
+  const voteOnResolution = async (marketId: number, outcomeIndex: number): Promise<void> => {
     try {
-      const addresses = getContractAddresses(chainId);
-      const predictionMarketAddress = addresses?.predictionMarket;
+      const predictionMarketAddress = getContractAddresses(chainId)?.predictionMarket;
 
       if (!predictionMarketAddress) {
         throw new Error('PredictionMarket is not configured for the current chain.');
@@ -45,18 +44,18 @@ export default function useResolveDispute(): UseResolveDisputeResult {
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'resolveEscalated',
-        args: [BigInt(marketId), finalOutcome],
+        functionName: 'voteOnResolution',
+        args: [BigInt(marketId), outcomeIndex],
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
       setData({ txHash: hash });
-      toast.success('Escalated market resolved.');
+      toast.success('Oracle vote submitted.');
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))
-          : new Error('Unable to resolve this escalated market.');
+          : new Error('Unable to submit this oracle vote.');
 
       setError(nextError);
       toast.error(nextError.message);
@@ -70,6 +69,6 @@ export default function useResolveDispute(): UseResolveDisputeResult {
     isLoading,
     isError: error !== null,
     error,
-    resolveDispute,
+    voteOnResolution,
   };
 }

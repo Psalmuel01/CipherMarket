@@ -1,6 +1,6 @@
 import type { HardhatUserConfig } from 'hardhat/config';
 import '@nomicfoundation/hardhat-toolbox';
-import 'cofhe-hardhat-plugin';
+import './cofhe-lite';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -13,7 +13,7 @@ const config: HardhatUserConfig = {
       viaIR: true,
       optimizer: {
         enabled: true,
-        runs: 200,
+        runs: 1,
       },
     },
   },

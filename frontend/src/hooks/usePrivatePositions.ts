@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCofheContext } from '@cofhe/react';
 import { FheTypes } from '@cofhe/sdk';
 import { useAccount, useChainId, useReadContracts } from 'wagmi';
+import { withFreshSelfPermit } from '@/lib/cofhePermits';
 import { getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 
 export interface UsePrivatePositionsResult {
@@ -73,30 +74,34 @@ export default function usePrivatePositions(
       }
 
       try {
-        const permit = await client.permits.getOrCreateSelfPermit(chainId, address, {
-          issuer: address,
-          name: `CipherMarket ${marketId} position view`,
-        });
+        const values = await withFreshSelfPermit(
+          client,
+          chainId ?? 11155111,
+          address,
+          `CipherMarket ${marketId} position view`,
+          async (permit) =>
+            Promise.all(
+              outcomeIndexes.map(async (outcomeIndex) => {
+                const result = handlesQuery.data?.[outcomeIndex];
+                const handle =
+                  result?.status === 'success' && typeof result.result === 'bigint'
+                    ? result.result
+                    : 0n;
 
-        const values = await Promise.all(
-          outcomeIndexes.map(async (outcomeIndex) => {
-            const result = handlesQuery.data?.[outcomeIndex];
-            const handle =
-              result?.status === 'success' && typeof result.result === 'bigint' ? result.result : 0n;
+                if (handle === 0n) {
+                  return 0n;
+                }
 
-            if (handle === 0n) {
-              return 0n;
-            }
+                const unsealed = await client
+                  .decryptForView(handle, FheTypes.Uint128)
+                  .setAccount(address)
+                  .setChainId(chainId ?? 11155111)
+                  .withPermit(permit)
+                  .execute();
 
-            const unsealed = await client
-              .decryptForView(handle, FheTypes.Uint128)
-              .setAccount(address)
-              .setChainId(chainId ?? 11155111)
-              .withPermit(permit)
-              .execute();
-
-            return BigInt(unsealed);
-          }),
+                return BigInt(unsealed);
+              }),
+            ),
         );
 
         return values;

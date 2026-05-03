@@ -2,8 +2,9 @@
  * CipherMarket Deployment Script
  *
  * Deploys:
- *   1. OracleRegistry      – manages oracle stake/registration
- *   2. PredictionMarket    – singleton FPMM market manager with encrypted user balances
+ *   1. OracleRegistry        – manages oracle stake/registration
+ *   2. PredictionMarketMath  – linked FPMM math library
+ *   3. PredictionMarket      – singleton FPMM market manager with encrypted user balances
  *
  * Post-deploy wiring:
  *   - OracleRegistry.setPredictionMarket(PredictionMarket)
@@ -93,10 +94,11 @@ async function deploy(
   provider: ethers.JsonRpcProvider | null,
   name: string,
   args: unknown[] = [],
+  libraries?: Record<string, string>,
 ): Promise<Deployed> {
   console.log(`\n[${name}]`);
   console.log(`  Getting factory...`);
-  const factory = await runtime.ethers.getContractFactory(name);
+  const factory = await runtime.ethers.getContractFactory(name, libraries ? { libraries } : undefined);
 
   console.log(`  Sending deploy tx...`);
   const contract = await factory.deploy(...args);
@@ -156,12 +158,17 @@ async function main(): Promise<void> {
     hre.ethers.parseEther('1'),
   ]);
 
-  // ── 2. PredictionMarket ────────────────────────────────────────────────────
+  // ── 2. PredictionMarketMath ────────────────────────────────────────────────
+  const predictionMarketMath = await deploy(hre, provider, 'PredictionMarketMath');
+
+  // ── 3. PredictionMarket ────────────────────────────────────────────────────
   // Constructor args: oracle registry address, dispute window in seconds (24h)
   const predictionMarket = await deploy(hre, provider, 'PredictionMarket', [
     oracleRegistry.address,
     24 * 60 * 60,
-  ]);
+  ], {
+    PredictionMarketMath: predictionMarketMath.address,
+  });
 
   // ── 3. Wire: OracleRegistry → PredictionMarket ─────────────────────────────
   console.log('\n[Wiring]');
@@ -188,7 +195,7 @@ async function main(): Promise<void> {
   console.log('══════════════════════════════════════');
   console.log('');
 
-  const rows: Deployed[] = [oracleRegistry, predictionMarket];
+  const rows: Deployed[] = [oracleRegistry, predictionMarketMath, predictionMarket];
 
   for (const c of rows) {
     console.log(`  ${c.name}`);

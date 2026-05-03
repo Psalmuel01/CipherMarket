@@ -30,8 +30,8 @@ export const MARKET_TYPE_LABELS = ['BINARY', 'CATEGORICAL'] as const;
 export const MARKET_STATE_LABELS = [
   'ACTIVE',
   'EXPIRED',
-  'PROPOSED',
-  'DISPUTED',
+  'RESOLUTION_OPEN',
+  'ESCALATED',
   'FINALIZED',
 ] as const;
 
@@ -107,6 +107,10 @@ export function formatContractError(error: unknown): string {
 
   if (message.includes('Connector not connected')) {
     return 'Connect your wallet before submitting this action.';
+  }
+
+  if (message.toLowerCase().includes('gas limit too high')) {
+    return 'The network could not estimate gas for this action. Please retry; if it persists, the decrypt request may not be valid for this position yet.';
   }
 
   const revertMatch = message.match(/reverted with reason string ['"](.+?)['"]/i);

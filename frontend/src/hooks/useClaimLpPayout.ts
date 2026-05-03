@@ -5,30 +5,29 @@ import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 
-export interface ResolveDisputeReceipt {
+export interface ClaimLpPayoutReceipt {
   txHash: string;
 }
 
-export interface UseResolveDisputeResult {
-  data: ResolveDisputeReceipt | null;
+export interface UseClaimLpPayoutResult {
+  data: ClaimLpPayoutReceipt | null;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
-  resolveDispute: (marketId: number, finalOutcome: number) => Promise<void>;
+  claimLpPayout: (marketId: number) => Promise<void>;
 }
 
-export default function useResolveDispute(): UseResolveDisputeResult {
+export default function useClaimLpPayout(): UseClaimLpPayoutResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const [data, setData] = useState<ResolveDisputeReceipt | null>(null);
+  const [data, setData] = useState<ClaimLpPayoutReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const resolveDispute = async (marketId: number, finalOutcome: number): Promise<void> => {
+  const claimLpPayout = async (marketId: number): Promise<void> => {
     try {
-      const addresses = getContractAddresses(chainId);
-      const predictionMarketAddress = addresses?.predictionMarket;
+      const predictionMarketAddress = getContractAddresses(chainId)?.predictionMarket;
 
       if (!predictionMarketAddress) {
         throw new Error('PredictionMarket is not configured for the current chain.');
@@ -45,18 +44,18 @@ export default function useResolveDispute(): UseResolveDisputeResult {
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'resolveEscalated',
-        args: [BigInt(marketId), finalOutcome],
+        functionName: 'claimLpPayout',
+        args: [BigInt(marketId)],
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
       setData({ txHash: hash });
-      toast.success('Escalated market resolved.');
+      toast.success('LP payout claimed.');
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))
-          : new Error('Unable to resolve this escalated market.');
+          : new Error('Unable to claim the LP payout.');
 
       setError(nextError);
       toast.error(nextError.message);
@@ -70,6 +69,6 @@ export default function useResolveDispute(): UseResolveDisputeResult {
     isLoading,
     isError: error !== null,
     error,
-    resolveDispute,
+    claimLpPayout,
   };
 }

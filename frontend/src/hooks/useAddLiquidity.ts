@@ -1,34 +1,44 @@
 'use client';
 
 import { useState } from 'react';
+import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 
-export interface ResolveDisputeReceipt {
+export interface AddLiquidityReceipt {
   txHash: string;
 }
 
-export interface UseResolveDisputeResult {
-  data: ResolveDisputeReceipt | null;
+export interface UseAddLiquidityResult {
+  data: AddLiquidityReceipt | null;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
-  resolveDispute: (marketId: number, finalOutcome: number) => Promise<void>;
+  addLiquidity: (
+    marketId: number,
+    amount: string,
+    decimals: number,
+    isNative: boolean,
+  ) => Promise<void>;
 }
 
-export default function useResolveDispute(): UseResolveDisputeResult {
+export default function useAddLiquidity(): UseAddLiquidityResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const [data, setData] = useState<ResolveDisputeReceipt | null>(null);
+  const [data, setData] = useState<AddLiquidityReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const resolveDispute = async (marketId: number, finalOutcome: number): Promise<void> => {
+  const addLiquidity = async (
+    marketId: number,
+    amount: string,
+    decimals: number,
+    isNative: boolean,
+  ): Promise<void> => {
     try {
-      const addresses = getContractAddresses(chainId);
-      const predictionMarketAddress = addresses?.predictionMarket;
+      const predictionMarketAddress = getContractAddresses(chainId)?.predictionMarket;
 
       if (!predictionMarketAddress) {
         throw new Error('PredictionMarket is not configured for the current chain.');
@@ -38,6 +48,11 @@ export default function useResolveDispute(): UseResolveDisputeResult {
         throw new Error('Public client is not available.');
       }
 
+      const collateralAmount = parseUnits(amount || '0', decimals);
+      if (collateralAmount <= 0n) {
+        throw new Error('Enter a liquidity amount greater than zero.');
+      }
+
       setData(null);
       setError(null);
       setIsLoading(true);
@@ -45,18 +60,19 @@ export default function useResolveDispute(): UseResolveDisputeResult {
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'resolveEscalated',
-        args: [BigInt(marketId), finalOutcome],
+        functionName: 'addLiquidity',
+        args: [BigInt(marketId), collateralAmount],
+        value: isNative ? collateralAmount : 0n,
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
       setData({ txHash: hash });
-      toast.success('Escalated market resolved.');
+      toast.success('Liquidity added.');
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))
-          : new Error('Unable to resolve this escalated market.');
+          : new Error('Unable to add liquidity.');
 
       setError(nextError);
       toast.error(nextError.message);
@@ -70,6 +86,6 @@ export default function useResolveDispute(): UseResolveDisputeResult {
     isLoading,
     isError: error !== null,
     error,
-    resolveDispute,
+    addLiquidity,
   };
 }

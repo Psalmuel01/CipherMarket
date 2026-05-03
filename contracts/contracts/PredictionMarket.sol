@@ -7,6 +7,7 @@ import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './OracleRegistry.sol';
+import './PredictionMarketMath.sol';
 
 /// @title PredictionMarket
 /// @notice Singleton share-based prediction market with public FPMM pool state and encrypted
@@ -28,8 +29,8 @@ contract PredictionMarket is Ownable {
   enum MarketState {
     ACTIVE,
     EXPIRED,
-    PROPOSED,
-    DISPUTED,
+    RESOLUTION_OPEN,
+    ESCALATED,
     FINALIZED
   }
 
@@ -37,18 +38,24 @@ contract PredictionMarket is Ownable {
     address creator;
     address collateralToken;
     address proposedBy;
+    address disputeOpenedBy;
     uint64 createdAt;
     uint64 expiryTime;
-    uint64 disputeWindowEndsAt;
+    uint64 resolutionWindowEndsAt;
+    uint64 escalationDeadline;
     uint128 minimumTrade;
     uint128 seedLiquidity;
     uint128 totalCollateralCollected;
     uint128 disputeStakeTotal;
     uint128 remainingWinningShares;
+    uint128 resolutionQuorumStake;
+    uint128 committeeRewardPool;
     uint16 tradeFeeBps;
     uint16 protocolFeeShareBps;
     uint8 outcomeCount;
     uint8 proposedOutcome;
+    uint8 disputeCounterOutcome;
+    uint8 leadingOutcome;
     uint8 finalOutcome;
     MarketType marketType;
     MarketState state;
@@ -56,6 +63,8 @@ contract PredictionMarket is Ownable {
     bool lpClaimed;
     bool protocolFeesClaimed;
     bool disputeRefundsEnabled;
+    bool disputeOpened;
+    bool committeeResolved;
     string title;
     string description;
     string category;
@@ -67,14 +76,19 @@ contract PredictionMarket is Ownable {
     address creator;
     address collateralToken;
     address proposedBy;
+    address disputeOpenedBy;
     uint64 createdAt;
     uint64 expiryTime;
-    uint64 disputeWindowEndsAt;
+    uint64 resolutionWindowEndsAt;
+    uint64 escalationDeadline;
     uint128 minimumTrade;
     uint128 seedLiquidity;
     uint128 totalCollateralCollected;
     uint128 disputeStakeTotal;
     uint128 remainingWinningShares;
+    uint128 resolutionQuorumStake;
+    uint128 committeeRewardPool;
+    uint128 totalOracleVoteWeight;
     uint128 accruedProtocolFees;
     uint128 accruedLpFees;
     uint128 protocolDisputeFees;
@@ -82,12 +96,16 @@ contract PredictionMarket is Ownable {
     uint16 protocolFeeShareBps;
     uint8 outcomeCount;
     uint8 proposedOutcome;
+    uint8 disputeCounterOutcome;
+    uint8 leadingOutcome;
     uint8 finalOutcome;
     MarketType marketType;
     MarketState state;
     bool lpClaimed;
     bool protocolFeesClaimed;
     bool disputeRefundsEnabled;
+    bool disputeOpened;
+    bool committeeResolved;
     string title;
     string description;
     string category;
@@ -110,30 +128,75 @@ contract PredictionMarket is Ownable {
     uint256 indexed marketId,
     address indexed oracle,
     uint8 indexed outcomeIndex,
-    uint64 disputeWindowEndsAt
+    uint64 resolutionWindowEndsAt
   );
-  event OutcomeDisputed(uint256 indexed marketId, uint256 disputeStakeTotal);
-  event MarketFinalized(uint256 indexed marketId, uint8 indexed finalOutcome, bool disputed);
-  event LpPayoutClaimed(uint256 indexed marketId, address indexed recipient, uint256 amount);
+  event DisputeOpened(
+    uint256 indexed marketId,
+    address indexed disputer,
+    uint8 indexed counterOutcomeIndex,
+    uint256 stakeAmount
+  );
+  event ResolutionVoteCast(
+    uint256 indexed marketId,
+    address indexed oracle,
+    uint8 indexed outcomeIndex,
+    uint256 weight
+  );
+  event MarketEscalated(uint256 indexed marketId, uint64 escalationDeadline);
+  event MarketFinalized(uint256 indexed marketId, uint8 indexed finalOutcome, bool committeeResolved);
+  event OracleResolutionRewardClaimed(
+    uint256 indexed marketId,
+    address indexed oracle,
+    uint256 amount
+  );
+  event LiquidityAdded(
+    uint256 indexed marketId,
+    address indexed provider,
+    uint256 collateralAmount,
+    uint256 lpSharesMinted
+  );
+  event LiquidityRemoved(
+    uint256 indexed marketId,
+    address indexed provider,
+    uint256 collateralAmount,
+    uint256 lpSharesBurned
+  );
+  event LpPayoutClaimed(
+    uint256 indexed marketId,
+    address indexed recipient,
+    uint256 amount,
+    uint256 lpSharesBurned
+  );
   event ProtocolFeesClaimed(uint256 indexed marketId, address indexed recipient, uint256 amount);
   event DisputeRefundClaimed(uint256 indexed marketId, address indexed account, uint256 refundAmount);
 
   OracleRegistry public immutable oracleRegistry;
   uint64 public immutable defaultDisputeWindow;
+  uint64 public immutable defaultEscalationTimeout;
+  uint256 public immutable defaultResolutionQuorumStake;
+  uint16 public immutable defaultProposerSlashBps;
   uint256 public nextMarketId;
 
   mapping(address => bool) public acceptedCollateral;
 
   mapping(uint256 => Market) private markets;
-  mapping(uint256 => string[]) private marketOutcomeLabels;
-  mapping(uint256 => uint256[]) private poolBalances;
+  mapping(uint256 => string[]) public marketOutcomeLabels;
+  mapping(uint256 => uint256[]) public poolBalances;
   mapping(uint256 => uint256[]) private totalUserShares;
+  mapping(uint256 => uint256) public totalLpShares;
+  mapping(uint256 => mapping(address => uint256)) public lpShares;
   mapping(uint256 => uint256) private accruedProtocolFees;
   mapping(uint256 => uint256) private accruedLpFees;
   mapping(uint256 => uint256) private protocolDisputeFees;
   mapping(uint256 => mapping(address => mapping(uint8 => euint128))) private encryptedUserShares;
   mapping(uint256 => mapping(address => uint256)) public disputeContributions;
   mapping(uint256 => mapping(address => bool)) public hasRedeemed;
+  mapping(uint256 => mapping(uint8 => uint256)) public oracleVoteWeight;
+  mapping(uint256 => uint256) private totalOracleVoteWeight;
+  mapping(uint256 => mapping(address => bool)) public oracleHasVoted;
+  mapping(uint256 => mapping(address => uint8)) public oracleVoteChoice;
+  mapping(uint256 => mapping(address => uint256)) public oracleVoteWeightSnapshot;
+  mapping(uint256 => mapping(address => bool)) private oracleRewardClaimed;
 
   constructor(address oracleRegistry_, uint64 defaultDisputeWindow_) Ownable(msg.sender) {
     require(oracleRegistry_ != address(0), 'Oracle registry is required');
@@ -141,12 +204,15 @@ contract PredictionMarket is Ownable {
 
     oracleRegistry = OracleRegistry(oracleRegistry_);
     defaultDisputeWindow = defaultDisputeWindow_;
+    defaultEscalationTimeout = 3 days;
+    defaultResolutionQuorumStake = 1 ether;
+    defaultProposerSlashBps = 2_000;
     acceptedCollateral[address(0)] = true;
   }
 
   /// @notice Whitelists or removes an ERC20 collateral token for new markets.
   function setAcceptedCollateral(address token, bool allowed) external onlyOwner {
-    require(token != address(0), 'Use native ETH implicitly');
+    require(token != address(0), 'Use native ETH');
     acceptedCollateral[token] = allowed;
     emit AcceptedCollateralUpdated(token, allowed);
   }
@@ -198,16 +264,21 @@ contract PredictionMarket is Ownable {
     market.totalCollateralCollected = seedLiquidity;
     market.tradeFeeBps = DEFAULT_TRADE_FEE_BPS;
     market.protocolFeeShareBps = DEFAULT_PROTOCOL_FEE_SHARE_BPS;
+    market.resolutionQuorumStake = uint128(defaultResolutionQuorumStake);
     market.outcomeCount = uint8(outcomes.length);
     market.marketType = marketType;
     market.state = MarketState.ACTIVE;
     market.exists = true;
     market.proposedOutcome = type(uint8).max;
+    market.disputeCounterOutcome = type(uint8).max;
+    market.leadingOutcome = type(uint8).max;
     market.finalOutcome = type(uint8).max;
     market.title = title;
     market.description = description;
     market.category = category;
     market.oracleSource = oracleSource;
+    totalLpShares[marketId] = seedLiquidity;
+    lpShares[marketId][msg.sender] = seedLiquidity;
 
     uint256 reservePerOutcome = seedLiquidity / outcomes.length;
     for (uint256 outcomeIndex = 0; outcomeIndex < outcomes.length; outcomeIndex += 1) {
@@ -240,16 +311,21 @@ contract PredictionMarket is Ownable {
     Market storage market = _getMarketStorage(marketId);
     _requireTradableState(market);
     _requireValidOutcome(marketId, outcomeIndex);
-    require(collateralIn >= market.minimumTrade, 'Trade is below market minimum');
+    require(collateralIn >= market.minimumTrade, 'Below min trade');
 
     uint256[] memory balances = poolBalances[marketId];
     feeAmount = _calculateFee(collateralIn, market.tradeFeeBps);
     uint256 netCollateral = collateralIn - feeAmount;
-    sharesOut = _quoteBuyFromBalances(balances, outcomeIndex, netCollateral);
-    require(sharesOut > 0, 'Trade produces no shares');
+    sharesOut = PredictionMarketMath.quoteBuyFromBalances(balances, outcomeIndex, netCollateral);
+    require(sharesOut > 0, 'No shares out');
 
     avgPrice = Math.mulDiv(collateralIn, PRICE_SCALE, sharesOut);
-    probabilities = _probabilitiesAfterBuy(balances, outcomeIndex, netCollateral, sharesOut);
+    probabilities = PredictionMarketMath.probabilitiesAfterBuy(
+      balances,
+      outcomeIndex,
+      netCollateral,
+      sharesOut
+    );
   }
 
   /// @notice Buys outcome shares from the market maker.
@@ -263,15 +339,20 @@ contract PredictionMarket is Ownable {
     _syncExpiredState(marketId, market);
     require(market.state == MarketState.ACTIVE, 'Market is not active');
     _requireValidOutcome(marketId, outcomeIndex);
-    require(collateralIn >= market.minimumTrade, 'Trade is below market minimum');
+    require(collateralIn >= market.minimumTrade, 'Below min trade');
 
     uint256 feeAmount = _calculateFee(collateralIn, market.tradeFeeBps);
     uint256 netCollateral = collateralIn - uint128(feeAmount);
     require(netCollateral > 0, 'Net collateral must be positive');
 
-    uint256 sharesOut = _quoteBuyFromBalances(poolBalances[marketId], outcomeIndex, netCollateral);
+    uint256[] memory balancesBeforeBuy = poolBalances[marketId];
+    uint256 sharesOut = PredictionMarketMath.quoteBuyFromBalances(
+      balancesBeforeBuy,
+      outcomeIndex,
+      netCollateral
+    );
     require(sharesOut >= minSharesOut, 'Trade slipped below minimum shares');
-    require(sharesOut > 0, 'Trade produces no shares');
+    require(sharesOut > 0, 'No shares out');
     require(sharesOut <= type(uint128).max, 'Shares exceed supported range');
 
     _collectCollateral(market.collateralToken, collateralIn);
@@ -290,6 +371,41 @@ contract PredictionMarket is Ownable {
     emit TradeExecuted(marketId, true);
   }
 
+  /// @notice Adds liquidity to an active market without changing the current price curve.
+  function addLiquidity(uint256 marketId, uint128 collateralAmount) external payable {
+    Market storage market = _getMarketStorage(marketId);
+    _syncExpiredState(marketId, market);
+    require(market.state == MarketState.ACTIVE, 'Market is not active');
+    require(collateralAmount > 0, 'Bad LP amount');
+
+    uint256 reserveValue = _getLpReserveValue(marketId);
+    require(reserveValue > 0, 'LP reserve unavailable');
+
+    _collectCollateral(market.collateralToken, collateralAmount);
+
+    uint256 currentTotalLpShares = totalLpShares[marketId];
+    uint256 mintedShares = currentTotalLpShares == 0
+      ? collateralAmount
+      : Math.mulDiv(collateralAmount, currentTotalLpShares, reserveValue);
+    require(mintedShares > 0, 'No LP shares minted');
+
+    uint256[] storage balances = poolBalances[marketId];
+    uint256 remainingContribution = collateralAmount;
+    for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
+      uint256 delta = balanceIndex == balances.length - 1
+        ? remainingContribution
+        : Math.mulDiv(balances[balanceIndex], collateralAmount, reserveValue);
+      balances[balanceIndex] += delta;
+      remainingContribution -= delta;
+    }
+
+    market.totalCollateralCollected += collateralAmount;
+    totalLpShares[marketId] = currentTotalLpShares + mintedShares;
+    lpShares[marketId][msg.sender] += mintedShares;
+
+    emit LiquidityAdded(marketId, msg.sender, collateralAmount, mintedShares);
+  }
+
   /// @notice Returns a sell quote for a given outcome share amount.
   function quoteSell(
     uint256 marketId,
@@ -303,16 +419,25 @@ contract PredictionMarket is Ownable {
     Market storage market = _getMarketStorage(marketId);
     _requireTradableState(market);
     _requireValidOutcome(marketId, outcomeIndex);
-    require(sharesIn > 0, 'Shares are required');
+    require(sharesIn > 0, 'Shares required');
 
     uint256[] memory balances = poolBalances[marketId];
-    uint256 grossCollateralOut = _quoteSellGrossFromBalances(balances, outcomeIndex, sharesIn);
-    require(grossCollateralOut > 0, 'Trade produces no collateral');
+    uint256 grossCollateralOut = PredictionMarketMath.quoteSellGrossFromBalances(
+      balances,
+      outcomeIndex,
+      sharesIn
+    );
+    require(grossCollateralOut > 0, 'No collateral out');
 
     feeAmount = _calculateFee(grossCollateralOut, market.tradeFeeBps);
     collateralOut = grossCollateralOut - feeAmount;
     avgPrice = Math.mulDiv(collateralOut, PRICE_SCALE, sharesIn);
-    probabilities = _probabilitiesAfterSell(balances, outcomeIndex, sharesIn, grossCollateralOut);
+    probabilities = PredictionMarketMath.probabilitiesAfterSell(
+      balances,
+      outcomeIndex,
+      sharesIn,
+      grossCollateralOut
+    );
   }
 
   /// @notice Starts an async decrypt for the caller's encrypted balance for a sell flow.
@@ -336,24 +461,25 @@ contract PredictionMarket is Ownable {
     _syncExpiredState(marketId, market);
     require(market.state == MarketState.ACTIVE, 'Market is not active');
     _requireValidOutcome(marketId, outcomeIndex);
-    require(sharesIn > 0, 'Shares are required');
+    require(sharesIn > 0, 'Shares required');
 
     euint128 encryptedBalance = _getStoredEncryptedPosition(marketId, msg.sender, outcomeIndex);
     (uint128 decryptedBalance, bool decrypted) = FHE.getDecryptResultSafe(encryptedBalance);
-    require(decrypted, 'Position verification pending');
+    require(decrypted, 'Decrypt pending');
     require(decryptedBalance >= sharesIn, 'Insufficient shares');
 
-    uint256 grossCollateralOut = _quoteSellGrossFromBalances(
-      poolBalances[marketId],
+    uint256[] memory balancesBeforeSell = poolBalances[marketId];
+    uint256 grossCollateralOut = PredictionMarketMath.quoteSellGrossFromBalances(
+      balancesBeforeSell,
       outcomeIndex,
       sharesIn
     );
-    require(grossCollateralOut > 0, 'Trade produces no collateral');
+    require(grossCollateralOut > 0, 'No collateral out');
 
     uint256 feeAmount = _calculateFee(grossCollateralOut, market.tradeFeeBps);
     uint256 collateralOut = grossCollateralOut - feeAmount;
-    require(collateralOut >= minCollateralOut, 'Trade slipped below minimum collateral');
-    require(collateralOut > 0, 'Trade produces no collateral');
+    require(collateralOut >= minCollateralOut, 'Below min collateral');
+    require(collateralOut > 0, 'No collateral out');
 
     uint256[] storage balances = poolBalances[marketId];
     balances[outcomeIndex] += sharesIn;
@@ -371,6 +497,50 @@ contract PredictionMarket is Ownable {
     emit TradeExecuted(marketId, false);
   }
 
+  /// @notice Removes liquidity from an active market without changing the current price curve.
+  function removeLiquidity(
+    uint256 marketId,
+    uint128 lpSharesIn,
+    uint128 minCollateralOut
+  ) external {
+    Market storage market = _getMarketStorage(marketId);
+    _syncExpiredState(marketId, market);
+    require(market.state == MarketState.ACTIVE, 'Market is not active');
+    require(lpSharesIn > 0, 'LP shares required');
+
+    uint256 providerShares = lpShares[marketId][msg.sender];
+    require(providerShares >= lpSharesIn, 'Not enough LP shares');
+
+    uint256 currentTotalLpShares = totalLpShares[marketId];
+    require(currentTotalLpShares > 0, 'No LP shares');
+
+    uint256 reserveValue = _getLpReserveValue(marketId);
+    uint256 collateralOut = Math.mulDiv(reserveValue, lpSharesIn, currentTotalLpShares);
+    require(collateralOut >= minCollateralOut, 'LP remove below min');
+    require(collateralOut > 0, 'No LP collateral out');
+    require(
+      reserveValue - collateralOut >= uint256(market.minimumTrade) * market.outcomeCount,
+      'LP remove drains pool'
+    );
+
+    uint256[] storage balances = poolBalances[marketId];
+    uint256 remainingReduction = collateralOut;
+    for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
+      uint256 reduction = balanceIndex == balances.length - 1
+        ? remainingReduction
+        : Math.mulDiv(balances[balanceIndex], lpSharesIn, currentTotalLpShares);
+      balances[balanceIndex] -= reduction;
+      remainingReduction -= reduction;
+    }
+
+    lpShares[marketId][msg.sender] = providerShares - lpSharesIn;
+    totalLpShares[marketId] = currentTotalLpShares - lpSharesIn;
+    market.totalCollateralCollected -= uint128(collateralOut);
+    _payCollateral(market.collateralToken, msg.sender, collateralOut);
+
+    emit LiquidityRemoved(marketId, msg.sender, collateralOut, lpSharesIn);
+  }
+
   /// @notice Forces the singleton to update a market from ACTIVE to EXPIRED when the deadline passes.
   function expireMarket(uint256 marketId) external {
     Market storage market = _getMarketStorage(marketId);
@@ -378,7 +548,7 @@ contract PredictionMarket is Ownable {
     require(_effectiveState(market) == MarketState.EXPIRED, 'Market has not expired');
   }
 
-  /// @notice Allows a staked oracle to propose the final outcome after market expiry.
+  /// @notice Allows a staked oracle to propose the initial resolution outcome after market expiry.
   function proposeOutcome(uint256 marketId, uint8 outcomeIndex) external {
     Market storage market = _getMarketStorage(marketId);
     _syncExpiredState(marketId, market);
@@ -387,96 +557,114 @@ contract PredictionMarket is Ownable {
     _requireValidOutcome(marketId, outcomeIndex);
     require(oracleRegistry.isOracle(msg.sender), 'Caller is not a registered oracle');
 
-    market.state = MarketState.PROPOSED;
+    market.state = MarketState.RESOLUTION_OPEN;
     market.proposedOutcome = outcomeIndex;
     market.proposedBy = msg.sender;
-    market.disputeWindowEndsAt = uint64(block.timestamp) + defaultDisputeWindow;
+    market.leadingOutcome = outcomeIndex;
+    market.resolutionWindowEndsAt = uint64(block.timestamp) + defaultDisputeWindow;
+    market.escalationDeadline = 0;
     oracleRegistry.lockOracle(msg.sender);
 
-    emit OutcomeProposed(marketId, msg.sender, outcomeIndex, market.disputeWindowEndsAt);
+    emit OutcomeProposed(marketId, msg.sender, outcomeIndex, market.resolutionWindowEndsAt);
   }
 
-  /// @notice Challenges a proposed outcome by staking the market collateral during the dispute window.
-  function disputeOutcome(uint256 marketId, uint128 stakeAmount) external payable {
+  /// @notice Opens a counter-outcome challenge by posting dispute stake during the resolution window.
+  function openDispute(
+    uint256 marketId,
+    uint8 counterOutcomeIndex,
+    uint128 stakeAmount
+  ) public payable {
     Market storage market = _getMarketStorage(marketId);
 
-    require(
-      market.state == MarketState.PROPOSED || market.state == MarketState.DISPUTED,
-      'Market is not disputable'
-    );
-    require(block.timestamp <= market.disputeWindowEndsAt, 'Dispute window has closed');
+    require(market.state == MarketState.RESOLUTION_OPEN, 'Resolution closed');
+    require(block.timestamp <= market.resolutionWindowEndsAt, 'Window closed');
+    require(!market.disputeOpened, 'Dispute is already open');
+    _requireValidOutcome(marketId, counterOutcomeIndex);
+    require(counterOutcomeIndex != market.proposedOutcome, 'Counter must differ');
     require(stakeAmount > 0, 'Dispute stake is required');
 
     _collectCollateral(market.collateralToken, stakeAmount);
 
-    if (market.state == MarketState.PROPOSED) {
-      market.state = MarketState.DISPUTED;
-    }
-
-    market.disputeStakeTotal += stakeAmount;
+    market.disputeOpened = true;
+    market.disputeCounterOutcome = counterOutcomeIndex;
+    market.disputeOpenedBy = msg.sender;
+    market.disputeStakeTotal = stakeAmount;
     disputeContributions[marketId][msg.sender] += stakeAmount;
 
-    emit OutcomeDisputed(marketId, market.disputeStakeTotal);
+    emit DisputeOpened(marketId, msg.sender, counterOutcomeIndex, stakeAmount);
   }
 
-  /// @notice Finalizes an undisputed market after the dispute window ends.
-  function finalizeMarket(uint256 marketId) external {
+  /// @notice Casts a stake-weighted oracle vote during the active resolution window.
+  function voteOnResolution(uint256 marketId, uint8 outcomeIndex) external {
     Market storage market = _getMarketStorage(marketId);
+    require(market.state == MarketState.RESOLUTION_OPEN, 'Market is not open for resolution');
+    require(block.timestamp <= market.resolutionWindowEndsAt, 'Window closed');
+    _requireValidOutcome(marketId, outcomeIndex);
+    require(oracleRegistry.isOracle(msg.sender), 'Caller is not a registered oracle');
+    require(!oracleHasVoted[marketId][msg.sender], 'Oracle has already voted');
 
-    require(market.state == MarketState.PROPOSED, 'Market is not awaiting finalization');
-    require(block.timestamp > market.disputeWindowEndsAt, 'Dispute window is still open');
+    OracleRegistry.OracleProfile memory profile = oracleRegistry.getOracle(msg.sender);
+    uint256 weight = profile.stakedAmount;
+    require(weight > 0, 'Oracle has no voting stake');
 
-    market.state = MarketState.FINALIZED;
-    market.finalOutcome = market.proposedOutcome;
-    market.remainingWinningShares = uint128(totalUserShares[marketId][market.finalOutcome]);
+    oracleHasVoted[marketId][msg.sender] = true;
+    oracleVoteChoice[marketId][msg.sender] = outcomeIndex;
+    oracleVoteWeightSnapshot[marketId][msg.sender] = weight;
+    oracleVoteWeight[marketId][outcomeIndex] += weight;
+    totalOracleVoteWeight[marketId] += weight;
 
-    if (market.proposedBy != address(0)) {
-      oracleRegistry.unlockOracle(market.proposedBy);
+    if (
+      market.leadingOutcome == type(uint8).max ||
+      oracleVoteWeight[marketId][outcomeIndex] > oracleVoteWeight[marketId][market.leadingOutcome]
+    ) {
+      market.leadingOutcome = outcomeIndex;
     }
 
-    emit MarketFinalized(marketId, market.finalOutcome, false);
+    emit ResolutionVoteCast(marketId, msg.sender, outcomeIndex, weight);
   }
 
-  /// @notice Resolves a disputed market and optionally slashes the proposing oracle.
-  function resolveDispute(
-    uint256 marketId,
-    uint8 finalOutcome,
-    uint256 oracleSlashAmount
-  ) external onlyOwner {
+  /// @notice Finalizes a market directly from oracle committee voting once the resolution window closes.
+  function finalizeByQuorum(uint256 marketId) public {
+    Market storage market = _getMarketStorage(marketId);
+    require(market.state == MarketState.RESOLUTION_OPEN, 'Not resolving');
+    require(block.timestamp > market.resolutionWindowEndsAt, 'Window open');
+
+    (bool hasWinner, uint8 winningOutcome) = _getWinningOutcomeIfResolvable(marketId, market);
+    require(hasWinner, 'Market requires escalation');
+
+    _finalizeResolvedMarket(marketId, market, winningOutcome, true);
+  }
+
+  /// @notice Escalates an unresolved committee market to admin fallback resolution.
+  function escalateIfUnresolved(uint256 marketId) public {
+    Market storage market = _getMarketStorage(marketId);
+    require(market.state == MarketState.RESOLUTION_OPEN, 'Not resolving');
+    require(block.timestamp > market.resolutionWindowEndsAt, 'Window open');
+
+    (bool hasWinner, ) = _getWinningOutcomeIfResolvable(marketId, market);
+    require(!hasWinner, 'Use quorum');
+
+    market.state = MarketState.ESCALATED;
+    market.escalationDeadline = uint64(block.timestamp) + defaultEscalationTimeout;
+
+    emit MarketEscalated(marketId, market.escalationDeadline);
+  }
+
+  /// @notice Resolves an escalated market through admin fallback.
+  function resolveEscalated(uint256 marketId, uint8 finalOutcome) public onlyOwner {
     Market storage market = _getMarketStorage(marketId);
 
-    require(market.state == MarketState.DISPUTED, 'Market is not disputed');
-    require(block.timestamp > market.disputeWindowEndsAt, 'Dispute window is still open');
+    require(market.state == MarketState.ESCALATED, 'Not escalated');
     _requireValidOutcome(marketId, finalOutcome);
 
-    market.state = MarketState.FINALIZED;
-    market.finalOutcome = finalOutcome;
-    market.remainingWinningShares = uint128(totalUserShares[marketId][finalOutcome]);
-    market.disputeRefundsEnabled = finalOutcome != market.proposedOutcome;
-
-    if (market.disputeRefundsEnabled) {
-      // Funds remain escrowed until users individually claim refunds.
-    } else if (market.disputeStakeTotal > 0) {
-      protocolDisputeFees[marketId] += market.disputeStakeTotal;
-      market.disputeStakeTotal = 0;
-    }
-
-    if (oracleSlashAmount > 0 && market.proposedBy != address(0)) {
-      oracleRegistry.slash(market.proposedBy, oracleSlashAmount, owner());
-    }
-
-    if (market.proposedBy != address(0)) {
-      oracleRegistry.unlockOracle(market.proposedBy);
-    }
-
-    emit MarketFinalized(marketId, finalOutcome, true);
+    _finalizeResolvedMarket(marketId, market, finalOutcome, false);
   }
 
   /// @notice Starts an async decrypt for the caller's encrypted winning balance after finalization.
   function requestRedeemPositionDecrypt(uint256 marketId) external {
     Market storage market = _getMarketStorage(marketId);
-    require(market.state == MarketState.FINALIZED, 'Market is not finalized');
-    require(!hasRedeemed[marketId][msg.sender], 'Shares already redeemed');
+    require(market.state == MarketState.FINALIZED, 'Market not finalized');
+    require(!hasRedeemed[marketId][msg.sender], 'Already redeemed');
 
     euint128 encryptedBalance = encryptedUserShares[marketId][msg.sender][market.finalOutcome];
     require(euint128.unwrap(encryptedBalance) != 0, 'No encrypted position');
@@ -487,14 +675,14 @@ contract PredictionMarket is Ownable {
   function redeemShares(uint256 marketId) external {
     Market storage market = _getMarketStorage(marketId);
 
-    require(market.state == MarketState.FINALIZED, 'Market is not finalized');
-    require(!hasRedeemed[marketId][msg.sender], 'Shares already redeemed');
+    require(market.state == MarketState.FINALIZED, 'Market not finalized');
+    require(!hasRedeemed[marketId][msg.sender], 'Already redeemed');
 
     uint8 finalOutcome = market.finalOutcome;
     euint128 encryptedBalance = _getStoredEncryptedPosition(marketId, msg.sender, finalOutcome);
     (uint128 sharesOwned, bool decrypted) = FHE.getDecryptResultSafe(encryptedBalance);
-    require(decrypted, 'Position verification pending');
-    require(sharesOwned > 0, 'Caller has no winning shares');
+    require(decrypted, 'Decrypt pending');
+    require(sharesOwned > 0, 'No winning shares');
 
     hasRedeemed[marketId][msg.sender] = true;
     totalUserShares[marketId][finalOutcome] -= sharesOwned;
@@ -505,28 +693,36 @@ contract PredictionMarket is Ownable {
     _payCollateral(market.collateralToken, msg.sender, sharesOwned);
   }
 
-  /// @notice Allows the seeded LP owner to claim the post-resolution market surplus.
+  /// @notice Allows LPs to claim their pro-rata post-resolution market surplus.
   function claimLpPayout(uint256 marketId) external {
     Market storage market = _getMarketStorage(marketId);
 
-    require(market.state == MarketState.FINALIZED, 'Market is not finalized');
-    require(msg.sender == market.creator, 'Caller is not the LP owner');
-    require(!market.lpClaimed, 'LP payout already claimed');
+    require(market.state == MarketState.FINALIZED, 'Market not finalized');
+    uint256 providerShares = lpShares[marketId][msg.sender];
+    uint256 currentTotalLpShares = totalLpShares[marketId];
+    require(providerShares > 0, 'No LP shares for caller');
+    require(currentTotalLpShares > 0, 'No LP shares remain');
 
     uint256 reservedProtocolFees = market.protocolFeesClaimed ? 0 : accruedProtocolFees[marketId];
     uint256 availableCollateral = market.totalCollateralCollected;
     uint256 reservedForWinners = market.remainingWinningShares;
     require(
       availableCollateral > reservedForWinners + reservedProtocolFees,
-      'No LP surplus available'
+      'No LP surplus'
     );
 
-    uint256 lpPayout = availableCollateral - reservedForWinners - reservedProtocolFees;
-    market.lpClaimed = true;
+    uint256 lpPayoutBase = availableCollateral - reservedForWinners - reservedProtocolFees;
+    uint256 lpPayout = providerShares == currentTotalLpShares
+      ? lpPayoutBase
+      : Math.mulDiv(lpPayoutBase, providerShares, currentTotalLpShares);
+
+    lpShares[marketId][msg.sender] = 0;
+    totalLpShares[marketId] = currentTotalLpShares - providerShares;
+    market.lpClaimed = totalLpShares[marketId] == 0;
     market.totalCollateralCollected -= uint128(lpPayout);
     _payCollateral(market.collateralToken, msg.sender, lpPayout);
 
-    emit LpPayoutClaimed(marketId, msg.sender, lpPayout);
+    emit LpPayoutClaimed(marketId, msg.sender, lpPayout, providerShares);
   }
 
   /// @notice Allows the owner to claim protocol fees after resolution.
@@ -536,14 +732,14 @@ contract PredictionMarket is Ownable {
     uint256 disputeFees = protocolDisputeFees[marketId];
     uint256 amount = marketFees + disputeFees;
 
-    require(market.state == MarketState.FINALIZED, 'Market is not finalized');
+    require(market.state == MarketState.FINALIZED, 'Market not finalized');
     require(!market.protocolFeesClaimed, 'Protocol fees already claimed');
-    require(amount > 0, 'No protocol fees available');
+    require(amount > 0, 'No protocol fees');
 
     if (marketFees > 0) {
       require(
         market.totalCollateralCollected >= market.remainingWinningShares + marketFees,
-        'Protocol fees are still reserved'
+        'Protocol fees reserved'
       );
       market.totalCollateralCollected -= uint128(marketFees);
     }
@@ -561,15 +757,38 @@ contract PredictionMarket is Ownable {
     Market storage market = _getMarketStorage(marketId);
     uint256 refundAmount = disputeContributions[marketId][msg.sender];
 
-    require(market.state == MarketState.FINALIZED, 'Market is not finalized');
-    require(market.disputeRefundsEnabled, 'Dispute refund is not available');
-    require(refundAmount > 0, 'No dispute refund available');
+    require(market.state == MarketState.FINALIZED, 'Market not finalized');
+    require(market.disputeRefundsEnabled, 'No dispute refund');
+    require(refundAmount > 0, 'No dispute refund');
 
     disputeContributions[marketId][msg.sender] = 0;
     market.disputeStakeTotal -= uint128(refundAmount);
     _payCollateral(market.collateralToken, msg.sender, refundAmount);
 
     emit DisputeRefundClaimed(marketId, msg.sender, refundAmount);
+  }
+
+  /// @notice Claims oracle-side rewards from a failed dispute on committee-resolved markets.
+  function claimOracleResolutionReward(uint256 marketId) external {
+    Market storage market = _getMarketStorage(marketId);
+    require(market.state == MarketState.FINALIZED, 'Market not finalized');
+    require(market.committeeResolved, 'Need committee finalize');
+    require(market.committeeRewardPool > 0, 'No oracle reward pool');
+    require(!oracleRewardClaimed[marketId][msg.sender], 'Oracle reward already claimed');
+    require(oracleHasVoted[marketId][msg.sender], 'Oracle did not participate');
+
+    uint8 finalOutcome = market.finalOutcome;
+    require(oracleVoteChoice[marketId][msg.sender] == finalOutcome, 'Oracle not winner');
+
+    uint256 voterWeight = oracleVoteWeightSnapshot[marketId][msg.sender];
+    uint256 winningWeight = oracleVoteWeight[marketId][finalOutcome];
+    require(voterWeight > 0 && winningWeight > 0, 'No reward weights');
+
+    oracleRewardClaimed[marketId][msg.sender] = true;
+    uint256 rewardAmount = Math.mulDiv(market.committeeRewardPool, voterWeight, winningWeight);
+    _payCollateral(market.collateralToken, msg.sender, rewardAmount);
+
+    emit OracleResolutionRewardClaimed(marketId, msg.sender, rewardAmount);
   }
 
   /// @notice Returns full market metadata and state for frontend reads.
@@ -582,14 +801,19 @@ contract PredictionMarket is Ownable {
         creator: market.creator,
         collateralToken: market.collateralToken,
         proposedBy: market.proposedBy,
+        disputeOpenedBy: market.disputeOpenedBy,
         createdAt: market.createdAt,
         expiryTime: market.expiryTime,
-        disputeWindowEndsAt: market.disputeWindowEndsAt,
+        resolutionWindowEndsAt: market.resolutionWindowEndsAt,
+        escalationDeadline: market.escalationDeadline,
         minimumTrade: market.minimumTrade,
         seedLiquidity: market.seedLiquidity,
         totalCollateralCollected: market.totalCollateralCollected,
         disputeStakeTotal: market.disputeStakeTotal,
         remainingWinningShares: market.remainingWinningShares,
+        resolutionQuorumStake: market.resolutionQuorumStake,
+        committeeRewardPool: market.committeeRewardPool,
+        totalOracleVoteWeight: uint128(totalOracleVoteWeight[marketId]),
         accruedProtocolFees: uint128(accruedProtocolFees[marketId]),
         accruedLpFees: uint128(accruedLpFees[marketId]),
         protocolDisputeFees: uint128(protocolDisputeFees[marketId]),
@@ -597,33 +821,22 @@ contract PredictionMarket is Ownable {
         protocolFeeShareBps: market.protocolFeeShareBps,
         outcomeCount: market.outcomeCount,
         proposedOutcome: market.proposedOutcome,
+        disputeCounterOutcome: market.disputeCounterOutcome,
+        leadingOutcome: market.leadingOutcome,
         finalOutcome: market.finalOutcome,
         marketType: market.marketType,
         state: _effectiveState(market),
         lpClaimed: market.lpClaimed,
         protocolFeesClaimed: market.protocolFeesClaimed,
         disputeRefundsEnabled: market.disputeRefundsEnabled,
+        disputeOpened: market.disputeOpened,
+        committeeResolved: market.committeeResolved,
         title: market.title,
         description: market.description,
         category: market.category,
         oracleSource: market.oracleSource,
         outcomes: marketOutcomeLabels[marketId]
       });
-  }
-
-  function getOutcomeLabels(uint256 marketId) external view returns (string[] memory) {
-    _requireExistingMarket(marketId);
-    return marketOutcomeLabels[marketId];
-  }
-
-  function getOutcomeReserves(uint256 marketId) external view returns (uint256[] memory) {
-    _requireExistingMarket(marketId);
-    return poolBalances[marketId];
-  }
-
-  function getMarketProbabilities(uint256 marketId) external view returns (uint256[] memory) {
-    _requireExistingMarket(marketId);
-    return _getProbabilities(poolBalances[marketId]);
   }
 
   function getEncryptedUserPositionHandle(
@@ -637,11 +850,11 @@ contract PredictionMarket is Ownable {
 
   function _collectCollateral(address collateralToken, uint256 amount) internal {
     if (collateralToken == address(0)) {
-      require(msg.value == amount, 'Incorrect native ETH amount');
+      require(msg.value == amount, 'Bad ETH amount');
       return;
     }
 
-    require(msg.value == 0, 'Native ETH should not be attached');
+    require(msg.value == 0, 'No native ETH');
     IERC20(collateralToken).safeTransferFrom(msg.sender, address(this), amount);
   }
 
@@ -731,142 +944,95 @@ contract PredictionMarket is Ownable {
     _setEncryptedPosition(marketId, account, outcomeIndex, nextBalance);
   }
 
-  /// @dev Quote output is intentionally floored; minor rounding is expected on higher outcome counts.
-  function _quoteBuyFromBalances(
-    uint256[] memory balances,
-    uint8 outcomeIndex,
-    uint256 netCollateral
-  ) internal pure returns (uint256 sharesOut) {
-    uint256 selectedBalance = balances[outcomeIndex];
-    uint256 adjustedSelected = selectedBalance;
+  function _getWinningOutcomeIfResolvable(
+    uint256 marketId,
+    Market storage market
+  ) internal view returns (bool hasWinner, uint8 winningOutcome) {
+    if (totalOracleVoteWeight[marketId] < market.resolutionQuorumStake) {
+      return (false, type(uint8).max);
+    }
 
-    for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
-      if (balanceIndex == outcomeIndex) {
+    uint256 highestWeight = 0;
+    bool isTie = false;
+
+    for (uint8 outcomeIndex = 0; outcomeIndex < market.outcomeCount; outcomeIndex += 1) {
+      uint256 weight = oracleVoteWeight[marketId][outcomeIndex];
+      if (weight == 0) {
         continue;
       }
 
-      adjustedSelected = Math.mulDiv(
-        adjustedSelected,
-        balances[balanceIndex],
-        balances[balanceIndex] + netCollateral
-      );
+      if (weight > highestWeight) {
+        highestWeight = weight;
+        winningOutcome = outcomeIndex;
+        isTie = false;
+      } else if (weight == highestWeight) {
+        isTie = true;
+      }
     }
 
-    sharesOut = selectedBalance + netCollateral - adjustedSelected;
+    if (highestWeight == 0 || isTie) {
+      return (false, type(uint8).max);
+    }
+
+    return (true, winningOutcome);
   }
 
-  function _quoteSellGrossFromBalances(
-    uint256[] memory balances,
-    uint8 outcomeIndex,
-    uint256 sharesIn
-  ) internal pure returns (uint256) {
-    uint256 low = 0;
-    uint256 high = balances[0];
+  function _finalizeResolvedMarket(
+    uint256 marketId,
+    Market storage market,
+    uint8 finalOutcome,
+    bool committeeResolved
+  ) internal {
+    market.state = MarketState.FINALIZED;
+    market.finalOutcome = finalOutcome;
+    market.remainingWinningShares = uint128(totalUserShares[marketId][finalOutcome]);
+    market.committeeResolved = committeeResolved;
+    market.disputeRefundsEnabled = market.disputeOpened && finalOutcome != market.proposedOutcome;
 
-    for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
-      if (balanceIndex == outcomeIndex) {
-        continue;
-      }
-
-      if (balances[balanceIndex] < high) {
-        high = balances[balanceIndex];
-      }
-    }
-
-    while (low < high) {
-      uint256 mid = (low + high + 1) / 2;
-      if (_sellCandidateSatisfies(balances, outcomeIndex, sharesIn, mid)) {
-        low = mid;
+    if (market.disputeOpened && !market.disputeRefundsEnabled) {
+      uint256 disputeStake = market.disputeStakeTotal;
+      if (committeeResolved) {
+        uint256 oracleRewardShare = Math.mulDiv(disputeStake, 8_000, BPS_DENOMINATOR);
+        uint256 protocolShare = disputeStake - oracleRewardShare;
+        market.committeeRewardPool = uint128(oracleRewardShare);
+        protocolDisputeFees[marketId] += protocolShare;
       } else {
-        high = mid - 1;
+        protocolDisputeFees[marketId] += disputeStake;
       }
+      market.disputeStakeTotal = 0;
     }
 
-    return low;
-  }
-
-  function _sellCandidateSatisfies(
-    uint256[] memory balances,
-    uint8 outcomeIndex,
-    uint256 sharesIn,
-    uint256 collateralOutGross
-  ) internal pure returns (bool) {
-    uint256 selectedBalance = balances[outcomeIndex] + sharesIn - collateralOutGross;
-    uint256 ratioValue = selectedBalance;
-    uint256 baseSelected = balances[outcomeIndex];
-
-    for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
-      if (balanceIndex == outcomeIndex) {
-        continue;
-      }
-
-      if (balances[balanceIndex] <= collateralOutGross) {
-        return false;
-      }
-
-      ratioValue = Math.mulDiv(
-        ratioValue,
-        balances[balanceIndex] - collateralOutGross,
-        balances[balanceIndex]
+    if (committeeResolved && finalOutcome != market.proposedOutcome && market.proposedBy != address(0)) {
+      OracleRegistry.OracleProfile memory proposerProfile = oracleRegistry.getOracle(market.proposedBy);
+      uint256 slashAmount = Math.mulDiv(
+        proposerProfile.stakedAmount,
+        defaultProposerSlashBps,
+        BPS_DENOMINATOR
       );
+      oracleRegistry.slash(market.proposedBy, slashAmount, owner());
     }
 
-    return ratioValue >= baseSelected;
+    if (market.proposedBy != address(0)) {
+      oracleRegistry.unlockOracle(market.proposedBy);
+    }
+
+    emit MarketFinalized(marketId, finalOutcome, committeeResolved);
   }
 
-  function _probabilitiesAfterBuy(
-    uint256[] memory balances,
-    uint8 outcomeIndex,
-    uint256 netCollateral,
-    uint256 sharesOut
-  ) internal pure returns (uint256[] memory probabilities) {
-    uint256[] memory nextBalances = new uint256[](balances.length);
+  function _getLpReserveValue(uint256 marketId) internal view returns (uint256 reserveValue) {
+    uint256[] storage balances = poolBalances[marketId];
     for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
-      nextBalances[balanceIndex] = balances[balanceIndex] + netCollateral;
-    }
-    nextBalances[outcomeIndex] -= sharesOut;
-
-    return _getProbabilities(nextBalances);
-  }
-
-  function _probabilitiesAfterSell(
-    uint256[] memory balances,
-    uint8 outcomeIndex,
-    uint256 sharesIn,
-    uint256 grossCollateralOut
-  ) internal pure returns (uint256[] memory probabilities) {
-    uint256[] memory nextBalances = new uint256[](balances.length);
-    for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
-      nextBalances[balanceIndex] = balances[balanceIndex] - grossCollateralOut;
-    }
-    nextBalances[outcomeIndex] += sharesIn;
-
-    return _getProbabilities(nextBalances);
-  }
-
-  function _getProbabilities(
-    uint256[] memory balances
-  ) internal pure returns (uint256[] memory probabilities) {
-    probabilities = new uint256[](balances.length);
-    uint256 inverseSum = 0;
-
-    for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
-      inverseSum += Math.mulDiv(PRICE_SCALE, PRICE_SCALE, balances[balanceIndex]);
-    }
-
-    for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
-      uint256 inverseBalance = Math.mulDiv(PRICE_SCALE, PRICE_SCALE, balances[balanceIndex]);
-      probabilities[balanceIndex] = Math.mulDiv(inverseBalance, PRICE_SCALE, inverseSum);
+      reserveValue += balances[balanceIndex];
     }
   }
 
   function _requireValidOutcome(uint256 marketId, uint8 outcomeIndex) internal view {
     _requireExistingMarket(marketId);
-    require(outcomeIndex < markets[marketId].outcomeCount, 'Outcome index is invalid');
+    require(outcomeIndex < markets[marketId].outcomeCount, 'Bad outcome');
   }
 
   function _requireExistingMarket(uint256 marketId) internal view {
-    require(markets[marketId].exists, 'Market does not exist');
+    require(markets[marketId].exists, 'No market');
   }
 
   function _getMarketStorage(uint256 marketId) internal view returns (Market storage market) {

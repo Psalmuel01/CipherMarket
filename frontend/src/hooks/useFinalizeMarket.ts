@@ -44,18 +44,18 @@ export default function useFinalizeMarket(): UseFinalizeMarketResult {
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'finalizeMarket',
+        functionName: 'finalizeByQuorum',
         args: [BigInt(marketId)],
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
       setData({ txHash: hash });
-      toast.success('Market finalized.');
+      toast.success('Market finalized by oracle quorum.');
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))
-          : new Error('Unable to finalize this market.');
+          : new Error('Unable to finalize this market by quorum.');
 
       setError(nextError);
       toast.error(nextError.message);

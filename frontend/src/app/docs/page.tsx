@@ -73,7 +73,7 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Lifecycle',
         title: 'Market states',
-        body: 'Every market passes through explicit states. ACTIVE means trading is open. EXPIRED means the expiry time has passed and trading is closed. PROPOSED means an oracle has submitted an outcome. DISPUTED means a challenge has been raised. FINALIZED means the outcome is locked and redemptions are open.',
+        body: 'Every market passes through explicit states. ACTIVE means trading is open. EXPIRED means the expiry time has passed and trading is closed. RESOLUTION_OPEN means an oracle has proposed an outcome and committee voting is underway. ESCALATED means the committee did not resolve the market and admin fallback is required. FINALIZED means the outcome is locked and redemptions are open.',
       },
       {
         tag: 'Expiry',
@@ -89,18 +89,18 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Oracle',
         title: 'How a market resolves',
-        body: 'A registered oracle reviews the oracle source listed on the market and submits the outcome they believe is correct. This opens a fixed dispute window. If nobody disputes before the window closes, the proposal finalizes automatically.',
+        body: 'A registered oracle reviews the oracle source listed on the market and submits an initial outcome. This opens the resolution window, during which other registered oracles can vote and a challenger can open a counter-outcome dispute with stake.',
       },
       {
         tag: 'Disputes',
         title: 'Disputing a result',
-        body: 'Anyone can dispute a proposed outcome by staking collateral during the dispute window. If the dispute succeeds and the oracle is overturned, disputers receive their stake back. If the dispute fails and the original proposal is upheld, the dispute stake is not refunded — it goes to the protocol.',
+        body: 'Anyone can dispute a proposed outcome by staking collateral against an explicit counter-outcome during the resolution window. If the committee resolves against the original proposal, the disputer can reclaim their stake. If the committee upholds the proposal, the dispute stake is forfeited and split across protocol-defined reward paths.',
         note: 'Disputing has a real cost if you are wrong. Review the oracle source carefully before challenging.',
       },
       {
         tag: 'Finalization',
         title: 'After a market finalizes',
-        body: 'Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral. Losing shares are worth zero. The LP creator can claim any surplus collateral after all winners have redeemed.',
+        body: 'Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral. Losing shares are worth zero. LPs claim the remaining market surplus pro rata after winner and protocol obligations are covered.',
       },
     ],
   },
