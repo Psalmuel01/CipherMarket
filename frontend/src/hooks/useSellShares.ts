@@ -22,6 +22,8 @@ export interface UseSellSharesResult {
 }
 
 export default function useSellShares(): UseSellSharesResult {
+  const DECRYPT_REQUEST_GAS = 300_000n;
+  const SELL_SHARES_GAS = 900_000n;
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
@@ -58,9 +60,14 @@ export default function useSellShares(): UseSellSharesResult {
         abi: PREDICTION_MARKET_ABI,
         functionName: 'requestSellPositionDecrypt',
         args: [BigInt(draft.marketId), Number.parseInt(draft.outcomeId, 10)],
+        gas: DECRYPT_REQUEST_GAS,
       });
 
-      await publicClient.waitForTransactionReceipt({ hash: requestHash });
+      const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
+      if (requestReceipt.status !== 'success') {
+        throw new Error('The sell-position decrypt request did not complete successfully.');
+      }
+
       await new Promise((resolve) => window.setTimeout(resolve, 12_000));
 
       const hash = await writeContractAsync({
@@ -73,13 +80,18 @@ export default function useSellShares(): UseSellSharesResult {
           sharesIn,
           draft.minAmountOut ?? 0n,
         ],
+        gas: SELL_SHARES_GAS,
       });
 
-      await publicClient.waitForTransactionReceipt({ hash });
+      const sellReceipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (sellReceipt.status !== 'success') {
+        throw new Error('The sell transaction reverted before completion.');
+      }
 
       setData({ step: 'success', txHash: hash });
       toast.success(`Shares sold from ${draft.marketTitle}.`);
     } catch (caughtError) {
+      console.error('CipherMarket sell shares failed:', caughtError);
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))

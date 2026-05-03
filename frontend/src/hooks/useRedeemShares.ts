@@ -20,6 +20,8 @@ export interface UseRedeemSharesResult {
 }
 
 export default function useRedeemShares(): UseRedeemSharesResult {
+  const DECRYPT_REQUEST_GAS = 300_000n;
+  const REDEEM_SHARES_GAS = 700_000n;
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
@@ -53,9 +55,14 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         abi: PREDICTION_MARKET_ABI,
         functionName: 'requestRedeemPositionDecrypt',
         args: [BigInt(marketId)],
+        gas: DECRYPT_REQUEST_GAS,
       });
 
-      await publicClient.waitForTransactionReceipt({ hash: requestHash });
+      const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
+      if (requestReceipt.status !== 'success') {
+        throw new Error('The redeem-position decrypt request did not complete successfully.');
+      }
+
       await new Promise((resolve) => window.setTimeout(resolve, 12_000));
 
       const hash = await writeContractAsync({
@@ -63,9 +70,13 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         abi: PREDICTION_MARKET_ABI,
         functionName: 'redeemShares',
         args: [BigInt(marketId)],
+        gas: REDEEM_SHARES_GAS,
       });
 
-      await publicClient.waitForTransactionReceipt({ hash });
+      const redeemReceipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (redeemReceipt.status !== 'success') {
+        throw new Error('The redeem transaction reverted before completion.');
+      }
 
       const formattedAmount = `${formatUnits(amount, decimals)} ${symbol}`;
       setData({
@@ -74,6 +85,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
       });
       toast.success(`Redeemed ${formattedAmount}.`);
     } catch (caughtError) {
+      console.error('CipherMarket redeem shares failed:', caughtError);
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))

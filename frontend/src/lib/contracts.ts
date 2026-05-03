@@ -109,6 +109,10 @@ export function formatContractError(error: unknown): string {
     return 'Connect your wallet before submitting this action.';
   }
 
+  if (message.toLowerCase().includes('gas limit too high')) {
+    return 'The network could not estimate gas for this action. Please retry; if it persists, the decrypt request may not be valid for this position yet.';
+  }
+
   const revertMatch = message.match(/reverted with reason string ['"](.+?)['"]/i);
   if (revertMatch?.[1]) {
     return revertMatch[1];
