@@ -7,13 +7,12 @@ import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 import type { TradeDraft } from '@/types/market';
 
-export interface SellSharesState {
-  step: 'idle' | 'encrypting' | 'awaiting_wallet' | 'success';
-  txHash: string | null;
-}
+import useTransactionLifecycle from '@/hooks/useTransactionLifecycle';
+import usePendingTransactions from '@/hooks/usePendingTransactions';
+import type { TransactionLifecycleState } from '@/hooks/useTransactionLifecycle';
 
 export interface UseSellSharesResult {
-  data: SellSharesState | null;
+  state: TransactionLifecycleState;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
@@ -27,11 +26,11 @@ export default function useSellShares(): UseSellSharesResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const [data, setData] = useState<SellSharesState | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const lifecycle = useTransactionLifecycle();
+  const { addTransaction, updateTransaction } = usePendingTransactions();
 
   const sellShares = async (draft: TradeDraft): Promise<void> => {
+    let pendingTxId: string | null = null;
     try {
       const addresses = getContractAddresses(chainId);
       const predictionMarketAddress = addresses?.predictionMarket;
@@ -49,11 +48,23 @@ export default function useSellShares(): UseSellSharesResult {
         throw new Error('Enter a valid share amount.');
       }
 
-      setError(null);
-      setIsLoading(true);
-      setData({ step: 'encrypting', txHash: null });
+      lifecycle.reset();
+      lifecycle.setStage('preparing');
 
-      setData({ step: 'awaiting_wallet', txHash: null });
+      pendingTxId = addTransaction({
+        type: 'sell',
+        stage: 'preparing',
+        txHash: null,
+        marketId: draft.marketId,
+        marketTitle: draft.marketTitle,
+        outcomeLabel: draft.outcomeLabel,
+        amount: draft.amount,
+        collateralSymbol: 'shares',
+      });
+
+      // 1. Request Decrypt
+      lifecycle.setStage('awaiting_wallet');
+      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
       const requestHash = await writeContractAsync({
         address: predictionMarketAddress,
@@ -63,12 +74,22 @@ export default function useSellShares(): UseSellSharesResult {
         gas: DECRYPT_REQUEST_GAS,
       });
 
+      lifecycle.setTxHash(requestHash);
+      lifecycle.setStage('encrypting'); // We'll use encrypting/confirming for the compute wait
+      updateTransaction(pendingTxId, { stage: 'confirming', txHash: requestHash });
+
       const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
       if (requestReceipt.status !== 'success') {
         throw new Error('The sell-position decrypt request did not complete successfully.');
       }
 
+      // 2. Wait for Coprocessor (12s)
+      lifecycle.setStage('confirming');
       await new Promise((resolve) => window.setTimeout(resolve, 12_000));
+
+      // 3. Sell Transaction
+      lifecycle.setStage('awaiting_wallet');
+      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
@@ -83,12 +104,21 @@ export default function useSellShares(): UseSellSharesResult {
         gas: SELL_SHARES_GAS,
       });
 
+      lifecycle.setTxHash(hash);
+      lifecycle.setStage('confirming');
+      updateTransaction(pendingTxId, { stage: 'confirming', txHash: hash });
+
       const sellReceipt = await publicClient.waitForTransactionReceipt({ hash });
       if (sellReceipt.status !== 'success') {
         throw new Error('The sell transaction reverted before completion.');
       }
 
-      setData({ step: 'success', txHash: hash });
+      lifecycle.setStage('settling');
+      updateTransaction(pendingTxId, { stage: 'settling' });
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      lifecycle.setStage('success');
+      updateTransaction(pendingTxId, { stage: 'success' });
       toast.success(`Shares sold from ${draft.marketTitle}.`);
     } catch (caughtError) {
       console.error('CipherMarket sell shares failed:', caughtError);
@@ -97,25 +127,20 @@ export default function useSellShares(): UseSellSharesResult {
           ? new Error(formatContractError(caughtError))
           : new Error('Unable to sell shares.');
 
-      setError(nextError);
+      lifecycle.setError(nextError);
+      if (pendingTxId) {
+        updateTransaction(pendingTxId, { stage: 'error', errorMessage: nextError.message });
+      }
       toast.error(nextError.message);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const reset = (): void => {
-    setData(null);
-    setError(null);
-    setIsLoading(false);
-  };
-
   return {
-    data,
-    isLoading,
-    isError: error !== null,
-    error,
+    state: lifecycle.state,
+    isLoading: lifecycle.isLoading,
+    isError: lifecycle.isError,
+    error: lifecycle.state.error,
     sellShares,
-    reset,
+    reset: lifecycle.reset,
   };
 }

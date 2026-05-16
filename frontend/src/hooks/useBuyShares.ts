@@ -12,13 +12,12 @@ import {
 } from '@/lib/contracts';
 import type { TradeDraft } from '@/types/market';
 
-export interface BuySharesState {
-  step: 'idle' | 'encrypting' | 'awaiting_wallet' | 'success';
-  txHash: string | null;
-}
+import useTransactionLifecycle from '@/hooks/useTransactionLifecycle';
+import usePendingTransactions from '@/hooks/usePendingTransactions';
+import type { TransactionLifecycleState } from '@/hooks/useTransactionLifecycle';
 
 export interface UseBuySharesResult {
-  data: BuySharesState | null;
+  state: TransactionLifecycleState;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
@@ -30,11 +29,11 @@ export default function useBuyShares(): UseBuySharesResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const [data, setData] = useState<BuySharesState | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const lifecycle = useTransactionLifecycle();
+  const { addTransaction, updateTransaction } = usePendingTransactions();
 
   const buyShares = async (draft: TradeDraft): Promise<void> => {
+    let pendingTxId: string | null = null;
     try {
       const addresses = getContractAddresses(chainId);
       const predictionMarketAddress = addresses?.predictionMarket;
@@ -52,12 +51,25 @@ export default function useBuyShares(): UseBuySharesResult {
         throw new Error('Enter a valid trade amount.');
       }
 
-      setError(null);
-      setIsLoading(true);
-      setData({ step: 'encrypting', txHash: null });
+      lifecycle.reset();
+      lifecycle.setStage('preparing');
 
+      // Add to persistent pending store
+      pendingTxId = addTransaction({
+        type: 'buy',
+        stage: 'preparing',
+        txHash: null,
+        marketId: draft.marketId,
+        marketTitle: draft.marketTitle,
+        outcomeLabel: draft.outcomeLabel,
+        amount: draft.amount,
+        collateralSymbol: draft.collateralToken.toLowerCase() === zeroAddress ? 'ETH' : 'USDC', // Fallback for symbol
+      });
+
+      // 1. Approval if needed
       if (draft.collateralToken.toLowerCase() !== zeroAddress) {
-        setData({ step: 'awaiting_wallet', txHash: null });
+        lifecycle.setStage('approving');
+        updateTransaction(pendingTxId, { stage: 'approving' });
 
         const approvalHash = await writeContractAsync({
           address: draft.collateralToken,
@@ -69,7 +81,9 @@ export default function useBuyShares(): UseBuySharesResult {
         await publicClient.waitForTransactionReceipt({ hash: approvalHash });
       }
 
-      setData({ step: 'awaiting_wallet', txHash: null });
+      // 2. Buy Transaction
+      lifecycle.setStage('awaiting_wallet');
+      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
       const buyHash = await writeContractAsync({
         address: predictionMarketAddress,
@@ -84,12 +98,23 @@ export default function useBuyShares(): UseBuySharesResult {
         value: draft.collateralToken.toLowerCase() === zeroAddress ? collateralAmount : 0n,
       });
 
-      await publicClient.waitForTransactionReceipt({ hash: buyHash });
+      lifecycle.setTxHash(buyHash);
+      lifecycle.setStage('confirming');
+      updateTransaction(pendingTxId, { stage: 'confirming', txHash: buyHash });
 
-      setData({
-        step: 'success',
-        txHash: buyHash,
-      });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: buyHash });
+      if (receipt.status !== 'success') {
+        throw new Error('The transaction reverted on-chain.');
+      }
+
+      lifecycle.setStage('settling');
+      updateTransaction(pendingTxId, { stage: 'settling' });
+
+      // Artificial wait for state sync
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      lifecycle.setStage('success');
+      updateTransaction(pendingTxId, { stage: 'success' });
       toast.success(`Shares purchased in ${draft.marketTitle}.`);
     } catch (caughtError) {
       const nextError =
@@ -97,25 +122,20 @@ export default function useBuyShares(): UseBuySharesResult {
           ? new Error(formatContractError(caughtError))
           : new Error('Unable to buy shares.');
 
-      setError(nextError);
+      lifecycle.setError(nextError);
+      if (pendingTxId) {
+        updateTransaction(pendingTxId, { stage: 'error', errorMessage: nextError.message });
+      }
       toast.error(nextError.message);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const reset = (): void => {
-    setData(null);
-    setError(null);
-    setIsLoading(false);
-  };
-
   return {
-    data,
-    isLoading,
-    isError: error !== null,
-    error,
+    state: lifecycle.state,
+    isLoading: lifecycle.isLoading,
+    isError: lifecycle.isError,
+    error: lifecycle.state.error,
     buyShares,
-    reset,
+    reset: lifecycle.reset,
   };
 }

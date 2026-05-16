@@ -1,86 +1,37 @@
 'use client';
 import Link from 'next/link';
-import { ArrowRight, Eye, EyeOff, Gavel, Lock, Shield, TrendingUp, Clock } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowRight,
+  Shield,
+  TrendingUp,
+  Zap,
+  Cpu,
+  Fingerprint,
+  Activity,
+  BarChart3,
+  Globe,
+  Lock,
+  EyeOff,
+  Scale,
+  Binary,
+  Database,
+  Search,
+  ChevronRight
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import LandingNav from '@/components/layout/LandingNav';
-import LandingFooter from '@/components/layout/LandingFooter';
-import useMarkets from '@/hooks/useMarkets';
-import { formatRelativeExpiry, formatTokenAmount } from '@/lib/formatters';
-
-/*
-  FONTS — add to globals.css:
-  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap');
-
-  TAILWIND — add to tailwind.config.ts:
-  fontFamily: {
-    serif: ['Instrument Serif', 'Georgia', 'serif'],
-    sans:  ['Geist', 'sans-serif'],
-    mono:  ['Geist Mono', 'monospace'],
-  }
-*/
-
-type WorkflowStep = {
-  id: string;
-  title: string;
-  body: string;
-  icon: typeof Lock;
-};
-
-type SecurityRow = {
-  actor: string;
-  can: string[];
-  cannot: string[];
-};
-
-const workflowSteps: WorkflowStep[] = [
-  {
-    id: '01',
-    title: 'Encrypt client-side',
-    body: 'Your stake is encrypted locally using the CoFHE SDK before it ever touches the network. No server sees plaintext.',
-    icon: Lock,
-  },
-  {
-    id: '02',
-    title: 'Submit ciphertext',
-    body: 'The FHE ciphertext is submitted on-chain. The contract accumulates encrypted totals without decrypting individual positions.',
-    icon: Shield,
-  },
-  {
-    id: '03',
-    title: 'Oracle resolves',
-    body: 'A staked oracle proposes the outcome. A 48-hour dispute window allows challengers to contest with evidence.',
-    icon: Gavel,
-  },
-  {
-    id: '04',
-    title: 'Claim privately',
-    body: 'Winners generate a permit and claim rewards. Only your wallet can decrypt your stake — not the operator, not the oracle.',
-    icon: Eye,
-  },
-];
-
-const securityRows: SecurityRow[] = [
-  { actor: 'Your wallet', can: ['Read own stake (permit required)'], cannot: [] },
-  { actor: 'Other users', can: [], cannot: ['Read any position'] },
-  { actor: 'Oracle', can: ['Propose outcome'], cannot: ['Read positions'] },
-  { actor: 'Contract owner', can: ['Resolve disputes'], cannot: ['Read positions'] },
-  { actor: 'Anyone', can: ['See aggregate pool totals'], cannot: [] },
-];
-
-function toneBg(index: number): string {
-  if (index === 0) return 'bg-[#e8533a]/10 border-r border-[#e8533a]/25 text-[#e8533a]';
-  if (index === 1) return 'bg-white/[0.04] border-r border-white/10 text-white/30';
-  return 'bg-amber-500/10 border-r border-amber-500/20 text-amber-400';
-}
+import PrivacyBadge from '@/components/ui/PrivacyBadge';
+import Button from '@/components/ui/Button';
+import clsx from 'clsx';
 
 const TERMINAL_LINES = [
-  { text: '$ cipher encrypt --amount 500 --outcome YES', color: 'text-white/60', delay: 0 },
-  { text: '> Generating FHE ciphertext...', color: 'text-[#D66A61]/70', delay: 600 },
-  { text: '> *************** ✓ encrypted', color: 'text-[#D66A61]', delay: 1200 },
-  { text: '> Submitting to PredictionMarket.sol...', color: 'text-white/60', delay: 1800 },
-  { text: '> tx: 0x8d4c...f901 confirmed', color: 'text-white/40', delay: 2400 },
-  { text: '> Position sealed. No observer can read your stake.', color: 'text-[#D66A61]/90', delay: 3000 },
+  { text: '$ cipher init --secure', color: 'text-white/40', delay: 0 },
+  { text: '> [FHE] Initializing TFHE-rs context...', color: 'text-primary/70', delay: 400 },
+  { text: '> [FHE] Keypair generated successfully.', color: 'text-primary', delay: 1000 },
+  { text: '$ cipher stake --amount 1250 --outcome "YES"', color: 'text-white/60', delay: 1600 },
+  { text: '> Encrypting payload (128-bit security)...', color: 'text-white/40', delay: 2200 },
+  { text: '> [PHASE 1] Ciphertext submitted: 0x8d...f901', color: 'text-emerald-400', delay: 3000 },
+  { text: '> SUCCESS: Position sealed and recorded.', color: 'text-primary font-bold', delay: 3800 },
 ] as const;
 
 function TerminalMockup(): JSX.Element {
@@ -88,512 +39,313 @@ function TerminalMockup(): JSX.Element {
 
   useEffect(() => {
     const timers = TERMINAL_LINES.map((line, i) =>
-      setTimeout(() => setStep(i + 1), line.delay + 400),
+      setTimeout(() => setStep(i + 1), line.delay),
     );
     return () => timers.forEach(clearTimeout);
   }, []);
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-[#080C14] overflow-hidden shadow-2xl">
-      {/* Window chrome */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
-        <div className="w-3 h-3 rounded-full bg-red-500/40" />
-        <div className="w-3 h-3 rounded-full bg-yellow-500/40" />
-        <div className="w-3 h-3 rounded-full bg-[#e8533a]/30" />
-        <span className="ml-3 text-xs font-mono text-white/20">cipher-client — bash</span>
+    <div className="rounded-2xl overflow-hidden border border-white/10 group bg-black">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/[0.02]">
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-white/10" />
+            <div className="w-2 h-2 rounded-full bg-white/10" />
+            <div className="w-2 h-2 rounded-full bg-white/10" />
+          </div>
+          <span className="ml-4 text-[10px] font-mono text-white/20 tracking-[0.3em] uppercase">cipher-fhe-client</span>
+        </div>
+        <Fingerprint className="h-4 w-4 text-white/10 group-hover:text-primary transition-colors" />
       </div>
-      {/* Terminal body */}
-      <div className="p-6 font-mono text-sm space-y-2 min-h-[220px]">
-        {TERMINAL_LINES.map((line, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -4 }}
-            animate={step > i ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.3 }}
-            className={line.color}
-          >
-            {line.text}
-          </motion.div>
-        ))}
-        {step < TERMINAL_LINES.length && (
-          <span className="inline-block w-2 h-4 bg-[#D66A61]/60 animate-pulse" />
-        )}
+      <div className="p-8 font-mono text-[13px] leading-relaxed min-h-[280px]">
+        <div className="space-y-1.5">
+          {TERMINAL_LINES.map((line, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -8 }}
+              animate={step > i ? { opacity: 1, x: 0 } : {}}
+              className={line.color}
+            >
+              {line.text}
+            </motion.div>
+          ))}
+          {step < TERMINAL_LINES.length && (
+            <motion.span
+              animate={{ opacity: [0, 1] }}
+              transition={{ repeat: Infinity, duration: 0.8 }}
+              className="inline-block w-2 h-4 bg-primary/40"
+            />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 export default function LandingPage(): JSX.Element {
-  const { data: markets, isLoading: marketsLoading, isError: isMarketsError } = useMarkets();
-  const featuredMarkets = useMemo(() => {
-    const activeMarkets = markets.filter((market) => market.status === 'ACTIVE');
-    const source = activeMarkets.length >= 3 ? activeMarkets : markets;
-    return source.slice(0, 3);
-  }, [markets]);
-
   return (
-    <div className="relative z-10 font-sans max-w-[80%] px-8 lg:px-16 mx-auto">
-      {/* ── HERO ── */}
-      <section className="relative z-10 pt-18 pb-20 lg:pt-24 lg:pb-24">
-        <div className="grid lg:grid-cols-[1fr_1fr] gap-32 items-center">
+    <div className="relative max-w-[1400px] px-8 lg:px-16 mx-auto space-y-64 py-32 bg-black">
+      {/* ── HERO SECTION ── */}
+      <section className="relative min-h-[90vh] flex flex-col justify-center">
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-24 items-center">
 
-          {/* Left */}
-          <div className="max-w-[560px]">
-            <div className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.25em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-4 py-2 mb-8">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#e8533a] animate-pulse" />
-              Live on Ethereum Sepolia · FHE enabled
+          <div className="space-y-16">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-3"
+            >
+              <div className="h-px w-10 bg-primary/40" />
+              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.5em] text-primary/80">
+                Institutional Privacy Protocol v1.0
+              </span>
+            </motion.div>
+
+            <div className="space-y-10">
+              <motion.h1
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.8 }}
+                className="text-[72px] lg:text-[96px] xl:text-[112px] leading-[0.85] tracking-tighter font-serif italic text-white"
+              >
+                Trade<br />
+                <span className="font-sans font-light not-italic text-white/10 italic">The Future.</span>
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.8 }}
+                className="text-xl lg:text-2xl text-white/40 font-light leading-relaxed max-w-xl"
+              >
+                CipherMarket leverages <span className="text-white/80">Fully Homomorphic Encryption</span> to secure prediction markets.
+                Your positions are encrypted end-to-end, protecting strategic alpha.
+              </motion.p>
             </div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.8 }}
+              className="flex flex-wrap gap-8"
             >
-              <h1 className="text-[52px] lg:text-[68px] xl:text-[78px] leading-[0.95] tracking-[-0.04em] mb-6">
-                <span className="font-serif italic text-[#e8e4df]">Predict.</span>
-                <br />
-                <span className="font-sans font-light text-white/35">Stay sealed.</span>
-              </h1>
-
-              <p className="text-[16px] leading-[1.85] text-white/45 font-light max-w-[520px] mb-8">
-                The first prediction market where your positions are encrypted end-to-end using Fully Homomorphic Encryption. Place bets without exposing your strategy, wallet, or stake to anyone — on-chain or off.
-              </p>
-
-              <div className="flex flex-wrap gap-3 mb-12">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-2 bg-[#e8533a] text-white text-[14px] font-medium px-5 py-3 rounded-xl hover:bg-[#d44830] transition-all hover:-translate-y-0.5 shadow-[0_8px_32px_rgba(232,83,58,0.25)]"
-                >
-                  Open Markets <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link
-                  href="#how-it-works"
-                  className="inline-flex items-center gap-2 text-[14px] text-white/50 border border-white/10 px-5 py-3 rounded-xl hover:text-white/80 hover:border-white/20 hover:bg-white/[0.03] transition-all"
-                >
-                  How it works
-                </Link>
-              </div>
+              <Link href="/dashboard">
+                <Button size="lg" className="h-16 px-10 gap-4 group/btn">
+                  Access Markets
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
+                </Button>
+              </Link>
+              <Link href="#protocol">
+                <Button variant="outline" size="lg" className="h-16 px-10">
+                  Protocol Specs
+                </Button>
+              </Link>
             </motion.div>
 
-            {/* Stats bar */}
-            <div className="flex items-center gap-10 pb-8 border-b border-white/[0.07]">
+            <div className="flex items-center gap-20 pt-20 border-t border-white/10">
               {[
-                { value: '127', label: 'Total markets' },
-                { value: '$2.4M', label: 'Total volume' },
-                { value: '< 80ms', label: 'Avg. encryption time' },
+                { label: 'Sealed Liquidity', value: '$42.8M' },
+                { label: 'Active Markets', value: '124' },
+                { label: 'Compute Proofs', value: '1.2M+' },
               ].map((stat) => (
-                <div key={stat.label}>
-                  <p className="font-mono text-[22px] font-medium text-[#e8e4df] tracking-[-0.03em]">{stat.value}</p>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/30 mt-1">{stat.label}</p>
+                <div key={stat.label} className="space-y-2">
+                  <p className="text-4xl font-serif italic text-white/90">{stat.value}</p>
+                  <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-white/20">{stat.label}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right — Market Panel */}
-
-          {/* <motion.div
-            initial={{ opacity: 0, x: 32 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.25 }}
-          > */}
-
-          <aside className="rounded-[28px] border border-white/[0.09] bg-[#0d1017]/95 backdrop-blur-2xl p-6 shadow-[0_32px_80px_rgba(0,0,0,0.5)] w-full mx-auto lg:mx-0">
-
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4, duration: 1, ease: [0.16, 1, 0.3, 1] }}
+            className="relative hidden lg:block"
+          >
             <TerminalMockup />
 
-            {/* Market preview card */}
-            <div className="rounded-2xl border border-white/[0.08] bg-[#0a0d12] mt-5 p-5">
-              <div
-                className="card"
-                style={{ marginTop: 0, padding: '0px' }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>Will ETH be above $4,000 on Jul 1?</div>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: '0.1em',
-                      padding: '3px 8px',
-                      borderRadius: 999,
-                      background: 'rgba(199,80,72,0.12)"',
-                      color: '#e8533a',
-                      border: '1px solid rgba(199,80,72,0.24)"',
-                    }}
-                  >
-                    ACTIVE
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {[
-                    { label: 'YES', pool: '68%', color: 'rgba(199,80,72,0.12)', border: 'rgba(199,80,72,0.12)', text: '#D66A61' },
-                    { label: 'NO', pool: '32%', color: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.06)', text: 'rgba(255,255,255,0.4)' },
-                  ].map((o) => (
-                    <div
-                      key={o.label}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: 12,
-                        background: o.color,
-                        border: `1px solid ${o.border}`,
-                      }}
-                    >
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 4 }}>Outcome</div>
-                      <div style={{ fontWeight: 900, fontSize: 16, color: o.text }}>{o.label}</div>
-                      <div className="mono" style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
-                        pool: ██████ ({o.pool})
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-          </aside>
-          {/* </motion.div> */}
-        </div>
-
-        {/* Proof pills — full width */}
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { value: '100%', label: 'Positions encrypted', icon: Lock },
-            { value: '0', label: 'Plaintext leaks', icon: EyeOff },
-            { value: '48h', label: 'Dispute window', icon: Clock },
-          ].map((f) => {
-            const Icon = f.icon;
-            return (
-              <div
-                key={f.label}
-                className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 hover:border-white/[0.12] hover:bg-white/[0.04] transition-all"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon className="w-3.5 h-3.5 text-[#e8533a]" />
-                  <span className="font-mono text-[15px] font-medium text-[#e8e4df] tracking-[-0.02em]">
-                    {f.value}
-                  </span>
-                </div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/30">
-                  {f.label}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ── */}
-      <section id="how-it-works" className="relative z-10 border-t border-white/[0.07]">
-        <div className="py-16 lg:py-24">
-          <p className="font-mono text-[9px] uppercase tracking-[0.26em] text-[#e8533a] mb-4">How it works</p>
-          <h2 className="font-serif italic text-[36px] lg:text-[48px] tracking-[-0.03em] text-[#e8e4df] leading-[1.05] mb-4">
-            Encrypted from input<br />to settlement.
-          </h2>
-          <p className="text-[15px] leading-[1.85] text-white/40 font-light max-w-[560px] mb-14">
-            FHE lets the smart contract compute on ciphertexts directly — no trusted relay, no off-chain coordinator. Your position stays encrypted throughout its entire lifecycle.
-          </p>
-
-          <motion.div
-            className="grid lg:grid-cols-4 gap-4 mb-16"
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: { staggerChildren: 0.1 }
-              }
-            }}
-          >
-            {workflowSteps.map((step) => {
-              const Icon = step.icon;
-              return (
-                <motion.article
-                  key={step.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 20 },
-                    show: { opacity: 1, y: 0 }
-                  }}
-                  className="group rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-6 hover:border-white/[0.12] hover:bg-white/[0.035] transition-all relative overflow-hidden"
-                >
-                  <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#e8533a]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="flex items-center justify-between mb-6">
-                    <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#e8533a]">{step.id}</span>
-                    <div className="w-8 h-8 rounded-lg bg-[#e8533a]/10 border border-[#e8533a]/20 flex items-center justify-center">
-                      <Icon className="w-3.5 h-3.5 text-[#e8533a]" />
-                    </div>
-                  </div>
-                  <h3 className="font-serif italic text-[18px] text-[#e8e4df] leading-[1.2] tracking-[-0.01em] mb-3">{step.title}</h3>
-                  <p className="text-[12px] leading-[1.85] text-white/35 font-light">{step.body}</p>
-                </motion.article>
-              );
-            })}
-          </motion.div>
-
-          {/* Code snippet */}
-          <div className="rounded-[20px] border border-white/[0.08] bg-[#0a0d12] overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.07]">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-white/10" />
-                <span className="w-2.5 h-2.5 rounded-full bg-white/10" />
-                <span className="w-2.5 h-2.5 rounded-full bg-white/10" />
-              </div>
-              <span className="font-mono text-[10px] text-white/25 tracking-[0.1em]">PredictionMarket.sol · placeBet</span>
-              <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-emerald-400/60">Solidity</span>
-            </div>
-            <pre className="px-6 py-5 text-[12px] leading-[1.9] font-mono text-white/40 overflow-x-auto">
-              <code>{`function placeBet(
-    uint256 marketId,
-    uint8 outcomeIndex,
-    uint128 plainStakeAmount,
-    InEuint128 calldata encStake    // ← ciphertext from client
-) external payable {
-    euint128 stake = FHE.asEuint128(encStake);
-
-    // Accumulate encrypted total — no individual position exposed
-    encryptedOutcomeTotals[marketId][outcomeIndex] =
-        FHE.add(encryptedOutcomeTotals[marketId][outcomeIndex], stake);
-
-    // Grant persistent access only to this contract + the bettor
-    FHE.allowThis(stake);
-    FHE.allow(stake, msg.sender);
-}`}</code>
-            </pre>
-          </div>
-        </div>
-      </section>
-
-      {/* ── SECURITY MODEL ── */}
-      <section id="security" className="relative z-10 border-t border-white/[0.07]">
-        <div className="py-16 lg:py-24">
-          <p className="font-mono text-[9px] uppercase tracking-[0.26em] text-[#e8533a] mb-4">Security model</p>
-          <h2 className="font-serif italic text-[36px] lg:text-[48px] tracking-[-0.03em] text-[#e8e4df] leading-[1.05] mb-4">
-            What even the contract<br />owner cant see.
-          </h2>
-          <p className="text-[15px] leading-[1.85] text-white/40 font-light max-w-[580px] mb-14">
-            FHE ciphertexts are governed by an on-chain ACL. No address — not even the deployer — can decrypt your position without an explicit permit signed by your wallet. Access control is enforced at the cryptographic layer, not by trust.
-          </p>
-
-          <div className="grid lg:grid-cols-[1fr_340px] gap-8 items-start">
-            {/* Access table */}
-            <div className="rounded-[20px] border border-white/[0.08] bg-[#0a0d12] overflow-hidden">
-              <div className="grid grid-cols-3 px-5 py-3 border-b border-white/[0.07]">
-                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/25">Actor</span>
-                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/25">Can</span>
-                <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/25">Cannot</span>
-              </div>
-              {securityRows.map((row, i) => (
-                <div
-                  key={row.actor}
-                  className={`grid grid-cols-3 px-5 py-4 gap-4 ${i < securityRows.length - 1 ? 'border-b border-white/[0.05]' : ''}`}
-                >
-                  <span className="text-[13px] text-white/60 font-medium">{row.actor}</span>
-                  <div className="flex flex-col gap-1">
-                    {row.can.map((c) => (
-                      <span key={c} className="flex items-start gap-1.5 text-[11px] text-emerald-400/70 leading-[1.5]">
-                        <span className="mt-0.5 shrink-0">✓</span>{c}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {row.cannot.map((c) => (
-                      <span key={c} className="flex items-start gap-1.5 text-[11px] text-white/25 leading-[1.5]">
-                        <span className="mt-0.5 shrink-0">✗</span>{c}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Callout cards */}
-            <div className="flex flex-col gap-4">
-              {[
-                {
-                  title: 'Individual positions never touch plaintext on-chain',
-                  body: 'Aggregate pool totals are visible. Per-wallet stakes are not — at any point in the lifecycle.',
-                },
-                {
-                  title: 'Oracle slashing cannot expose position data',
-                  body: 'Even in a dispute, the cryptographic ACL prevents position data from being revealed.',
-                },
-                {
-                  title: 'You control who reads your stake',
-                  body: 'The permit system means only addresses you explicitly authorize can decrypt your position.',
-                },
-              ].map((card) => (
-                <div
-                  key={card.title}
-                  className="rounded-[18px] border border-white/[0.07] bg-white/[0.02] p-5 hover:border-white/[0.12] transition-all"
-                >
-                  <p className="text-[12px] font-medium text-[#e8e4df] leading-[1.4] mb-2">{card.title}</p>
-                  <p className="text-[11px] leading-[1.8] text-white/35 font-light">{card.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── MARKETS ── */}
-      <section id="markets" className="relative z-10 border-t border-white/[0.07]">
-        <div className="py-16 lg:py-24">
-          <div className="flex items-end justify-between mb-12">
-            <div>
-              <p className="font-mono text-[9px] uppercase tracking-[0.26em] text-[#e8533a] mb-4">Live Markets</p>
-              <h2 className="font-serif italic text-[36px] lg:text-[48px] tracking-[-0.03em] text-[#e8e4df] leading-[1.05]">
-                Everything is encrypted.<br />
-                <span className="text-white/30 font-sans font-light not-italic">Even the stakes.</span>
-              </h2>
-            </div>
-            <Link
-              href="/dashboard"
-              className="hidden lg:flex items-center gap-2 text-[13px] text-white/40 hover:text-white/70 transition-colors font-mono uppercase tracking-[0.15em]"
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.2 }}
+              className="absolute -bottom-8 -right-8 p-10 rounded-2xl w-80 space-y-8 border border-white/10 bg-black shadow-2xl"
             >
-              View all markets <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <PrivacyBadge state="sealed" size="sm" />
+                  <span className="text-[10px] font-mono text-white/20">mId: 0x4f...</span>
+                </div>
+                <div className="text-[10px] font-mono text-primary font-bold tracking-widest uppercase">Locked</div>
+              </div>
+              <div className="space-y-3">
+                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: '74%' }}
+                    transition={{ delay: 1.5, duration: 1.5 }}
+                    className="h-full bg-primary"
+                  />
+                </div>
+                <div className="flex justify-between text-[11px] font-mono text-white/30 uppercase tracking-widest font-bold">
+                  <span>Outcome Alpha</span>
+                  <span className="text-white/80">74.2%</span>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── SECURITY ARCHITECTURE ── */}
+      <section id="protocol" className="space-y-20 py-2">
+        <div className="max-w-3xl space-y-6">
+          <p className="font-mono text-[11px] uppercase tracking-[0.5em] text-primary font-bold">Security Architecture</p>
+          <h2 className="text-5xl lg:text-7xl font-serif italic text-white leading-tight">
+            Privacy as a first-class<br />
+            <span className="font-sans font-light text-white/10 not-italic">on-chain primitive.</span>
+          </h2>
+          <p className="text-xl text-white/40 font-light max-w-xl leading-relaxed">
+            CipherMarket leverages Fhenix FHE Coprocessors to enable encrypted state transitions without ever revealing individual balances.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {[
+            {
+              title: 'Client-Side Encryption',
+              desc: 'Positions are encrypted using CoFHE SDK before network submission.',
+              icon: Lock
+            },
+            {
+              title: 'Encrypted Summation',
+              desc: 'Aggregate liquidity is computed directly on ciphertexts on-chain.',
+              icon: Binary
+            },
+            {
+              title: 'Coprocessor Verification',
+              desc: 'High-performance FHE circuits ensure zero-knowledge finality.',
+              icon: Cpu
+            },
+            {
+              title: 'Staked Resolution',
+              desc: 'Institutional oracles resolve outcomes with 48h dispute windows.',
+              icon: Scale
+            }
+          ].map((item, i) => (
+            <motion.div
+              key={item.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="p-10 rounded-2xl border border-white/5 bg-white/[0.01] space-y-8 group hover:border-primary/40 transition-all duration-300"
+            >
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-white/[0.03] border border-white/5 group-hover:text-primary transition-colors">
+                <item.icon className="h-7 w-7" />
+              </div>
+              <div className="space-y-3">
+                <h4 className="text-xl font-bold text-white tracking-tight">{item.title}</h4>
+                <p className="text-sm text-white/30 leading-relaxed font-light">{item.desc}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── USE CASES ── */}
+      <section className="py-2 grid lg:grid-cols-2 gap-32 items-center border-t border-white/10 pt-40">
+        <div className="space-y-16">
+          <div className="space-y-8">
+            <h2 className="text-5xl lg:text-6xl font-serif italic text-white leading-tight">
+              Markets that demand<br />
+              <span className="font-sans font-light text-white/10 not-italic">total confidentiality.</span>
+            </h2>
+            <p className="text-xl text-white/40 font-light max-w-xl leading-relaxed">
+              From institutional hedging to high-alpha political analysis, CipherMarket is built for participants who cannot afford to leak conviction.
+            </p>
           </div>
 
-          <motion.div
-            className="grid lg:grid-cols-3 gap-4"
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-100px" }}
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: { staggerChildren: 0.1 }
-              }
-            }}
-          >
-            {marketsLoading
-              ? Array.from({ length: 3 }, (_, index) => (
-                  <motion.div
-                    key={`market-skeleton-${index}`}
-                    variants={{
-                      hidden: { opacity: 0, y: 20 },
-                      show: { opacity: 1, y: 0 },
-                    }}
-                    className="rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-6"
-                  >
-                    <div className="h-3 w-20 rounded bg-white/[0.06]" />
-                    <div className="mt-2 h-3 w-24 rounded bg-white/[0.04]" />
-                    <div className="mt-5 h-16 rounded bg-white/[0.04]" />
-                    <div className="mt-5 space-y-3">
-                      <div className="h-10 rounded bg-white/[0.04]" />
-                      <div className="h-10 rounded bg-white/[0.04]" />
-                    </div>
-                  </motion.div>
-                ))
-              : null}
-
-            {!marketsLoading && !isMarketsError
-              ? featuredMarkets.map((market) => (
-                  <motion.article
-                    key={market.marketId}
-                    variants={{
-                      hidden: { opacity: 0, y: 20 },
-                      show: { opacity: 1, y: 0 },
-                    }}
-                    className="rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-6 hover:border-white/[0.12] hover:bg-white/[0.035] transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/25 mb-1.5">
-                          {market.category}
-                        </p>
-                        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/20">
-                          {formatRelativeExpiry(market.expiryTime)}
-                        </p>
-                      </div>
-                      <span className="font-mono text-[8px] uppercase tracking-[0.18em] text-emerald-400/60 bg-emerald-400/10 border border-emerald-400/15 rounded-full px-2.5 py-1">
-                        {market.status}
-                      </span>
-                    </div>
-
-                    <h3 className="font-serif italic text-[20px] text-[#e8e4df] leading-[1.2] tracking-[-0.015em] mb-5">
-                      {market.title}
-                    </h3>
-
-                    <div className="flex flex-col gap-2.5 mb-5">
-                      {market.outcomes.slice(0, 3).map((outcome, index) => (
-                        <div key={outcome.label}>
-                          <div className="flex justify-between text-[12px] mb-1.5">
-                            <span className="text-white/50">{outcome.label}</span>
-                            <span className="font-mono text-white/50">{outcome.impliedShare}%</span>
-                          </div>
-                          <div className="h-8 rounded-lg bg-white/[0.03] border border-white/[0.05] overflow-hidden">
-                            <div
-                              className={`h-full flex items-center justify-between px-3 font-mono text-[8.5px] uppercase tracking-[0.12em] ${toneBg(index)}`}
-                              style={{ width: `${Math.max(outcome.impliedShare, 8)}%` }}
-                            >
-                              <span>Trade</span>
-                              <ArrowRight className="w-2.5 h-2.5" />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-white/[0.06]">
-                      <span className="flex items-center gap-1.5 font-mono text-[10px] text-white/25">
-                        <TrendingUp className="w-3 h-3" />
-                        {formatTokenAmount(
-                          market.totalLiquidity,
-                          market.collateralSymbol === 'USDC' ? 6 : 18,
-                          market.collateralSymbol,
-                        )}
-                      </span>
-                      <Link
-                        href={`/markets/${market.marketId}`}
-                        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white/35 transition-colors hover:text-white/70"
-                      >
-                        View
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
-                  </motion.article>
-                ))
-              : null}
-
-            {!marketsLoading && !isMarketsError && featuredMarkets.length === 0 ? (
-              <div className="rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-8 text-sm text-white/35 lg:col-span-3">
-                No markets are live yet. The landing page will surface new listings here as soon as
-                they are created.
+          <div className="grid gap-8">
+            {[
+              { label: 'Institutional Hedging', icon: TrendingUp, detail: 'Hedge portfolio risk without revealing your exact exposure levels to the market.' },
+              { label: 'Global Macro Analysis', icon: Globe, detail: 'Place directional bets on macro-economic shifts with total position security.' },
+              { label: 'Corporate Intelligence', icon: Search, detail: 'Analyze industry outcomes while maintaining strategic strategic privacy.' }
+            ].map((useCase) => (
+              <div key={useCase.label} className="flex gap-8 p-8 rounded-2xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all group">
+                <div className="shrink-0 w-14 h-14 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center group-hover:text-primary transition-colors">
+                  <useCase.icon className="h-6 w-6" />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-lg font-bold text-white/90">{useCase.label}</p>
+                  <p className="text-sm text-white/30 font-light leading-relaxed">{useCase.detail}</p>
+                </div>
               </div>
-            ) : null}
-          </motion.div>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative">
+          <div className="relative rounded-[40px] p-12 border border-white/10 bg-black overflow-hidden shadow-2xl space-y-12">
+            <div className="flex items-center justify-between px-2">
+              <div className="space-y-2">
+                <p className="text-[11px] font-mono text-white/30 uppercase tracking-[0.4em]">Active Intelligence Feed</p>
+                <h4 className="text-2xl font-bold text-white italic font-serif tracking-tight">Market Skew Analysis</h4>
+              </div>
+              <div className="flex -space-x-2">
+                {[1, 2, 3].map(i => <div key={i} className="w-10 h-10 rounded-full border-2 border-black bg-white/10" />)}
+              </div>
+            </div>
+
+            <div className="space-y-10">
+              {[
+                { label: 'ECB Rate Decision', vol: '$4.2M', skew: 62 },
+                { label: 'US Election Finality', vol: '$12.4M', skew: 48 },
+                { label: 'BTC ETF Net Flows', vol: '$1.8M', skew: 72 }
+              ].map((item) => (
+                <div key={item.label} className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <p className="text-base font-bold text-white/60">{item.label}</p>
+                    <p className="text-[12px] font-mono text-white/30">{item.vol} Volume</p>
+                  </div>
+                  <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary/80" style={{ width: `${item.skew}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-8 flex justify-center">
+              <Link href="/dashboard" className="text-[11px] font-mono text-primary uppercase tracking-[0.5em] font-bold hover:text-white transition-colors flex items-center gap-3">
+                View Full Feed <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section className="relative z-10 border-t border-white/[0.07]">
-        <div className="py-16 lg:py-24">
-          <div className="rounded-[28px] border border-[#e8533a]/20 bg-[#e8533a]/[0.02] p-10 lg:p-16 text-center relative overflow-hidden">
-            <div
-              className="pointer-events-none absolute inset-0 rounded-[28px]"
-              style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(232,83,58,0.12) 0%, transparent 65%)' }}
-            />
-            <p className="relative font-mono text-[9px] uppercase tracking-[0.26em] text-[#e8533a] mb-5">Ready to trade</p>
-            <h2 className="relative font-serif italic text-[40px] lg:text-[58px] tracking-[-0.035em] text-[#e8e4df] leading-[1.0] mb-5">
-              Your positions.<br />Your secret.
+      <section className="py-2">
+        <div className="rounded-[64px] p-32 lg:p-16 text-center space-y-16 relative overflow-hidden border border-white/10 bg-black shadow-2xl">
+          <div className="relative space-y-8">
+            <h2 className="text-4xl lg:text-6xl font-serif italic text-white tracking-tight leading-[0.85]">
+              The future of finance<br />
+              <span className="font-sans font-light not-italic text-white/5">is dark.</span>
             </h2>
-            <p className="relative text-[16px] leading-[1.85] text-white/40 font-light mx-auto mb-10">
-              Join the only prediction market where the protocol itself cannot see your strategy.
+            <p className="text-xl text-white/40 max-w-2xl mx-auto font-light leading-relaxed">
+              Join the institutional-grade prediction infrastructure built for the next era of decentralized finance.
             </p>
-            <Link
-              href="/dashboard"
-              className="relative inline-flex items-center gap-2 bg-[#e8533a] text-white text-[15px] font-medium px-8 py-4 rounded-xl hover:bg-[#d44830] transition-all hover:-translate-y-0.5 shadow-[0_12px_40px_rgba(232,83,58,0.35)]"
-            >
-              Enter CipherMarket <ArrowRight className="w-4 h-4" />
+          </div>
+
+          <div className="relative flex justify-center gap-8">
+            <Link href="/dashboard">
+              <Button size="md" className="h-16 px-12 gap-4">
+                Access Markets
+                <ArrowRight className="h-6 w-6" />
+              </Button>
             </Link>
           </div>
         </div>
       </section>
-
     </div>
   );
 }

@@ -11,12 +11,17 @@ export interface RedeemSharesReceipt {
   amount: string;
 }
 
+import useTransactionLifecycle from '@/hooks/useTransactionLifecycle';
+import usePendingTransactions from '@/hooks/usePendingTransactions';
+import type { TransactionLifecycleState } from '@/hooks/useTransactionLifecycle';
+
 export interface UseRedeemSharesResult {
-  data: RedeemSharesReceipt | null;
+  state: TransactionLifecycleState;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
   redeemShares: (marketId: number, amount: bigint, symbol: string, decimals: number) => Promise<void>;
+  reset: () => void;
 }
 
 export default function useRedeemShares(): UseRedeemSharesResult {
@@ -25,9 +30,8 @@ export default function useRedeemShares(): UseRedeemSharesResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
-  const [data, setData] = useState<RedeemSharesReceipt | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const lifecycle = useTransactionLifecycle();
+  const { addTransaction, updateTransaction } = usePendingTransactions();
 
   const redeemShares = async (
     marketId: number,
@@ -35,6 +39,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
     symbol: string,
     decimals: number,
   ): Promise<void> => {
+    let pendingTxId: string | null = null;
     try {
       const addresses = getContractAddresses(chainId);
       const predictionMarketAddress = addresses?.predictionMarket;
@@ -47,8 +52,21 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         throw new Error('Public client is not available.');
       }
 
-      setError(null);
-      setIsLoading(true);
+      lifecycle.reset();
+      lifecycle.setStage('preparing');
+
+      pendingTxId = addTransaction({
+        type: 'redeem',
+        stage: 'preparing',
+        txHash: null,
+        marketId,
+        amount: formatUnits(amount, decimals),
+        collateralSymbol: symbol,
+      });
+
+      // 1. Request Decrypt
+      lifecycle.setStage('awaiting_wallet');
+      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
       const requestHash = await writeContractAsync({
         address: predictionMarketAddress,
@@ -58,12 +76,22 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         gas: DECRYPT_REQUEST_GAS,
       });
 
+      lifecycle.setTxHash(requestHash);
+      lifecycle.setStage('encrypting');
+      updateTransaction(pendingTxId, { stage: 'confirming', txHash: requestHash });
+
       const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
       if (requestReceipt.status !== 'success') {
         throw new Error('The redeem-position decrypt request did not complete successfully.');
       }
 
+      // 2. Wait for Coprocessor (12s)
+      lifecycle.setStage('confirming');
       await new Promise((resolve) => window.setTimeout(resolve, 12_000));
+
+      // 3. Redeem Transaction
+      lifecycle.setStage('awaiting_wallet');
+      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
@@ -73,17 +101,22 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         gas: REDEEM_SHARES_GAS,
       });
 
+      lifecycle.setTxHash(hash);
+      lifecycle.setStage('confirming');
+      updateTransaction(pendingTxId, { stage: 'confirming', txHash: hash });
+
       const redeemReceipt = await publicClient.waitForTransactionReceipt({ hash });
       if (redeemReceipt.status !== 'success') {
         throw new Error('The redeem transaction reverted before completion.');
       }
 
-      const formattedAmount = `${formatUnits(amount, decimals)} ${symbol}`;
-      setData({
-        txHash: hash,
-        amount: formattedAmount,
-      });
-      toast.success(`Redeemed ${formattedAmount}.`);
+      lifecycle.setStage('settling');
+      updateTransaction(pendingTxId, { stage: 'settling' });
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      lifecycle.setStage('success');
+      updateTransaction(pendingTxId, { stage: 'success' });
+      toast.success(`Redeemed ${formatUnits(amount, decimals)} ${symbol}.`);
     } catch (caughtError) {
       console.error('CipherMarket redeem shares failed:', caughtError);
       const nextError =
@@ -91,18 +124,20 @@ export default function useRedeemShares(): UseRedeemSharesResult {
           ? new Error(formatContractError(caughtError))
           : new Error('Unable to redeem shares.');
 
-      setError(nextError);
+      lifecycle.setError(nextError);
+      if (pendingTxId) {
+        updateTransaction(pendingTxId, { stage: 'error', errorMessage: nextError.message });
+      }
       toast.error(nextError.message);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return {
-    data,
-    isLoading,
-    isError: error !== null,
-    error,
+    state: lifecycle.state,
+    isLoading: lifecycle.isLoading,
+    isError: lifecycle.isError,
+    error: lifecycle.state.error,
     redeemShares,
+    reset: lifecycle.reset,
   };
 }

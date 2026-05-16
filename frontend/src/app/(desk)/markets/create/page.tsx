@@ -16,7 +16,7 @@ export default function Page(): JSX.Element {
       </header> */}
 
       <main>
-        <div className="max-w-5xl space-y-3">
+        <div className="space-y-3">
           <CreateMarketForm />
         </div>
       </main>

@@ -48,6 +48,14 @@ const BetModal = dynamic(() => import('@/components/betting/BetModal'), {
   ssr: false,
 });
 
+const RedeemModal = dynamic(() => import('@/components/betting/RedeemModal'), {
+  ssr: false,
+});
+
+const MarketAnalytics = dynamic(() => import('@/components/betting/MarketAnalytics'), {
+  ssr: false,
+});
+
 function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Element {
   const chainId = useChainId();
   const { address } = useAccount();
@@ -55,6 +63,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const [selectedOutcomeId, setSelectedOutcomeId] = useState<string>('0');
   const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
   const [isModalOpen, setModalOpen] = useState<boolean>(false);
+  const [isRedeemModalOpen, setRedeemModalOpen] = useState<boolean>(false);
   const [isPortfolioVisible, setPortfolioVisible] = useState<boolean>(false);
   const [disputeAmount, setDisputeAmount] = useState<string>('0.01');
   const [disputeOutcomeId, setDisputeOutcomeId] = useState<string>('0');
@@ -159,17 +168,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     selectedOutcomeId,
   ]);
 
-  const handleRedeem = async (): Promise<void> => {
-    if (!data) {
-      return;
-    }
-
-    await redeemMutation.redeemShares(
-      data.marketId,
-      revealedWinningShares,
-      data.collateralSymbol,
-      collateralDecimals,
-    );
+  const handleRedeem = (): void => {
+    setRedeemModalOpen(true);
   };
 
   const handleResolveDispute = async (): Promise<void> => {
@@ -613,6 +613,11 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
           <div className="grid gap-8 xl:grid-cols-[1fr,400px]">
             <div className="space-y-8">
+              <MarketAnalytics 
+                outcomes={enrichedOutcomes} 
+                totalLiquidity={data.totalLiquidity} 
+                collateralSymbol={data.collateralSymbol} 
+              />
               <PoolDisplay pools={data.pools} />
 
               <div className="glass-card space-y-6 rounded-3xl p-8">
@@ -937,17 +942,13 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
                   <Button
                     className="w-full gap-2"
-                    disabled={!isPortfolioVisible || revealedWinningShares === 0n || redeemMutation.isLoading}
-                    onClick={() => void handleRedeem()}
+                    disabled={!isPortfolioVisible || revealedWinningShares === 0n}
+                    onClick={handleRedeem}
                     type="button"
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    {redeemMutation.isLoading ? 'Processing claim...' : 'Redeem Winning Shares'}
+                    Redeem Winning Shares
                   </Button>
-
-                  {redeemMutation.isError && redeemMutation.error ? (
-                    <p className="text-xs text-destructive">{redeemMutation.error.message}</p>
-                  ) : null}
                 </div>
               ) : null}
             </aside>
@@ -965,6 +966,18 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               outcome={selectedOutcome}
               side={tradeSide}
               userShares={isPortfolioVisible ? (selectedOutcome.revealedShares ?? undefined) : undefined}
+            />
+          ) : null}
+
+          {data ? (
+            <RedeemModal
+              marketId={data.marketId}
+              marketTitle={data.title}
+              winningShares={revealedWinningShares}
+              collateralSymbol={data.collateralSymbol}
+              collateralDecimals={collateralDecimals}
+              open={isRedeemModalOpen}
+              onClose={() => setRedeemModalOpen(false)}
             />
           ) : null}
         </>

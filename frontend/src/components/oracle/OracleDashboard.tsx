@@ -45,7 +45,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
   };
 
   return (
-    <section className={clsx("space-y-8", className)}>
+    <section className={clsx("space-y-8 mt-20", className)}>
       <div className="grid gap-8 xl:grid-cols-[1fr,400px]">
         <div className="space-y-8">
           {/* Main Registry Card */}

@@ -7,6 +7,8 @@ import { Toaster } from 'sonner';
 import LandingNav from '@/components/layout/LandingNav';
 import LandingFooter from '@/components/layout/LandingFooter';
 import FloatingNav from '@/components/layout/FloatingNav';
+import PendingTransactionPanel from '@/components/layout/PendingTransactionPanel';
+import MouseFollowGlow from '@/components/ui/MouseFollowGlow';
 import '@/app/globals.css';
 
 const Providers = dynamic(() => import('@/app/providers'), {
@@ -30,32 +32,23 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="overflow-x-hidden bg-background font-[family-name:var(--font-geist-sans)] text-foreground antialiased min-h-screen">
-        {/* Noise overlay */}
-        <div
-          className="pointer-events-none fixed inset-0 z-0 opacity-[0.035]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-            backgroundSize: '200px 200px',
-          }}
-        />
+        {/* Deep Space Background System */}
+        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-black" />
 
-        {/* Top hairline */}
-        <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[900px] h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent z-10" />
+        <MouseFollowGlow />
 
-        {/* Accent glow */}
-        <div
-          className="pointer-events-none fixed -top-40 -left-20 w-[600px] h-[600px] rounded-full z-0"
-          style={{ background: 'radial-gradient(circle, rgba(232,83,58,0.07) 0%, transparent 70%)' }}
-        />
+        {/* Top hairline glow */}
+        <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[1200px] h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent z-10" />
 
         <Providers>
           <div className="relative flex min-h-screen flex-col">
             <LandingNav />
-            <main className="flex-1">
+            <main className="flex-1 relative z-10">
               {children}
             </main>
             <LandingFooter />
             <FloatingNav />
+            <PendingTransactionPanel />
           </div>
         </Providers>
         <Toaster
