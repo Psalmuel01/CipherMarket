@@ -148,7 +148,7 @@ export default function TransactionFlow({
                 <Info className="h-4 w-4 text-white/20 mt-0.5" />
                 <div className="space-y-1">
                   <p className="text-[11px] font-semibold text-white/40 uppercase tracking-[0.1em]">
-                    What's happening
+                    What&apos;s happening
                   </p>
                   <p className="text-[12px] text-white/25 leading-relaxed">
                     {info.description}

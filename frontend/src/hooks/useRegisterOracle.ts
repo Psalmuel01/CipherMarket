@@ -9,6 +9,7 @@ import {
   getContractAddresses,
   ORACLE_REGISTRY_ABI,
 } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
 
 export interface RegisterOracleReceipt {
   txHash: string;
@@ -49,12 +50,14 @@ export default function useRegisterOracle(): UseRegisterOracleResult {
 
       setError(null);
       setIsLoading(true);
+      const gasFees = await getBufferedGasFees(publicClient);
 
       const hash = await writeContractAsync({
         address: oracleRegistryAddress,
         abi: ORACLE_REGISTRY_ABI,
         functionName: 'register',
         value: stakeAmount,
+        ...gasFees,
       });
 
       await publicClient.waitForTransactionReceipt({ hash });

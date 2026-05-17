@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { parseUnits } from 'viem';
-import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
+import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getBufferedContractGas, getBufferedGasFees, requireBufferedContractGas } from '@/lib/gas';
 import type { TradeDraft } from '@/types/market';
 
 import useTransactionLifecycle from '@/hooks/useTransactionLifecycle';
@@ -21,9 +22,10 @@ export interface UseSellSharesResult {
 }
 
 export default function useSellShares(): UseSellSharesResult {
-  const DECRYPT_REQUEST_GAS = 300_000n;
-  const SELL_SHARES_GAS = 900_000n;
+  const DECRYPT_REQUEST_GAS = 1_000_000n;
+  const SELL_SHARES_GAS = 1_800_000n;
   const chainId = useChainId();
+  const { address } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const lifecycle = useTransactionLifecycle();
@@ -41,6 +43,10 @@ export default function useSellShares(): UseSellSharesResult {
 
       if (!publicClient) {
         throw new Error('Public client is not available.');
+      }
+
+      if (!address) {
+        throw new Error('Connect your wallet before selling shares.');
       }
 
       const sharesIn = parseUnits(draft.amount || '0', draft.collateralDecimals);
@@ -66,12 +72,24 @@ export default function useSellShares(): UseSellSharesResult {
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
+      const requestGasFees = await getBufferedGasFees(publicClient);
+      const requestGas = await requireBufferedContractGas(
+        publicClient,
+        {
+          account: address,
+          address: predictionMarketAddress,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'requestSellPositionDecrypt',
+          args: [BigInt(draft.marketId), Number.parseInt(draft.outcomeId, 10)],
+        },
+      );
       const requestHash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'requestSellPositionDecrypt',
         args: [BigInt(draft.marketId), Number.parseInt(draft.outcomeId, 10)],
-        gas: DECRYPT_REQUEST_GAS,
+        gas: requestGas,
+        ...requestGasFees,
       });
 
       lifecycle.setTxHash(requestHash);
@@ -80,7 +98,7 @@ export default function useSellShares(): UseSellSharesResult {
 
       const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
       if (requestReceipt.status !== 'success') {
-        throw new Error('The sell-position decrypt request did not complete successfully.');
+        throw new Error('The sell-position decrypt request reverted after submission.');
       }
 
       // 2. Wait for Coprocessor (12s)
@@ -91,6 +109,23 @@ export default function useSellShares(): UseSellSharesResult {
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
+      const sellGasFees = await getBufferedGasFees(publicClient);
+      const sellGas = await getBufferedContractGas(
+        publicClient,
+        {
+          account: address,
+          address: predictionMarketAddress,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'sellShares',
+          args: [
+            BigInt(draft.marketId),
+            Number.parseInt(draft.outcomeId, 10),
+            sharesIn,
+            draft.minAmountOut ?? 0n,
+          ],
+        },
+        SELL_SHARES_GAS,
+      );
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
@@ -101,7 +136,8 @@ export default function useSellShares(): UseSellSharesResult {
           sharesIn,
           draft.minAmountOut ?? 0n,
         ],
-        gas: SELL_SHARES_GAS,
+        gas: sellGas,
+        ...sellGasFees,
       });
 
       lifecycle.setTxHash(hash);

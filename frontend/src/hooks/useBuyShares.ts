@@ -10,6 +10,7 @@ import {
   getContractAddresses,
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
 import type { TradeDraft } from '@/types/market';
 
 import useTransactionLifecycle from '@/hooks/useTransactionLifecycle';
@@ -71,11 +72,13 @@ export default function useBuyShares(): UseBuySharesResult {
         lifecycle.setStage('approving');
         updateTransaction(pendingTxId, { stage: 'approving' });
 
+        const approvalGasFees = await getBufferedGasFees(publicClient);
         const approvalHash = await writeContractAsync({
           address: draft.collateralToken,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [predictionMarketAddress, collateralAmount],
+          ...approvalGasFees,
         });
 
         await publicClient.waitForTransactionReceipt({ hash: approvalHash });
@@ -85,6 +88,7 @@ export default function useBuyShares(): UseBuySharesResult {
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
+      const buyGasFees = await getBufferedGasFees(publicClient);
       const buyHash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
@@ -96,6 +100,7 @@ export default function useBuyShares(): UseBuySharesResult {
           draft.minAmountOut ?? 0n,
         ],
         value: draft.collateralToken.toLowerCase() === zeroAddress ? collateralAmount : 0n,
+        ...buyGasFees,
       });
 
       lifecycle.setTxHash(buyHash);

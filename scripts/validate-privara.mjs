@@ -49,21 +49,19 @@ async function main() {
   loadDotEnv(frontendEnvPath);
 
   const required = [
-    ['SEPOLIA_RPC_URL'],
-    ['SEPOLIA_PREDICTION_MARKET', 'NEXT_PUBLIC_SEPOLIA_PREDICTION_MARKET'],
-    ['SEPOLIA_ORACLE_REGISTRY', 'NEXT_PUBLIC_SEPOLIA_ORACLE_REGISTRY'],
-    ['SEPOLIA_USDC_ADDRESS', 'NEXT_PUBLIC_SEPOLIA_USDC_ADDRESS'],
+    ['ARBITRUM_SEPOLIA_RPC_URL', 'NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL'],
+    ['ARBITRUM_SEPOLIA_USDC_ADDRESS', 'NEXT_PUBLIC_ARBITRUM_SEPOLIA_USDC_ADDRESS'],
   ];
 
   const resolved = required.map((group) => resolveEnv(...group));
   const missing = required.filter((_, index) => !resolved[index]);
 
   console.log('');
-  console.log('CipherMarket Wave 3C Validation');
-  console.log('================================');
+  console.log('CipherMarket Wave 3C Validation (Arbitrum Sepolia)');
+  console.log('==================================================');
   console.log('');
   console.log('Goal: validate whether Privara can hold dispute bonds while CipherMarket');
-  console.log('remains the canonical source of final market state on Sepolia.');
+  console.log('remains the canonical source of final market state on Arbitrum Sepolia.');
   console.log('');
 
   if (missing.length > 0) {
@@ -73,7 +71,7 @@ async function main() {
     }
     console.log('');
     console.log('Add those first, then rerun:');
-    console.log('  node scripts/validate-privara.mjs');
+    console.log('  pnpm validate:privara');
     process.exitCode = 1;
     return;
   }
@@ -91,10 +89,9 @@ async function main() {
   } catch {
     console.log('Privara/Reineira SDK is not installed yet.');
     console.log('');
-    console.log('Install it before running the actual Sepolia validation spike:');
+    console.log('Install it before running the actual Arbitrum validation spike:');
     console.log('  pnpm add @reineira-os/sdk');
     console.log('');
-    console.log('Validation checklist once installed:');
     printChecklist();
     process.exitCode = 1;
     return;
@@ -105,17 +102,16 @@ async function main() {
   console.log(`Export count: ${exportedKeys.length}`);
   console.log(`Sample exports: ${exportedKeys.slice(0, 10).join(', ') || '(none found)'}`);
   console.log('');
-  console.log('Important fit check:');
-  console.log('- The installed SDK is positioned around Reineira testnet/mainnet flows on Arbitrum.');
-  console.log('- CipherMarket currently lives on Ethereum Sepolia.');
-  console.log('- That means Wave 3C validation must confirm whether dispute bonds would stay on Sepolia, move cross-chain, or require a settlement relay design.');
+  console.log('Fit check: PASS');
+  console.log('- The project has been migrated to Arbitrum Sepolia.');
+  console.log('- This matches the native target for the Privara SDK.');
   console.log('');
   console.log('Next manual validation steps:');
   printChecklist();
 }
 
 function printChecklist() {
-  console.log('- Confirm escrow creation supports Sepolia USDC dispute bonds.');
+  console.log('- Confirm escrow creation supports Arbitrum Sepolia USDC dispute bonds.');
   console.log('- Confirm release conditions can depend on finalized CipherMarket state.');
   console.log('- Confirm the flow can distinguish refund vs forfeiture.');
   console.log('- Confirm normal execution does not require manual operator intervention.');

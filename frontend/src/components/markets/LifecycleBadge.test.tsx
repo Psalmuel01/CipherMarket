@@ -5,6 +5,6 @@ describe('LifecycleBadge', () => {
   it('shows the provided lifecycle status', () => {
     render(<LifecycleBadge status="ACTIVE" />);
 
-    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+    expect(screen.getByText('ACTIVE')).not.toBeNull();
   });
 });

@@ -7,6 +7,7 @@ export interface ModalProps {
   open: boolean;
   title: string;
   description?: string;
+  size?: 'md' | 'lg';
   onClose: () => void;
   children: ReactNode;
 }
@@ -16,8 +17,11 @@ export default function Modal({
   description,
   onClose,
   open,
+  size = 'lg',
   title,
 }: ModalProps): JSX.Element {
+  const maxWidthClass = size === 'md' ? 'max-w-xl' : 'max-w-2xl';
+
   return (
     <AnimatePresence>
       {open ? (
@@ -29,7 +33,7 @@ export default function Modal({
           onClick={onClose}
         >
           <motion.div
-            className="w-full max-w-2xl rounded-2xl border border-line bg-panel p-6 shadow-panel backdrop-blur-[12px]"
+            className={`w-full ${maxWidthClass} rounded-2xl border border-line bg-panel p-6 shadow-panel backdrop-blur-[12px]`}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
@@ -56,4 +60,3 @@ export default function Modal({
     </AnimatePresence>
   );
 }
-

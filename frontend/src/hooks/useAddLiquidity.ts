@@ -5,6 +5,7 @@ import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
 
 export interface AddLiquidityReceipt {
   txHash: string;
@@ -56,6 +57,7 @@ export default function useAddLiquidity(): UseAddLiquidityResult {
       setData(null);
       setError(null);
       setIsLoading(true);
+      const gasFees = await getBufferedGasFees(publicClient);
 
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
@@ -63,6 +65,7 @@ export default function useAddLiquidity(): UseAddLiquidityResult {
         functionName: 'addLiquidity',
         args: [BigInt(marketId), collateralAmount],
         value: isNative ? collateralAmount : 0n,
+        ...gasFees,
       });
 
       await publicClient.waitForTransactionReceipt({ hash });

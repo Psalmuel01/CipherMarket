@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
 
 export interface ResolveDisputeReceipt {
   txHash: string;
@@ -41,12 +42,14 @@ export default function useResolveDispute(): UseResolveDisputeResult {
       setData(null);
       setError(null);
       setIsLoading(true);
+      const gasFees = await getBufferedGasFees(publicClient);
 
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'resolveEscalated',
         args: [BigInt(marketId), finalOutcome],
+        ...gasFees,
       });
 
       await publicClient.waitForTransactionReceipt({ hash });

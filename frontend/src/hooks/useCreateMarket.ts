@@ -11,6 +11,7 @@ import {
   getContractAddresses,
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
 import type { CreateMarketDraft, MarketType } from '@/types/market';
 
 export interface CreateMarketReceipt {
@@ -102,17 +103,20 @@ export default function useCreateMarket(): UseCreateMarketResult {
       }
 
       if (draft.collateralToken !== zeroAddress) {
+        const approvalGasFees = await getBufferedGasFees(publicClient);
         const approvalHash = await writeContractAsync({
           address: draft.collateralToken,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [predictionMarketAddress, seedLiquidity],
+          ...approvalGasFees,
         });
 
         await publicClient.waitForTransactionReceipt({ hash: approvalHash });
       }
 
       const marketType: MarketType = draft.marketType;
+      const createGasFees = await getBufferedGasFees(publicClient);
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
@@ -131,6 +135,7 @@ export default function useCreateMarket(): UseCreateMarketResult {
         ],
         value: draft.collateralToken === zeroAddress ? seedLiquidity : 0n,
         gas: draft.collateralToken === zeroAddress ? 1_600_000n : 2_200_000n,
+        ...createGasFees,
       });
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash });

@@ -9,16 +9,22 @@ export interface ChainContractAddresses {
   usdc: Address | null;
 }
 
-export const SEPOLIA_CHAIN_ID = 11155111;
+// export const SEPOLIA_CHAIN_ID = 11155111;
+export const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
 export const NATIVE_ETH_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 export const DEFAULT_ORACLE_STAKE = 10n ** 18n;
 export const DEFAULT_DISPUTE_WINDOW_SECONDS = 24n * 60n * 60n;
 
 export const CONTRACT_ADDRESSES: Record<number, ChainContractAddresses> = {
-  [SEPOLIA_CHAIN_ID]: {
-    oracleRegistry: (process.env.NEXT_PUBLIC_SEPOLIA_ORACLE_REGISTRY as Address) ?? null,
-    predictionMarket: (process.env.NEXT_PUBLIC_SEPOLIA_PREDICTION_MARKET as Address) ?? null,
-    usdc: (process.env.NEXT_PUBLIC_SEPOLIA_USDC_ADDRESS as Address) ?? null,
+  // [SEPOLIA_CHAIN_ID]: {
+  //   oracleRegistry: (process.env.NEXT_PUBLIC_SEPOLIA_ORACLE_REGISTRY as Address) ?? null,
+  //   predictionMarket: (process.env.NEXT_PUBLIC_SEPOLIA_PREDICTION_MARKET as Address) ?? null,
+  //   usdc: (process.env.NEXT_PUBLIC_SEPOLIA_USDC_ADDRESS as Address) ?? null,
+  // },
+  [ARBITRUM_SEPOLIA_CHAIN_ID]: {
+    oracleRegistry: (process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_ORACLE_REGISTRY as Address) ?? null,
+    predictionMarket: (process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_PREDICTION_MARKET as Address) ?? null,
+    usdc: (process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_USDC_ADDRESS as Address) ?? null,
   },
 };
 
@@ -111,6 +117,11 @@ export function formatContractError(error: unknown): string {
 
   if (message.toLowerCase().includes('gas limit too high')) {
     return 'The network could not estimate gas for this action. Please retry; if it persists, the decrypt request may not be valid for this position yet.';
+  }
+
+  const viemRevertMatch = message.match(/reverted with the following reason:\s*([\s\S]*?)(?:\n|$)/i);
+  if (viemRevertMatch?.[1]) {
+    return viemRevertMatch[1].trim();
   }
 
   const revertMatch = message.match(/reverted with reason string ['"](.+?)['"]/i);

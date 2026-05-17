@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
 
 export interface ProposeOutcomeReceipt {
   txHash: string;
@@ -44,12 +45,14 @@ export default function useProposeOutcome(): UseProposeOutcomeResult {
 
       setError(null);
       setIsLoading(true);
+      const gasFees = await getBufferedGasFees(publicClient);
 
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'proposeOutcome',
         args: [BigInt(marketId), outcomeIndex],
+        ...gasFees,
       });
 
       await publicClient.waitForTransactionReceipt({ hash });

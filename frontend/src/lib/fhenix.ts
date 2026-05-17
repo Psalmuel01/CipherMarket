@@ -1,10 +1,10 @@
 import { createCofheConfig } from '@cofhe/react';
 import {
-  sepolia as cofheSepolia,
+  arbSepolia as cofheArbitrumSepolia,
 } from '@cofhe/sdk/chains';
 
 export const cofheConfig = createCofheConfig({
-  supportedChains: [cofheSepolia],
+  supportedChains: [cofheArbitrumSepolia],
   useWorkers: true,
   mocks: {
     decryptDelay: 0,

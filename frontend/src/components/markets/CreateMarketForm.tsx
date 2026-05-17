@@ -190,7 +190,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="rounded-[32px] p-20 text-center space-y-10 max-w-2xl mx-auto border border-primary/20 bg-[#050505] shadow-2xl"
+        className="mt-20 rounded-[32px] p-20 text-center space-y-10 max-w-2xl mx-auto border border-primary/20 bg-[#050505] shadow-2xl"
       >
         <div className="flex justify-center">
           <div className="relative">
@@ -200,7 +200,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
           </div>
         </div>
         <div className="space-y-3">
-          <h2 className="text-4xl font-serif italic text-white tracking-tight">Protocol Established</h2>
+          <h2 className="text-4xl font-serif italic text-white tracking-tight">Market Published</h2>
           <p className="text-white/40 font-light max-w-sm mx-auto leading-relaxed">
             Your privacy-sealed liquidity pool is now live on Fhenix.
             All trade data will be computed in the dark.
@@ -622,7 +622,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                     className="h-12 px-10 gap-3"
                   >
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
-                    <span>{isLoading ? 'Deploying...' : 'Establish Protocol'}</span>
+                    <span>{isLoading ? 'Publishing...' : 'Publish Market'}</span>
                   </Button>
                 </motion.div>
               ) : (

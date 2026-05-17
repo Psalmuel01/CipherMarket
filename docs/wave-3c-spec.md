@@ -4,7 +4,7 @@ Wave 3C is defined by the roadmap in [docs/roadmap.md](/Users/sam/Desktop/Fhenix
 
 ## Goal
 
-Move dispute bond custody out of `PredictionMarket` and into Privara-backed escrow when the integration assumptions are proven on Sepolia.
+Move dispute bond custody out of `PredictionMarket` and into Privara-backed escrow when the integration assumptions are proven on Arbitrum Sepolia.
 
 CipherMarket remains the on-chain source of truth for:
 
@@ -52,7 +52,7 @@ Privara only reacts to that result by releasing or routing funds.
 Wave 3C covers:
 
 - dispute bond escrow architecture
-- Sepolia validation of Privara condition expressiveness
+- Arbitrum Sepolia validation of Privara condition expressiveness
 - optional escrow-backed dispute flow
 - UI and indexing support for escrow status
 
@@ -68,7 +68,7 @@ Those remain in Wave 3A and Wave 3D.
 ## Locked Decisions
 
 - CipherMarket remains the canonical protocol state machine.
-- Privara integration is conditional until Sepolia validation passes.
+- Privara integration is conditional until Arbitrum Sepolia validation passes.
 - There must be a fallback path if Privara escrow is unavailable or validation fails.
 - Dispute bonds are the only custody target in Wave 3C.
 - LP capital and trader collateral stay outside Privara in this wave.
@@ -76,7 +76,7 @@ Those remain in Wave 3A and Wave 3D.
 
 ## Validation Questions
 
-Wave 3C should not begin full implementation until these are answered on Sepolia:
+Wave 3C should not begin full implementation until these are answered on Arbitrum Sepolia:
 
 1. Can Privara programmable conditions depend on a finalized CipherMarket state in a way we can trust operationally?
 2. Can the condition inspect enough state to distinguish:
@@ -91,7 +91,7 @@ Wave 3C should not begin full implementation until these are answered on Sepolia
 Wave 3C proceeds only if all of the following are true:
 
 - dispute refund vs forfeiture can be expressed against finalized CipherMarket state
-- escrow release can complete reliably on Sepolia
+- escrow release can complete reliably on Arbitrum Sepolia
 - the UX is not materially worse than the current native dispute flow
 - the fallback path is clearly defined and testable
 
@@ -261,7 +261,7 @@ This should build on the indexing work already called out in [docs/roadmap.md](/
 ### Validation tests
 
 - confirm Privara can express refund vs forfeiture against finalized CipherMarket state
-- confirm Sepolia escrow creation succeeds for the market collateral used in disputes
+- confirm Arbitrum Sepolia escrow creation succeeds for the market collateral used in disputes
 - confirm release path completes without manual intervention in the normal case
 
 ### Contract / integration tests
@@ -285,7 +285,7 @@ Wave 3C should start with a small validation milestone, not a full protocol refa
 
 Milestone 1:
 
-- produce a Sepolia validation script or prototype
+- produce an Arbitrum Sepolia validation script or prototype
 - confirm Privara condition expressiveness
 - confirm dispute escrow funding flow
 - write down pass/fail results

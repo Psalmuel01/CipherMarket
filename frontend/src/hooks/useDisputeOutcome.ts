@@ -5,6 +5,7 @@ import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
 
 export interface DisputeOutcomeReceipt {
   txHash: string;
@@ -58,6 +59,7 @@ export default function useDisputeOutcome(): UseDisputeOutcomeResult {
 
       setError(null);
       setIsLoading(true);
+      const gasFees = await getBufferedGasFees(publicClient);
 
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
@@ -65,6 +67,7 @@ export default function useDisputeOutcome(): UseDisputeOutcomeResult {
         functionName: 'openDispute',
         args: [BigInt(marketId), counterOutcomeIndex, stakeAmount],
         value: isNative ? stakeAmount : 0n,
+        ...gasFees,
       });
 
       await publicClient.waitForTransactionReceipt({ hash });

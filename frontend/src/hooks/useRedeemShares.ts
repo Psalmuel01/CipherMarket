@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { formatUnits } from 'viem';
-import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
+import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getBufferedContractGas, getBufferedGasFees, requireBufferedContractGas } from '@/lib/gas';
 
 export interface RedeemSharesReceipt {
   txHash: string;
@@ -25,9 +26,10 @@ export interface UseRedeemSharesResult {
 }
 
 export default function useRedeemShares(): UseRedeemSharesResult {
-  const DECRYPT_REQUEST_GAS = 300_000n;
-  const REDEEM_SHARES_GAS = 700_000n;
+  const DECRYPT_REQUEST_GAS = 1_000_000n;
+  const REDEEM_SHARES_GAS = 1_400_000n;
   const chainId = useChainId();
+  const { address } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const lifecycle = useTransactionLifecycle();
@@ -52,6 +54,10 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         throw new Error('Public client is not available.');
       }
 
+      if (!address) {
+        throw new Error('Connect your wallet before redeeming shares.');
+      }
+
       lifecycle.reset();
       lifecycle.setStage('preparing');
 
@@ -68,12 +74,24 @@ export default function useRedeemShares(): UseRedeemSharesResult {
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
+      const requestGasFees = await getBufferedGasFees(publicClient);
+      const requestGas = await requireBufferedContractGas(
+        publicClient,
+        {
+          account: address,
+          address: predictionMarketAddress,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'requestRedeemPositionDecrypt',
+          args: [BigInt(marketId)],
+        },
+      );
       const requestHash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'requestRedeemPositionDecrypt',
         args: [BigInt(marketId)],
-        gas: DECRYPT_REQUEST_GAS,
+        gas: requestGas,
+        ...requestGasFees,
       });
 
       lifecycle.setTxHash(requestHash);
@@ -82,7 +100,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
 
       const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
       if (requestReceipt.status !== 'success') {
-        throw new Error('The redeem-position decrypt request did not complete successfully.');
+        throw new Error('The redeem-position decrypt request reverted after submission.');
       }
 
       // 2. Wait for Coprocessor (12s)
@@ -93,12 +111,25 @@ export default function useRedeemShares(): UseRedeemSharesResult {
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
+      const redeemGasFees = await getBufferedGasFees(publicClient);
+      const redeemGas = await getBufferedContractGas(
+        publicClient,
+        {
+          account: address,
+          address: predictionMarketAddress,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'redeemShares',
+          args: [BigInt(marketId)],
+        },
+        REDEEM_SHARES_GAS,
+      );
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'redeemShares',
         args: [BigInt(marketId)],
-        gas: REDEEM_SHARES_GAS,
+        gas: redeemGas,
+        ...redeemGasFees,
       });
 
       lifecycle.setTxHash(hash);
