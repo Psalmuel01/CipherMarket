@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { parseUnits } from 'viem';
 import { toast } from 'sonner';
-import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
+import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
-import { getBufferedGasFees } from '@/lib/gas';
+import { getBufferedGasFees, requireBufferedContractGas } from '@/lib/gas';
 
 export interface AddLiquidityReceipt {
   txHash: string;
@@ -26,6 +26,7 @@ export interface UseAddLiquidityResult {
 
 export default function useAddLiquidity(): UseAddLiquidityResult {
   const chainId = useChainId();
+  const { address } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const [data, setData] = useState<AddLiquidityReceipt | null>(null);
@@ -49,6 +50,10 @@ export default function useAddLiquidity(): UseAddLiquidityResult {
         throw new Error('Public client is not available.');
       }
 
+      if (!address) {
+        throw new Error('Connect your wallet before adding liquidity.');
+      }
+
       const collateralAmount = parseUnits(amount || '0', decimals);
       if (collateralAmount <= 0n) {
         throw new Error('Enter a liquidity amount greater than zero.');
@@ -58,6 +63,14 @@ export default function useAddLiquidity(): UseAddLiquidityResult {
       setError(null);
       setIsLoading(true);
       const gasFees = await getBufferedGasFees(publicClient);
+      const gas = await requireBufferedContractGas(publicClient, {
+        account: address,
+        address: predictionMarketAddress,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: 'addLiquidity',
+        args: [BigInt(marketId), collateralAmount],
+        value: isNative ? collateralAmount : 0n,
+      });
 
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
@@ -65,10 +78,15 @@ export default function useAddLiquidity(): UseAddLiquidityResult {
         functionName: 'addLiquidity',
         args: [BigInt(marketId), collateralAmount],
         value: isNative ? collateralAmount : 0n,
+        gas,
         ...gasFees,
       });
 
-      await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status !== 'success') {
+        throw new Error('The add-liquidity transaction reverted before completion.');
+      }
+
       setData({ txHash: hash });
       toast.success('Liquidity added.');
     } catch (caughtError) {

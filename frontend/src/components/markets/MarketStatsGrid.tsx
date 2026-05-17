@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Database, TrendingUp, Users, Zap, ShieldCheck, Fingerprint } from 'lucide-react';
+import { Database, TrendingUp, Fingerprint, Activity, CheckCircle } from 'lucide-react';
 import useMarkets from '@/hooks/useMarkets';
 import { formatTokenAmount } from '@/lib/formatters';
 import clsx from 'clsx';
@@ -20,12 +20,12 @@ export default function MarketStatsGrid(): JSX.Element {
       description: 'Total Value Locked'
     },
     {
-      label: 'Privacy Nodes',
-      value: 124, 
-      icon: ShieldCheck,
+      label: 'Active Markets',
+      value: markets.filter(m => m.status === 'ACTIVE').length, 
+      icon: Activity,
       colorClass: 'text-white/40',
       glowClass: 'bg-white/10',
-      description: 'Active FHE Validators'
+      description: 'Open for trading'
     },
     {
       label: 'Aggregate Volume',
@@ -37,12 +37,12 @@ export default function MarketStatsGrid(): JSX.Element {
       description: 'Protocol volume'
     },
     {
-      label: 'Compute Proofs',
-      value: 128420, // Simulated
-      icon: Zap,
+      label: 'Resolved Markets',
+      value: markets.filter(m => m.status === 'FINALIZED').length,
+      icon: CheckCircle,
       colorClass: 'text-white/40',
       glowClass: 'bg-white/10',
-      description: 'FHE verifications'
+      description: 'Settled protocols'
     },
   ];
 

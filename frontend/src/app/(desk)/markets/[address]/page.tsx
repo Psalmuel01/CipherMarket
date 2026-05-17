@@ -14,12 +14,14 @@ import {
   Eye,
   EyeOff,
   Gavel,
+  Lock,
   Vote,
   ShieldCheck,
   Sparkles,
   TimerReset,
   Trophy,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import CofheBetProvider from '@/components/betting/CofheBetProvider';
 import OutcomeSelector from '@/components/betting/OutcomeSelector';
 import PoolDisplay from '@/components/betting/PoolDisplay';
@@ -36,6 +38,7 @@ import useRedeemShares from '@/hooks/useRedeemShares';
 import useRemoveLiquidity from '@/hooks/useRemoveLiquidity';
 import useResolveDispute from '@/hooks/useResolveDispute';
 import useVoteOnResolution from '@/hooks/useVoteOnResolution';
+import useOracleStatus from '@/hooks/useOracleStatus';
 import {
   formatAmount,
   formatDateTime,
@@ -43,6 +46,7 @@ import {
   truncateAddress,
 } from '@/lib/formatters';
 import { getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getOutcomeColor } from '@/lib/outcomeColors';
 
 const BetModal = dynamic(() => import('@/components/betting/BetModal'), {
   ssr: false,
@@ -55,6 +59,34 @@ const RedeemModal = dynamic(() => import('@/components/betting/RedeemModal'), {
 const MarketAnalytics = dynamic(() => import('@/components/betting/MarketAnalytics'), {
   ssr: false,
 });
+
+function DecryptingLoader(): JSX.Element {
+  const [text, setText] = useState('DECRYPTING...');
+
+  useEffect(() => {
+    const chars = '0123456789ABCDEF';
+    const interval = setInterval(() => {
+      let scrambled = '0x';
+      for (let i = 0; i < 8; i++) {
+        scrambled += chars[Math.floor(Math.random() * chars.length)];
+      }
+      setText(scrambled);
+    }, 60);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <span className="inline-flex items-center gap-2 text-primary/80 text-xs">
+      <motion.div
+        animate={{ rotate: [0, -10, 10, 0] }}
+        transition={{ duration: 0.5, repeat: Infinity }}
+      >
+        <Lock className="h-4 w-4" />
+      </motion.div>
+      <span className="font-mono tracking-widest">{text}</span>
+    </span>
+  );
+}
 
 function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Element {
   const chainId = useChainId();
@@ -85,6 +117,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const removeLiquidityMutation = useRemoveLiquidity();
   const resolveDisputeMutation = useResolveDispute();
   const voteOnResolutionMutation = useVoteOnResolution();
+  const { data: oracleStatus } = useOracleStatus();
+  const isOracle = oracleStatus?.isRegistered ?? false;
   const ownerQuery = useReadContract({
     address: addresses?.predictionMarket ?? undefined,
     abi: PREDICTION_MARKET_ABI,
@@ -203,7 +237,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
       data.myLpShares === 0n || data.totalLpShares === 0n
         ? 0n
         : (data.estimatedLpCollateralOut * lpSharesAmount * 95n) /
-          (data.myLpShares * 100n);
+        (data.myLpShares * 100n);
 
     await removeLiquidityMutation.removeLiquidity(
       data.marketId,
@@ -256,7 +290,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   Number.parseInt(selectedOutcomeId, 10),
                 )
               }
-              disabled={proposeOutcomeMutation.isLoading || !selectedOutcome}
+              disabled={proposeOutcomeMutation.isLoading || !selectedOutcome || !isOracle}
               type="button"
             >
               <ShieldCheck className="h-4 w-4" />
@@ -295,61 +329,63 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               {formatTokenAmount(data.resolutionQuorumStake, 18, 'ETH')}
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-foreground">Committee voting</p>
-                <p className="text-xs text-muted-foreground">
-                  Registered oracles can cast one open, stake-weighted vote during this window.
-                </p>
-              </div>
-              <div className="space-y-2">
-                {voteLeaderboard.map((outcome) => (
-                  <div
-                    key={outcome.id}
-                    className="flex items-center justify-between rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2"
-                  >
-                    <div>
-                      <p className="text-sm text-foreground">{outcome.label}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {formatTokenAmount(
-                          data.voteWeights[outcome.outcomeIndex] ?? 0n,
-                          18,
-                          'ETH vote weight',
-                        )}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="gap-2"
-                      disabled={voteOnResolutionMutation.isLoading || data.hasVotedOnResolution}
-                      onClick={() =>
-                        voteOnResolutionMutation.voteOnResolution(
-                          data.marketId,
-                          outcome.outcomeIndex,
-                        )
-                      }
-                      type="button"
+          <div className="grid gap-4 md:grid-cols-">
+            {data.disputeOpened && (
+              <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">Committee voting</p>
+                  <p className="text-xs text-muted-foreground">
+                    Registered oracles can cast one open, stake-weighted vote during this window.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {voteLeaderboard.map((outcome) => (
+                    <div
+                      key={outcome.id}
+                      className="flex items-center justify-between rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2"
                     >
-                      <Vote className="h-4 w-4" />
-                      {voteOnResolutionMutation.isLoading &&
-                      selectedOutcome?.outcomeIndex === outcome.outcomeIndex
-                        ? 'Voting...'
-                        : data.hasVotedOnResolution &&
+                      <div>
+                        <p className="text-sm text-foreground">{outcome.label}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {formatTokenAmount(
+                            data.voteWeights[outcome.outcomeIndex] ?? 0n,
+                            18,
+                            'ETH vote weight',
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="gap-2"
+                        disabled={voteOnResolutionMutation.isLoading || data.hasVotedOnResolution}
+                        onClick={() =>
+                          voteOnResolutionMutation.voteOnResolution(
+                            data.marketId,
+                            outcome.outcomeIndex,
+                          )
+                        }
+                        type="button"
+                      >
+                        <Vote className="h-4 w-4" />
+                        {voteOnResolutionMutation.isLoading &&
+                          selectedOutcome?.outcomeIndex === outcome.outcomeIndex
+                          ? 'Voting...'
+                          : data.hasVotedOnResolution &&
                             data.myVoteOutcomeIndex === outcome.outcomeIndex
-                          ? 'Voted'
-                          : 'Vote'}
-                    </Button>
-                  </div>
-                ))}
+                            ? 'Voted'
+                            : 'Vote'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                {data.hasVotedOnResolution ? (
+                  <p className="text-xs text-muted-foreground">
+                    Your vote weight snapshot:{' '}
+                    {formatTokenAmount(data.myVoteWeightSnapshot, 18, 'ETH')}
+                  </p>
+                ) : null}
               </div>
-              {data.hasVotedOnResolution ? (
-                <p className="text-xs text-muted-foreground">
-                  Your vote weight snapshot:{' '}
-                  {formatTokenAmount(data.myVoteWeightSnapshot, 18, 'ETH')}
-                </p>
-              ) : null}
-            </div>
+            )}
             <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">Open dispute</p>
@@ -613,31 +649,12 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
           <div className="grid gap-8 xl:grid-cols-[1fr,400px]">
             <div className="space-y-8">
-              <MarketAnalytics 
-                outcomes={enrichedOutcomes} 
-                totalLiquidity={data.totalLiquidity} 
-                collateralSymbol={data.collateralSymbol} 
+              <MarketAnalytics
+                outcomes={enrichedOutcomes}
+                totalLiquidity={data.totalLiquidity}
+                collateralSymbol={data.collateralSymbol}
               />
               <PoolDisplay pools={data.pools} />
-
-              <div className="glass-card space-y-6 rounded-3xl p-8">
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                  <div className="flex items-center gap-3">
-                    <Activity className="h-5 w-5 text-primary" />
-                    <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
-                      Outcome Board
-                    </h3>
-                  </div>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Pool prices are public
-                  </span>
-                </div>
-                <OutcomeSelector
-                  onSelect={setSelectedOutcomeId}
-                  outcomes={enrichedOutcomes}
-                  selectedOutcomeId={selectedOutcome?.id ?? '0'}
-                />
-              </div>
 
               <div className="glass-card space-y-6 rounded-3xl p-8">
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
@@ -666,32 +683,47 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 ) : null}
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  {enrichedOutcomes.map((outcome) => (
-                    <div
-                      key={outcome.id}
-                      className="rounded-2xl border border-white/5 bg-white/[0.03] p-4"
-                    >
-                      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                        {outcome.label}
-                      </p>
-                      <p className="mt-2 font-mono text-xl text-foreground">
-                        {!isPortfolioVisible
-                          ? '••••'
-                          : privatePositions.isLoading
-                            ? 'Decrypting...'
-                            : formatTokenAmount(
-                              outcome.revealedShares ?? 0n,
-                              collateralDecimals,
-                              'shares',
-                            )}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {!isPortfolioVisible
-                          ? 'Hidden until you reveal locally.'
-                          : 'Local decrypt only, nothing is added onchain.'}
-                      </p>
-                    </div>
-                  ))}
+                  {enrichedOutcomes.map((outcome) => {
+                    const color = getOutcomeColor(outcome.outcomeIndex);
+
+                    return (
+                      <div
+                        key={outcome.id}
+                        className="rounded-2xl border p-4"
+                        style={{
+                          background: `linear-gradient(135deg, ${color.softBackground}, rgba(255, 255, 255, 0.025))`,
+                          borderColor: color.border,
+                        }}
+                      >
+                        <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{
+                              backgroundColor: color.hex,
+                              boxShadow: `0 0 12px ${color.shadow}`,
+                            }}
+                          />
+                          {outcome.label}
+                        </p>
+                        <p className="mt-2 font-mono text-xl text-foreground">
+                          {!isPortfolioVisible
+                            ? '••••'
+                            : privatePositions.isLoading
+                              ? <DecryptingLoader />
+                              : formatTokenAmount(
+                                outcome.revealedShares ?? 0n,
+                                collateralDecimals,
+                                'shares',
+                              )}
+                        </p>
+                        {/* <p className="mt-1 text-xs text-muted-foreground">
+                          {!isPortfolioVisible
+                            ? 'Hidden until you reveal locally.'
+                            : 'Local decrypt only, nothing is added onchain.'}
+                        </p> */}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -840,6 +872,24 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             </div>
 
             <aside className="space-y-6">
+              <div className="glass-card space-y-6 rounded-3xl p-8">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <div className="flex items-center gap-3">
+                    <Activity className="h-5 w-5 text-primary" />
+                    <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
+                      Outcome Board
+                    </h3>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Pool prices are public
+                  </span>
+                </div>
+                <OutcomeSelector
+                  onSelect={setSelectedOutcomeId}
+                  outcomes={enrichedOutcomes}
+                  selectedOutcomeId={selectedOutcome?.id ?? '0'}
+                />
+              </div>
 
               <div className="glass-card space-y-6 rounded-3xl p-8">
                 <div className="flex items-center justify-between">
@@ -935,7 +985,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                       {!isPortfolioVisible
                         ? '••••'
                         : privatePositions.isLoading
-                          ? 'Decrypting...'
+                          ? <DecryptingLoader />
                           : formatTokenAmount(revealedWinningShares, collateralDecimals, data.collateralSymbol)}
                     </p>
                   </div>

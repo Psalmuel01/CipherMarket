@@ -3,8 +3,8 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, BarChart3, Info, AlertCircle } from 'lucide-react';
-import clsx from 'clsx';
 import type { MarketOutcome } from '@/types/market';
+import { getOutcomeColor } from '@/lib/outcomeColors';
 
 export interface MarketAnalyticsProps {
   outcomes: MarketOutcome[];
@@ -51,33 +51,66 @@ export default function MarketAnalytics({
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-white/40">Probability Distribution</p>
               <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-primary" />
+                <div className="flex -space-x-1">
+                  {outcomes.slice(0, 4).map((outcome) => {
+                    const color = getOutcomeColor(outcome.outcomeIndex);
+                    return (
+                      <div
+                        key={outcome.id}
+                        className="h-2 w-2 rounded-full border border-[#05070b]"
+                        style={{ backgroundColor: color.hex }}
+                      />
+                    );
+                  })}
+                </div>
                 <span className="text-[10px] text-white/20 uppercase tracking-widest font-mono">Current Implied</span>
               </div>
             </div>
 
             <div className="space-y-5">
-              {outcomes.map((outcome, i) => (
-                <div key={outcome.id} className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <span className="text-sm font-semibold text-[#e8e4df]">{outcome.label}</span>
-                    <span className="font-mono text-lg text-white font-bold">{outcome.impliedShare}%</span>
-                  </div>
-                  <div className="h-3 w-full rounded-full bg-white/5 p-[2px] border border-white/5">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${outcome.impliedShare}%` }}
-                      transition={{ duration: 1.5, ease: "circOut" }}
-                      className={clsx(
-                        "h-full rounded-full relative overflow-hidden",
-                        i === 0 ? "bg-primary" : "bg-white/20"
-                      )}
+              {outcomes.map((outcome) => {
+                const color = getOutcomeColor(outcome.outcomeIndex);
+
+                return (
+                  <div key={outcome.id} className="space-y-2">
+                    <div className="flex justify-between items-end">
+                      <span className="flex items-center gap-2 text-sm font-semibold text-[#e8e4df]">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{
+                            backgroundColor: color.hex,
+                            boxShadow: `0 0 14px ${color.shadow}`,
+                          }}
+                        />
+                        {outcome.label}
+                      </span>
+                      <span className="font-mono text-lg font-bold" style={{ color: color.text }}>
+                        {outcome.impliedShare}%
+                      </span>
+                    </div>
+                    <div
+                      className="h-3 w-full rounded-full p-[2px]"
+                      style={{
+                        backgroundColor: color.softBackground,
+                        border: `1px solid ${color.border}`,
+                      }}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-                    </motion.div>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${outcome.impliedShare}%` }}
+                        transition={{ duration: 1.5, ease: "circOut" }}
+                        className="h-full rounded-full relative overflow-hidden"
+                        style={{
+                          background: `linear-gradient(90deg, rgba(${color.rgb}, 0.72), ${color.hex})`,
+                          boxShadow: `0 0 18px ${color.shadow}`,
+                        }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                      </motion.div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

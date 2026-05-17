@@ -2,6 +2,7 @@ import { Activity, Info } from 'lucide-react';
 import type { PoolSnapshot } from '@/types/market';
 import clsx from 'clsx';
 import { formatAmount } from '@/lib/formatters';
+import { getOutcomeColor } from '@/lib/outcomeColors';
 
 export interface PoolDisplayProps {
   pools: PoolSnapshot[];
@@ -23,37 +24,60 @@ export default function PoolDisplay({ pools, className }: PoolDisplayProps): JSX
       </div>
 
       <div className="grid gap-6">
-        {pools.map((pool) => (
-          <div key={pool.outcomeId} className="space-y-3">
-            <div className="flex items-end justify-between">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Outcome
-                </p>
-                <p className="text-lg font-black text-foreground">{pool.label}</p>
-              </div>
-              <div className="text-right space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Reserve
-                </p>
-                <p className="text-lg font-black text-primary">
-                  {formatAmount(pool.reserve, pool.collateralSymbol === 'USDC' ? 6 : 18)}{' '}
-                  {pool.collateralSymbol}
-                </p>
-              </div>
-            </div>
+        {pools.map((pool, index) => {
+          const color = getOutcomeColor(index);
 
-            <div className="relative h-3 w-full overflow-hidden rounded-full bg-white/5">
+          return (
+            <div key={pool.outcomeId} className="space-y-3">
+              <div className="flex items-end justify-between">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    Outcome
+                  </p>
+                  <p className="flex items-center gap-2 text-lg font-black text-foreground">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{
+                        backgroundColor: color.hex,
+                        boxShadow: `0 0 14px ${color.shadow}`,
+                      }}
+                    />
+                    {pool.label}
+                  </p>
+                </div>
+                <div className="space-y-1 text-right">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    Reserve
+                  </p>
+                  <p className="text-lg font-black" style={{ color: color.text }}>
+                    {formatAmount(pool.reserve, pool.collateralSymbol === 'USDC' ? 6 : 18)}{' '}
+                    {pool.collateralSymbol}
+                  </p>
+                </div>
+              </div>
+
               <div
-                className="h-full rounded-full bg-primary transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(170,58,49,0.28)]"
-                style={{ width: `${Math.max(pool.percentage, 4)}%` }}
-              />
+                className="relative h-3 w-full overflow-hidden rounded-full"
+                style={{
+                  backgroundColor: color.softBackground,
+                  border: `1px solid ${color.border}`,
+                }}
+              >
+                <div
+                  className="h-full rounded-full transition-all duration-1000 ease-out"
+                  style={{
+                    width: `${Math.max(pool.percentage, 4)}%`,
+                    background: `linear-gradient(90deg, rgba(${color.rgb}, 0.74), ${color.hex})`,
+                    boxShadow: `0 0 16px ${color.shadow}`,
+                  }}
+                />
+              </div>
+              <p className="text-right text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                {pool.percentage}% implied probability
+              </p>
             </div>
-            <p className="text-right text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              {pool.percentage}% implied probability
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
