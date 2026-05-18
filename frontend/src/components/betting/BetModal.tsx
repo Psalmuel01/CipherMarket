@@ -2,13 +2,24 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpDown, CheckCircle2, ShieldCheck, Sparkles, XCircle, AlertTriangle } from 'lucide-react';
+import {
+  ArrowUpDown,
+  Sparkles,
+  ShieldCheck,
+  Ticket,
+  Info,
+  ChevronRight,
+  TrendingUp,
+  Coins
+} from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import PrivacyBadge from '@/components/ui/PrivacyBadge';
+import TransactionFlow from '@/components/betting/TransactionFlow';
 import useBuyShares from '@/hooks/useBuyShares';
 import useMarketQuote from '@/hooks/useMarketQuote';
 import useSellShares from '@/hooks/useSellShares';
-import { formatAmount, truncateAddress } from '@/lib/formatters';
+import { formatAmount } from '@/lib/formatters';
 import type { MarketOutcome } from '@/types/market';
 import clsx from 'clsx';
 
@@ -22,7 +33,6 @@ export interface BetModalProps {
   outcome: MarketOutcome;
   side: 'BUY' | 'SELL';
   onClose: () => void;
-  /** Max shares the user holds for sell-side capping */
   userShares?: bigint;
 }
 
@@ -39,16 +49,12 @@ export default function BetModal({
   userShares,
 }: BetModalProps): JSX.Element {
   const [amount, setAmount] = useState<string>('0.1');
-  const { data: buyState, error: buyError, isError: isBuyError, isLoading: isBuyLoading, buyShares, reset } =
-    useBuyShares();
-  const {
-    data: sellState,
-    error: sellError,
-    isError: isSellError,
-    isLoading: isSellLoading,
-    sellShares,
-    reset: resetSellState,
-  } = useSellShares();
+  const buyHook = useBuyShares();
+  const sellHook = useSellShares();
+
+  const activeHook = side === 'BUY' ? buyHook : sellHook;
+  const { state, buyShares, sellShares, reset } = (side === 'BUY' ? buyHook : sellHook) as any;
+
   const quote = useMarketQuote({
     marketId,
     outcomeIndex: outcome.outcomeIndex,
@@ -57,18 +63,11 @@ export default function BetModal({
     side,
   });
 
-  const transactionState = side === 'BUY' ? buyState : sellState;
-  const isLoading = side === 'BUY' ? isBuyLoading : isSellLoading;
-  const error = side === 'BUY' ? buyError : sellError;
-  const isError = side === 'BUY' ? isBuyError : isSellError;
-
-  // Derive max shares for sell side
   const maxSharesFormatted =
     side === 'SELL' && userShares != null
       ? formatAmount(userShares, collateralDecimals)
       : null;
 
-  // Check if sell amount exceeds user's shares
   const exceedsMax = (() => {
     if (side !== 'SELL' || userShares == null) return false;
     try {
@@ -87,19 +86,14 @@ export default function BetModal({
     }
   };
 
-  const isSuccess = transactionState?.step === 'success' || ('txHash' in (transactionState ?? {}) && transactionState?.txHash);
-
   const handleClose = (): void => {
     reset();
-    resetSellState();
-    setAmount('1');
+    setAmount('0.1');
     onClose();
   };
 
   const handleSubmit = async (): Promise<void> => {
-    if (!quote.data) {
-      return;
-    }
+    if (!quote.data) return;
 
     if (side === 'BUY') {
       await buyShares({
@@ -107,350 +101,226 @@ export default function BetModal({
         marketId,
         marketTitle,
         outcomeId: outcome.id,
+        outcomeLabel: outcome.label,
         collateralToken,
         collateralSymbol,
         collateralDecimals,
         minAmountOut: quote.data.sharesAmount,
       });
-      return;
+    } else {
+      await sellShares({
+        amount,
+        marketId,
+        marketTitle,
+        outcomeId: outcome.id,
+        outcomeLabel: outcome.label,
+        collateralToken,
+        collateralSymbol,
+        collateralDecimals,
+        minAmountOut: quote.data.collateralAmount,
+      });
     }
-
-    await sellShares({
-      amount,
-      marketId,
-      marketTitle,
-      outcomeId: outcome.id,
-      collateralToken,
-      collateralSymbol,
-      collateralDecimals,
-      minAmountOut: quote.data.collateralAmount,
-    });
   };
 
   const steps = [
-    { id: 'input', label: 'Input' },
-    { id: 'quote', label: 'Quote' },
-    { id: 'wallet', label: 'Confirm' },
-    { id: 'success', label: 'Success' },
+    { id: 'input', label: 'Draft', description: 'Enter trade details' },
+    { id: 'prepare', label: 'Prepare', description: 'Encrypting inputs' },
+    { id: 'approval', label: 'Approve', description: 'Token allowance' },
+    { id: 'confirm', label: 'Execute', description: 'Confirm in wallet' },
+    { id: 'success', label: 'Complete', description: 'Trade settled' },
   ];
-
-  const currentStepIndex =
-    isSuccess
-      ? 3
-      : isError
-        ? 3
-        : transactionState?.step === 'awaiting_wallet'
-          ? 2
-          : transactionState?.step === 'encrypting'
-            ? 1
-            : 0;
-
-  // Full-screen success/failure overlay
-  if (isSuccess) {
-    return (
-      <Modal onClose={handleClose} open={open} title="" description="">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-          className="flex flex-col items-center text-center py-6 space-y-6"
-        >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.1, type: 'spring', damping: 12 }}
-            className="w-20 h-20 rounded-full bg-emerald-500/15 border-2 border-emerald-500/30 flex items-center justify-center"
-          >
-            <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-          </motion.div>
-
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold text-foreground">
-              {side === 'BUY' ? 'Shares Purchased!' : 'Shares Sold!'}
-            </h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              {side === 'BUY'
-                ? `You successfully bought ${outcome.label} shares in "${marketTitle}".`
-                : `You successfully sold ${outcome.label} shares from "${marketTitle}".`}
-            </p>
-          </div>
-
-          <div className="w-full rounded-2xl border border-white/8 bg-white/[0.03] p-5 space-y-3 text-left">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Market</span>
-              <span className="text-foreground font-medium">#{marketId}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Outcome</span>
-              <span className="text-foreground font-medium">{outcome.label}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Amount</span>
-              <span className="text-foreground font-mono">{amount} {side === 'BUY' ? collateralSymbol : 'shares'}</span>
-            </div>
-            {transactionState?.txHash ? (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Transaction</span>
-                <span className="font-mono text-primary/80 text-xs">{truncateAddress(transactionState.txHash)}</span>
-              </div>
-            ) : null}
-          </div>
-
-          <Button size="lg" className="w-full" onClick={handleClose} type="button">
-            Done
-          </Button>
-        </motion.div>
-      </Modal>
-    );
-  }
-
-  if (isError && error) {
-    return (
-      <Modal onClose={handleClose} open={open} title="" description="">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-          className="flex flex-col items-center text-center py-6 space-y-6"
-        >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.1, type: 'spring', damping: 12 }}
-            className="w-20 h-20 rounded-full bg-red-500/15 border-2 border-red-500/30 flex items-center justify-center"
-          >
-            <XCircle className="h-10 w-10 text-red-400" />
-          </motion.div>
-
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold text-foreground">Transaction Failed</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              {side === 'BUY' ? 'Unable to purchase shares.' : 'Unable to sell shares.'} Please try again.
-            </p>
-          </div>
-
-          <div className="w-full rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-left">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-red-300 break-all">{error.message}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 w-full">
-            <Button variant="outline" size="lg" className="flex-1" onClick={handleClose} type="button">
-              Close
-            </Button>
-            <Button
-              size="lg"
-              className="flex-1"
-              onClick={() => {
-                reset();
-                resetSellState();
-              }}
-              type="button"
-            >
-              Try Again
-            </Button>
-          </div>
-        </motion.div>
-      </Modal>
-    );
-  }
 
   return (
     <Modal
       onClose={handleClose}
       open={open}
-      title={side === 'BUY' ? 'Buy Outcome Shares' : 'Sell Outcome Shares'}
-      description="The trade remains understandable even when your resulting position stays private."
+      title={side === 'BUY' ? 'Buy Shares' : 'Sell Shares'}
+      description={state.stage === 'idle' ? "Secure computation ensures your resulting position remains private." : ""}
+      size="md"
     >
-      <div className="space-y-8 py-2">
-        <div className="flex items-center justify-between px-2">
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center gap-2">
-              <div
-                className={clsx(
-                  'h-2 w-12 rounded-full transition-all duration-500',
-                  index <= currentStepIndex ? 'bg-primary' : 'bg-white/10',
-                )}
-              />
+      <TransactionFlow
+        state={state}
+        steps={steps}
+        successTitle={side === 'BUY' ? 'Shares Purchased!' : 'Shares Sold!'}
+        successDescription={
+          side === 'BUY'
+            ? `Successfully acquired ${outcome.label} shares in ${marketTitle}.`
+            : `Successfully sold ${outcome.label} shares in ${marketTitle}.`
+        }
+        onClose={handleClose}
+        onRetry={handleSubmit}
+      >
+        <div className="space-y-8 py-2">
+          {/* Market Context Header */}
+          <div className="relative overflow-hidden rounded-[32px] border border-white/5 bg-white/[0.01] p-6 space-y-3">
+            <div className="absolute top-0 right-0 p-4">
+              <PrivacyBadge state="sealed" size="sm" />
             </div>
-          ))}
-        </div>
 
-        <div className="space-y-6">
-          <div className="space-y-3 rounded-2xl bg-white/[0.03] p-6">
-            <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/20">Selected Position</p>
+              <h3 className="text-3xl font-serif italic text-white tracking-tight">
+                {outcome.label}
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-6 pt-4 border-t border-white/5">
               <div className="space-y-1">
-                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
-                  Selected Outcome
-                </p>
-                <p className="text-xl font-semibold text-foreground">{outcome.label}</p>
+                <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-white/20">
+                  <TrendingUp className="h-3 w-3" /> Implied
+                </div>
+                <p className="text-sm font-bold text-primary">{outcome.impliedShare}%</p>
               </div>
-              <div className="text-right">
-                <p className="font-mono text-sm text-primary">{outcome.impliedShare}%</p>
-                <p className="text-xs text-muted-foreground">Current market probability</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-white/20">
+                  <Coins className="h-3 w-3" /> Asset
+                </div>
+                <p className="text-sm font-bold text-white/60">{collateralSymbol}</p>
               </div>
-            </div>
-
-            <div className="flex items-start gap-3 rounded-xl bg-primary/5 p-3 text-[11px] text-primary/80">
-              <ShieldCheck className="h-4 w-4 shrink-0" />
-              <p>
-                {side === 'BUY'
-                  ? 'Estimating secure trade path. The quote is public; your resulting position is not.'
-                  : 'Preparing exit quote. Final execution may move slightly if market state changes before confirmation.'}
-              </p>
             </div>
           </div>
 
+          {/* Input Section */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <label className="font-mono text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
-                {side === 'BUY' ? `Collateral (${collateralSymbol})` : 'Shares to sell'}
+            <div className="flex items-center justify-between px-2">
+              <label className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/20">
+                {side === 'BUY' ? `Deposit (${collateralSymbol})` : 'Shares to sell'}
               </label>
-              <div className="flex items-center gap-2">
-                {side === 'SELL' && maxSharesFormatted ? (
-                  <button
-                    type="button"
-                    onClick={handleSetMax}
-                    className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-primary transition-colors hover:bg-primary/20"
-                  >
-                    Max: {maxSharesFormatted}
-                  </button>
-                ) : null}
-                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  Market #{marketId}
-                </span>
-              </div>
+              {side === 'SELL' && maxSharesFormatted && (
+                <button
+                  type="button"
+                  onClick={handleSetMax}
+                  className="px-3 py-1 rounded-full border border-primary/20 bg-primary/5 font-mono text-[9px] uppercase tracking-widest text-primary hover:bg-primary/10 transition-all active:scale-95"
+                >
+                  Max: {maxSharesFormatted}
+                </button>
+              )}
             </div>
-            <div className="relative">
+
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-primary/20 rounded-[24px] blur opacity-0 group-focus-within:opacity-30 transition-opacity" />
               <input
                 className={clsx(
-                  "h-16 w-full rounded-2xl border bg-white/[0.02] px-6 font-mono text-2xl font-semibold text-foreground outline-none transition-all focus:ring-4",
+                  "relative h-20 w-full rounded-[24px] border bg-[#0d1017] px-8 font-mono text-3xl font-bold text-white outline-none transition-all",
                   exceedsMax
-                    ? "border-red-500/50 focus:border-red-500/70 focus:ring-red-500/10"
-                    : "border-white/10 focus:border-primary/50 focus:ring-primary/10"
+                    ? "border-red-500/50 focus:border-red-500"
+                    : "border-white/5 focus:border-primary/50"
                 )}
-                onChange={(event) => setAmount(event.target.value)}
+                onChange={(e) => setAmount(e.target.value)}
                 value={amount}
                 placeholder="0.00"
+                autoFocus
               />
-            </div>
-            {exceedsMax ? (
-              <p className="text-xs text-red-400 px-1">
-                You only hold {maxSharesFormatted} shares for this outcome. Reduce the amount or click Max.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <ArrowUpDown className="h-4 w-4 text-primary" />
-              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                Quote Preview
-              </p>
+              <div className="absolute right-8 top-1/2 -translate-y-1/2 font-mono text-lg text-white/10 select-none">
+                {side === 'BUY' ? collateralSymbol : 'SHARES'}
+              </div>
             </div>
 
-            {quote.isLoading ? (
-              <p className="text-sm text-muted-foreground">Estimating...</p>
-            ) : quote.data ? (
-              <div className="grid gap-3 text-sm md:grid-cols-2">
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    {side === 'BUY' ? 'Shares received' : 'Collateral received'}
-                  </p>
-                  <p className="font-mono text-foreground">
-                    {formatAmount(
-                      side === 'BUY' ? quote.data.sharesAmount : quote.data.collateralAmount,
-                      collateralDecimals,
-                    )}{' '}
-                    {side === 'BUY' ? 'shares' : collateralSymbol}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Average price
-                  </p>
-                  <p className="font-mono text-foreground">{Number(quote.data.averagePrice) / 1e16}%</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Fee
-                  </p>
-                  <p className="font-mono text-foreground">
-                    {formatAmount(quote.data.feeAmount, collateralDecimals)} {collateralSymbol}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Slippage
-                  </p>
-                  <p className="font-mono text-foreground">{quote.data.slippageBps / 100}%</p>
-                </div>
+            <AnimatePresence>
+              {exceedsMax && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="text-[11px] text-red-400 px-4 font-bold uppercase tracking-widest"
+                >
+                  Insufficient Balance
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Quote Section */}
+          <div className="rounded-[32px] border border-white/5 bg-white/[0.01] p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-primary" />
+                <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/20">Execution Intelligence</p>
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Enter an amount to estimate, decrypt, and prepare the secure trade.
-              </p>
-            )}
+              {!quote.isLoading && quote.data && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[9px] font-bold text-emerald-500 font-mono uppercase tracking-widest">Valid</span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              {quote.isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="h-2 w-16 bg-white/5 rounded animate-pulse" />
+                    <div className="h-4 w-24 bg-white/5 rounded animate-pulse" />
+                  </div>
+                ))
+              ) : quote.data ? (
+                <>
+                  <div className="space-y-1">
+                    <p className="text-[9px] uppercase tracking-widest text-white/15 font-mono">
+                      {side === 'BUY' ? 'Est. received' : 'Est. return'}
+                    </p>
+                    <p className="text-base font-bold text-white tracking-tight">
+                      {formatAmount(
+                        side === 'BUY' ? quote.data.sharesAmount : quote.data.collateralAmount,
+                        collateralDecimals,
+                      )}{' '}
+                      <span className="text-[10px] text-white/30 font-light">{side === 'BUY' ? 'shares' : collateralSymbol}</span>
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] uppercase tracking-widest text-white/15 font-mono">Avg Price</p>
+                    <p className="text-base font-bold text-white tracking-tight">
+                      {(Number(quote.data.averagePrice) / 1e16).toFixed(2)}%
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] uppercase tracking-widest text-white/15 font-mono">Protocol Fee</p>
+                    <p className="text-base font-bold text-white/60 tracking-tight">
+                      {formatAmount(quote.data.feeAmount, collateralDecimals)} <span className="text-[10px] font-light">{collateralSymbol}</span>
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] uppercase tracking-widest text-white/15 font-mono">Impact</p>
+                    <p className="text-base font-bold text-amber-400/80 tracking-tight">
+                      {((quote.data.slippageBps || 0) / 100).toFixed(2)}%
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="sm:col-span-2 py-4 flex items-center justify-center gap-3 border border-dashed border-white/5 rounded-2xl">
+                  <Info className="h-4 w-4 text-white/10" />
+                  <p className="text-[11px] text-white/20 italic font-light">
+                    Enter trade size to generate execution quote.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-4 pt-4">
+            <Button
+              className="flex-1"
+              variant="secondary"
+              onClick={handleClose}
+              disabled={state.stage !== 'idle'}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-[2] gap-3"
+              disabled={!quote.data || exceedsMax || state.stage !== 'idle'}
+              onClick={handleSubmit}
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>
+                {side === 'BUY' ? 'Confirm Purchase' : 'Confirm Sale'}
+              </span>
+              <ChevronRight className="h-4 w-4 opacity-40" />
+            </Button>
           </div>
         </div>
-
-        <AnimatePresence mode="wait">
-          {transactionState?.step === 'encrypting' ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="rounded-2xl border border-primary/20 bg-primary/5 p-6"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex gap-1.5">
-                  <span className="h-9 w-2 animate-pulse rounded-full bg-primary/30 [animation-delay:0ms]" />
-                  <span className="h-9 w-2 animate-pulse rounded-full bg-primary/45 [animation-delay:120ms]" />
-                  <span className="h-9 w-2 animate-pulse rounded-full bg-primary/60 [animation-delay:240ms]" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">Finalizing secure computation...</p>
-                  <p className="text-xs text-muted-foreground">
-                    Encrypting your resulting position before network submission.
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          ) : null}
-
-          {transactionState?.step === 'awaiting_wallet' ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="rounded-2xl border border-primary/20 bg-primary/5 p-6"
-            >
-              <p className="text-sm font-semibold text-foreground">Confirm in Wallet</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Review the order, then sign to send the transaction on-chain.
-              </p>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-
-        <div className="flex items-center gap-4 border-t border-white/5 pt-4">
-          <Button className="flex-1" variant="outline" size="lg" onClick={handleClose} type="button">
-            Cancel
-          </Button>
-          <Button
-            className="flex-1 gap-2"
-            size="lg"
-            disabled={!quote.data || isLoading || exceedsMax}
-            onClick={() => void handleSubmit()}
-            type="button"
-          >
-            <Sparkles className="h-4 w-4" />
-            {isLoading ? 'Processing...' : exceedsMax ? 'Exceeds Balance' : side === 'BUY' ? 'Buy Shares' : 'Sell Shares'}
-          </Button>
-        </div>
-      </div>
+      </TransactionFlow>
     </Modal>
   );
 }

@@ -5,6 +5,8 @@ import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 
 export interface DisputeOutcomeReceipt {
   txHash: string;
@@ -28,6 +30,7 @@ export default function useDisputeOutcome(): UseDisputeOutcomeResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const refreshProtocolData = useProtocolRefresh();
   const [data, setData] = useState<DisputeOutcomeReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -58,6 +61,7 @@ export default function useDisputeOutcome(): UseDisputeOutcomeResult {
 
       setError(null);
       setIsLoading(true);
+      const gasFees = await getBufferedGasFees(publicClient);
 
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
@@ -65,10 +69,12 @@ export default function useDisputeOutcome(): UseDisputeOutcomeResult {
         functionName: 'openDispute',
         args: [BigInt(marketId), counterOutcomeIndex, stakeAmount],
         value: isNative ? stakeAmount : 0n,
+        ...gasFees,
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
       setData({ txHash: hash });
+      await refreshProtocolData();
       toast.success('Dispute submitted.');
     } catch (caughtError) {
       const nextError =

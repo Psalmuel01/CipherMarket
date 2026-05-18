@@ -14,12 +14,14 @@ import {
   Eye,
   EyeOff,
   Gavel,
+  Lock,
   Vote,
   ShieldCheck,
   Sparkles,
   TimerReset,
   Trophy,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import CofheBetProvider from '@/components/betting/CofheBetProvider';
 import OutcomeSelector from '@/components/betting/OutcomeSelector';
 import PoolDisplay from '@/components/betting/PoolDisplay';
@@ -36,6 +38,7 @@ import useRedeemShares from '@/hooks/useRedeemShares';
 import useRemoveLiquidity from '@/hooks/useRemoveLiquidity';
 import useResolveDispute from '@/hooks/useResolveDispute';
 import useVoteOnResolution from '@/hooks/useVoteOnResolution';
+import useOracleStatus from '@/hooks/useOracleStatus';
 import {
   formatAmount,
   formatDateTime,
@@ -43,22 +46,61 @@ import {
   truncateAddress,
 } from '@/lib/formatters';
 import { getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getOutcomeColor } from '@/lib/outcomeColors';
 
 const BetModal = dynamic(() => import('@/components/betting/BetModal'), {
   ssr: false,
 });
 
+const RedeemModal = dynamic(() => import('@/components/betting/RedeemModal'), {
+  ssr: false,
+});
+
+const MarketAnalytics = dynamic(() => import('@/components/betting/MarketAnalytics'), {
+  ssr: false,
+});
+
+function DecryptingLoader(): JSX.Element {
+  const [text, setText] = useState('DECRYPTING...');
+
+  useEffect(() => {
+    const chars = '0123456789ABCDEF';
+    const interval = setInterval(() => {
+      let scrambled = '0x';
+      for (let i = 0; i < 8; i++) {
+        scrambled += chars[Math.floor(Math.random() * chars.length)];
+      }
+      setText(scrambled);
+    }, 60);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <span className="inline-flex items-center gap-2 text-primary/80 text-xs">
+      <motion.div
+        animate={{ rotate: [0, -10, 10, 0] }}
+        transition={{ duration: 0.5, repeat: Infinity }}
+      >
+        <Lock className="h-4 w-4" />
+      </motion.div>
+      <span className="font-mono tracking-widest">{text}</span>
+    </span>
+  );
+}
+
 function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Element {
   const chainId = useChainId();
   const { address } = useAccount();
   const addresses = getContractAddresses(chainId);
-  const [selectedOutcomeId, setSelectedOutcomeId] = useState<string>('0');
+  const [selectedOutcomeId, setSelectedOutcomeId] = useState<string>('');
   const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
   const [isModalOpen, setModalOpen] = useState<boolean>(false);
+  const [isRedeemModalOpen, setRedeemModalOpen] = useState<boolean>(false);
   const [isPortfolioVisible, setPortfolioVisible] = useState<boolean>(false);
   const [disputeAmount, setDisputeAmount] = useState<string>('0.01');
   const [disputeOutcomeId, setDisputeOutcomeId] = useState<string>('0');
   const [resolutionOutcomeId, setResolutionOutcomeId] = useState<string>('0');
+  const [votingOutcomeIndex, setVotingOutcomeIndex] = useState<number | null>(null);
   const [addLiquidityAmount, setAddLiquidityAmount] = useState<string>('1');
   const [removeLiquidityAmount, setRemoveLiquidityAmount] = useState<string>('0');
   const { data, error, isError, isLoading } = useMarketDetails(marketIdParam);
@@ -76,6 +118,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const removeLiquidityMutation = useRemoveLiquidity();
   const resolveDisputeMutation = useResolveDispute();
   const voteOnResolutionMutation = useVoteOnResolution();
+  const { data: oracleStatus } = useOracleStatus();
+  const isOracle = oracleStatus?.isRegistered ?? false;
   const ownerQuery = useReadContract({
     address: addresses?.predictionMarket ?? undefined,
     abi: PREDICTION_MARKET_ABI,
@@ -100,7 +144,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   }, [data, isPortfolioVisible, privatePositions.data]);
 
   const selectedOutcome =
-    enrichedOutcomes.find((outcome) => outcome.id === selectedOutcomeId) ?? enrichedOutcomes[0] ?? null;
+    enrichedOutcomes.find((outcome) => outcome.id === selectedOutcomeId) ?? null;
   const finalOutcome =
     data?.finalOutcomeIndex !== null && data?.finalOutcomeIndex !== undefined
       ? enrichedOutcomes.find((outcome) => outcome.outcomeIndex === data.finalOutcomeIndex) ?? null
@@ -128,9 +172,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
       return;
     }
 
-    if (!selectedOutcomeId || !enrichedOutcomes.some((outcome) => outcome.id === selectedOutcomeId)) {
-      setSelectedOutcomeId(enrichedOutcomes[0]?.id ?? '0');
-    }
+
 
     if (
       !resolutionOutcomeId ||
@@ -159,17 +201,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     selectedOutcomeId,
   ]);
 
-  const handleRedeem = async (): Promise<void> => {
-    if (!data) {
-      return;
-    }
-
-    await redeemMutation.redeemShares(
-      data.marketId,
-      revealedWinningShares,
-      data.collateralSymbol,
-      collateralDecimals,
-    );
+  const handleRedeem = (): void => {
+    setRedeemModalOpen(true);
   };
 
   const handleResolveDispute = async (): Promise<void> => {
@@ -190,6 +223,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
       addLiquidityAmount,
       collateralDecimals,
       isNativeCollateral,
+      data.collateralToken,
     );
   };
 
@@ -203,7 +237,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
       data.myLpShares === 0n || data.totalLpShares === 0n
         ? 0n
         : (data.estimatedLpCollateralOut * lpSharesAmount * 95n) /
-          (data.myLpShares * 100n);
+        (data.myLpShares * 100n);
 
     await removeLiquidityMutation.removeLiquidity(
       data.marketId,
@@ -256,7 +290,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   Number.parseInt(selectedOutcomeId, 10),
                 )
               }
-              disabled={proposeOutcomeMutation.isLoading || !selectedOutcome}
+              disabled={proposeOutcomeMutation.isLoading || !selectedOutcome || !isOracle}
               type="button"
             >
               <ShieldCheck className="h-4 w-4" />
@@ -295,107 +329,118 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               {formatTokenAmount(data.resolutionQuorumStake, 18, 'ETH')}
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-foreground">Committee voting</p>
-                <p className="text-xs text-muted-foreground">
-                  Registered oracles can cast one open, stake-weighted vote during this window.
-                </p>
-              </div>
-              <div className="space-y-2">
-                {voteLeaderboard.map((outcome) => (
-                  <div
-                    key={outcome.id}
-                    className="flex items-center justify-between rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2"
-                  >
-                    <div>
-                      <p className="text-sm text-foreground">{outcome.label}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {formatTokenAmount(
-                          data.voteWeights[outcome.outcomeIndex] ?? 0n,
-                          18,
-                          'ETH vote weight',
-                        )}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="gap-2"
-                      disabled={voteOnResolutionMutation.isLoading || data.hasVotedOnResolution}
-                      onClick={() =>
-                        voteOnResolutionMutation.voteOnResolution(
-                          data.marketId,
-                          outcome.outcomeIndex,
-                        )
-                      }
-                      type="button"
+          <div className="grid gap-4 md:grid-cols-">
+            {data.disputeOpened && (
+              <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">Committee voting</p>
+                  <p className="text-xs text-muted-foreground">
+                    Registered oracles can cast one open, stake-weighted vote during this window.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {voteLeaderboard.map((outcome) => (
+                    <div
+                      key={outcome.id}
+                      className="flex items-center justify-between rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2"
                     >
-                      <Vote className="h-4 w-4" />
-                      {voteOnResolutionMutation.isLoading &&
-                      selectedOutcome?.outcomeIndex === outcome.outcomeIndex
-                        ? 'Voting...'
-                        : data.hasVotedOnResolution &&
+                      <div>
+                        <p className="text-sm text-foreground">{outcome.label}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {formatTokenAmount(
+                            data.voteWeights[outcome.outcomeIndex] ?? 0n,
+                            18,
+                            'ETH vote weight',
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="gap-2"
+                        disabled={voteOnResolutionMutation.isLoading || data.hasVotedOnResolution}
+                        onClick={async () => {
+                          setVotingOutcomeIndex(outcome.outcomeIndex);
+                          try {
+                            await voteOnResolutionMutation.voteOnResolution(
+                              data.marketId,
+                              outcome.outcomeIndex,
+                            );
+                          } finally {
+                            setVotingOutcomeIndex(null);
+                          }
+                        }}
+                        type="button"
+                      >
+                        <Vote className="h-4 w-4" />
+                        {voteOnResolutionMutation.isLoading &&
+                          votingOutcomeIndex === outcome.outcomeIndex
+                          ? 'Voting...'
+                          : data.hasVotedOnResolution &&
                             data.myVoteOutcomeIndex === outcome.outcomeIndex
-                          ? 'Voted'
-                          : 'Vote'}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              {data.hasVotedOnResolution ? (
-                <p className="text-xs text-muted-foreground">
-                  Your vote weight snapshot:{' '}
-                  {formatTokenAmount(data.myVoteWeightSnapshot, 18, 'ETH')}
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-foreground">Open dispute</p>
-                <p className="text-xs text-muted-foreground">
-                  Challenge the proposal by selecting a counter-outcome and posting dispute stake.
-                </p>
-              </div>
-              <select
-                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
-                onChange={(event) => setDisputeOutcomeId(event.target.value)}
-                value={selectedDisputeOutcome?.id ?? ''}
-              >
-                {enrichedOutcomes
-                  .filter((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex)
-                  .map((outcome) => (
-                    <option key={outcome.id} value={outcome.id}>
-                      {outcome.label}
-                    </option>
+                            ? 'Voted'
+                            : 'Vote'}
+                      </Button>
+                    </div>
                   ))}
-              </select>
-              <input
-                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
-                onChange={(event) => setDisputeAmount(event.target.value)}
-                value={disputeAmount}
-              />
-            </div>
+                </div>
+                {data.hasVotedOnResolution ? (
+                  <p className="text-xs text-muted-foreground">
+                    Your vote weight snapshot:{' '}
+                    {formatTokenAmount(data.myVoteWeightSnapshot, 18, 'ETH')}
+                  </p>
+                ) : null}
+              </div>
+            )}
+            {!data.disputeOpened ? (
+              <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">Open dispute</p>
+                  <p className="text-xs text-muted-foreground">
+                    Challenge the proposal by selecting a counter-outcome and posting dispute stake.
+                  </p>
+                </div>
+                <select
+                  className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                  onChange={(event) => setDisputeOutcomeId(event.target.value)}
+                  value={selectedDisputeOutcome?.id ?? ''}
+                >
+                  {enrichedOutcomes
+                    .filter((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex)
+                    .map((outcome) => (
+                      <option key={outcome.id} value={outcome.id}>
+                        {outcome.label}
+                      </option>
+                    ))}
+                </select>
+                <input
+                  className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                  onChange={(event) => setDisputeAmount(event.target.value)}
+                  value={disputeAmount}
+                />
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() =>
-                disputeOutcomeMutation.disputeOutcome(
-                  data.marketId,
-                  selectedDisputeOutcome?.outcomeIndex ?? 0,
-                  disputeAmount,
-                  collateralDecimals,
-                  data.collateralToken === '0x0000000000000000000000000000000000000000',
-                )
-              }
-              disabled={disputeOutcomeMutation.isLoading || !selectedDisputeOutcome}
-              type="button"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              {disputeOutcomeMutation.isLoading ? 'Staking...' : 'Open Dispute'}
-            </Button>
+            {!data.disputeOpened ? (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() =>
+                  disputeOutcomeMutation.disputeOutcome(
+                    data.marketId,
+                    selectedDisputeOutcome?.outcomeIndex ?? 0,
+                    disputeAmount,
+                    collateralDecimals,
+                    data.collateralToken === '0x0000000000000000000000000000000000000000',
+                  )
+                }
+                disabled={disputeOutcomeMutation.isLoading || !selectedDisputeOutcome}
+                type="button"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                {disputeOutcomeMutation.isLoading ? 'Staking...' : 'Open Dispute'}
+              </Button>
+            ) : null}
             <Button
               className="gap-2"
               onClick={() => finalizeMarketMutation.finalizeMarket(data.marketId)}
@@ -613,26 +658,12 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
           <div className="grid gap-8 xl:grid-cols-[1fr,400px]">
             <div className="space-y-8">
+              <MarketAnalytics
+                outcomes={enrichedOutcomes}
+                totalLiquidity={data.totalLiquidity}
+                collateralSymbol={data.collateralSymbol}
+              />
               <PoolDisplay pools={data.pools} />
-
-              <div className="glass-card space-y-6 rounded-3xl p-8">
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                  <div className="flex items-center gap-3">
-                    <Activity className="h-5 w-5 text-primary" />
-                    <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
-                      Outcome Board
-                    </h3>
-                  </div>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Pool prices are public
-                  </span>
-                </div>
-                <OutcomeSelector
-                  onSelect={setSelectedOutcomeId}
-                  outcomes={enrichedOutcomes}
-                  selectedOutcomeId={selectedOutcome?.id ?? '0'}
-                />
-              </div>
 
               <div className="glass-card space-y-6 rounded-3xl p-8">
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
@@ -661,32 +692,47 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 ) : null}
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  {enrichedOutcomes.map((outcome) => (
-                    <div
-                      key={outcome.id}
-                      className="rounded-2xl border border-white/5 bg-white/[0.03] p-4"
-                    >
-                      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                        {outcome.label}
-                      </p>
-                      <p className="mt-2 font-mono text-xl text-foreground">
-                        {!isPortfolioVisible
-                          ? '••••'
-                          : privatePositions.isLoading
-                            ? 'Decrypting...'
-                            : formatTokenAmount(
-                              outcome.revealedShares ?? 0n,
-                              collateralDecimals,
-                              'shares',
-                            )}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {!isPortfolioVisible
-                          ? 'Hidden until you reveal locally.'
-                          : 'Local decrypt only, nothing is added onchain.'}
-                      </p>
-                    </div>
-                  ))}
+                  {enrichedOutcomes.map((outcome) => {
+                    const color = getOutcomeColor(outcome.outcomeIndex);
+
+                    return (
+                      <div
+                        key={outcome.id}
+                        className="rounded-2xl border p-4"
+                        style={{
+                          background: `linear-gradient(135deg, ${color.softBackground}, rgba(255, 255, 255, 0.025))`,
+                          borderColor: color.border,
+                        }}
+                      >
+                        <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{
+                              backgroundColor: color.hex,
+                              boxShadow: `0 0 12px ${color.shadow}`,
+                            }}
+                          />
+                          {outcome.label}
+                        </p>
+                        <p className="mt-2 font-mono text-xl text-foreground">
+                          {!isPortfolioVisible
+                            ? '••••'
+                            : privatePositions.isLoading
+                              ? <DecryptingLoader />
+                              : formatTokenAmount(
+                                outcome.revealedShares ?? 0n,
+                                collateralDecimals,
+                                'shares',
+                              )}
+                        </p>
+                        {/* <p className="mt-1 text-xs text-muted-foreground">
+                          {!isPortfolioVisible
+                            ? 'Hidden until you reveal locally.'
+                            : 'Local decrypt only, nothing is added onchain.'}
+                        </p> */}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -835,6 +881,24 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             </div>
 
             <aside className="space-y-6">
+              <div className="glass-card space-y-6 rounded-3xl p-8">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <div className="flex items-center gap-3">
+                    <Activity className="h-5 w-5 text-primary" />
+                    <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
+                      Outcome Board
+                    </h3>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Pool prices are public
+                  </span>
+                </div>
+                <OutcomeSelector
+                  onSelect={setSelectedOutcomeId}
+                  outcomes={enrichedOutcomes}
+                  selectedOutcomeId={selectedOutcome?.id ?? '0'}
+                />
+              </div>
 
               <div className="glass-card space-y-6 rounded-3xl p-8">
                 <div className="flex items-center justify-between">
@@ -930,24 +994,20 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                       {!isPortfolioVisible
                         ? '••••'
                         : privatePositions.isLoading
-                          ? 'Decrypting...'
+                          ? <DecryptingLoader />
                           : formatTokenAmount(revealedWinningShares, collateralDecimals, data.collateralSymbol)}
                     </p>
                   </div>
 
                   <Button
                     className="w-full gap-2"
-                    disabled={!isPortfolioVisible || revealedWinningShares === 0n || redeemMutation.isLoading}
-                    onClick={() => void handleRedeem()}
+                    disabled={!isPortfolioVisible || revealedWinningShares === 0n}
+                    onClick={handleRedeem}
                     type="button"
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    {redeemMutation.isLoading ? 'Processing claim...' : 'Redeem Winning Shares'}
+                    Redeem Winning Shares
                   </Button>
-
-                  {redeemMutation.isError && redeemMutation.error ? (
-                    <p className="text-xs text-destructive">{redeemMutation.error.message}</p>
-                  ) : null}
                 </div>
               ) : null}
             </aside>
@@ -965,6 +1025,18 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               outcome={selectedOutcome}
               side={tradeSide}
               userShares={isPortfolioVisible ? (selectedOutcome.revealedShares ?? undefined) : undefined}
+            />
+          ) : null}
+
+          {data ? (
+            <RedeemModal
+              marketId={data.marketId}
+              marketTitle={data.title}
+              winningShares={revealedWinningShares}
+              collateralSymbol={data.collateralSymbol}
+              collateralDecimals={collateralDecimals}
+              open={isRedeemModalOpen}
+              onClose={() => setRedeemModalOpen(false)}
             />
           ) : null}
         </>

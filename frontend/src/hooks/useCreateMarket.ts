@@ -11,7 +11,9 @@ import {
   getContractAddresses,
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
 import type { CreateMarketDraft, MarketType } from '@/types/market';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 
 export interface CreateMarketReceipt {
   txHash: string;
@@ -34,6 +36,7 @@ export default function useCreateMarket(): UseCreateMarketResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const refreshProtocolData = useProtocolRefresh();
   const [data, setData] = useState<CreateMarketReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -102,17 +105,20 @@ export default function useCreateMarket(): UseCreateMarketResult {
       }
 
       if (draft.collateralToken !== zeroAddress) {
+        const approvalGasFees = await getBufferedGasFees(publicClient);
         const approvalHash = await writeContractAsync({
           address: draft.collateralToken,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [predictionMarketAddress, seedLiquidity],
+          ...approvalGasFees,
         });
 
         await publicClient.waitForTransactionReceipt({ hash: approvalHash });
       }
 
       const marketType: MarketType = draft.marketType;
+      const createGasFees = await getBufferedGasFees(publicClient);
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
@@ -131,6 +137,7 @@ export default function useCreateMarket(): UseCreateMarketResult {
         ],
         value: draft.collateralToken === zeroAddress ? seedLiquidity : 0n,
         gas: draft.collateralToken === zeroAddress ? 1_600_000n : 2_200_000n,
+        ...createGasFees,
       });
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -140,6 +147,7 @@ export default function useCreateMarket(): UseCreateMarketResult {
       }
 
       setData({ txHash: hash });
+      await refreshProtocolData();
       toast.success('Market created with seeded liquidity.');
     } catch (caughtError) {
       console.error('CipherMarket createMarket failed:', caughtError);

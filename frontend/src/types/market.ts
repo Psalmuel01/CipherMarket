@@ -103,6 +103,7 @@ export interface TradeDraft {
   marketId: number;
   marketTitle: string;
   outcomeId: string;
+  outcomeLabel: string;
   amount: string;
   collateralToken: Address;
   collateralSymbol: string;

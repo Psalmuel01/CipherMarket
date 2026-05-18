@@ -13,6 +13,9 @@ import useMarkets from '@/hooks/useMarkets';
 import Link from 'next/link';
 import { formatEther } from 'viem';
 import { DEFAULT_ORACLE_STAKE } from '@/lib/contracts';
+import { getOutcomeColor } from '@/lib/outcomeColors';
+
+const heroSwatches = [0, 1, 2, 3].map((index) => getOutcomeColor(index));
 
 export interface OracleDashboardProps {
   className?: string;
@@ -45,36 +48,47 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
   };
 
   return (
-    <section className={clsx("space-y-8", className)}>
+    <section className={clsx("space-y-8 mt-20", className)}>
       <div className="grid gap-8 xl:grid-cols-[1fr,400px]">
         <div className="space-y-8">
           {/* Main Registry Card */}
-          <div className="glass-card rounded-3xl p-8 space-y-8">
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                    {data?.isRegistered ? 'Oracle Node Active' : 'Oracle Seat Available'}
-                  </span>
-                </div>
-                {/* <h2 className="text-3xl font-black tracking-tight text-foreground">Resolution</h2> */}
-                <h1 className="text-[30px] lg:text-[40px] leading-[1.1] tracking-[-0.04em] mb-4">
-                  <span className="font-serif italic text-[#e8e4df]">Oracle</span>
-                  {/* <br /> */}
-                  <span className="font-sans font-light text-white/35 ml-2">governance.</span>
-                </h1>
-                <p className="text-sm text-muted-foreground">Manage your locked stake and participate in committee-based market resolution.</p>
+          <div className="relative overflow-hidden rounded-[32px] border border-white/8 bg-white/[0.025] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.45)] md:p-8 space-y-8">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-1">
+              <div className="grid h-full grid-cols-4">
+                {heroSwatches.map((color) => (
+                  <span key={color.hex} style={{ backgroundColor: color.hex }} />
+                ))}
               </div>
-              <Button
-                variant="primary"
-                className="gap-2"
-                disabled={isRegisterLoading || data?.isRegistered}
-                onClick={() => setShowRegisterModal(true)}
-                type="button"
-              >
-                <Zap className="h-4 w-4" />
-                {data?.isRegistered ? 'Registered' : isRegisterLoading ? 'Registering...' : 'Register Oracle'}
-              </Button>
+            </div>
+
+            <div className="relative flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                  {data?.isRegistered ? 'Oracle Node Active' : 'Oracle Seat Available'}
+                </div>
+                <div className="max-w-2xl space-y-4">
+                  <h1 className="text-4xl font-semibold leading-[1.02] tracking-tight text-white md:text-5xl">
+                    Oracle Governance.
+                  </h1>
+                  <p className="text-sm leading-7 text-white/45">
+                    Manage your locked stake and participate in committee-based market resolution.
+                  </p>
+                </div>
+              </div>
+              <div className="relative z-10 pt-2 shrink-0">
+                <Button
+                  variant="primary"
+                  className="gap-2"
+                  disabled={isRegisterLoading || data?.isRegistered}
+                  onClick={() => setShowRegisterModal(true)}
+                  type="button"
+                >
+                  <Zap className="h-4 w-4" />
+                  {data?.isRegistered ? 'Registered' : isRegisterLoading ? 'Registering...' : 'Register Oracle'}
+                </Button>
+              </div>
             </div>
 
             {isLoading ? <Skeleton className="h-40 w-full rounded-2xl" /> : null}

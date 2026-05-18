@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { getBufferedGasFees } from '@/lib/gas';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 
 export interface FinalizeMarketReceipt {
   txHash: string;
@@ -21,6 +23,7 @@ export default function useFinalizeMarket(): UseFinalizeMarketResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const refreshProtocolData = useProtocolRefresh();
   const [data, setData] = useState<FinalizeMarketReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -40,16 +43,19 @@ export default function useFinalizeMarket(): UseFinalizeMarketResult {
 
       setError(null);
       setIsLoading(true);
+      const gasFees = await getBufferedGasFees(publicClient);
 
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'finalizeByQuorum',
         args: [BigInt(marketId)],
+        ...gasFees,
       });
 
       await publicClient.waitForTransactionReceipt({ hash });
       setData({ txHash: hash });
+      await refreshProtocolData();
       toast.success('Market finalized by oracle quorum.');
     } catch (caughtError) {
       const nextError =

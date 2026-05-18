@@ -10,6 +10,8 @@ import {
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
 import { computeProbabilitiesFromReserves } from '@/lib/marketMath';
+import { LIVE_PUBLIC_QUERY_OPTIONS } from '@/lib/queryOptions';
+import useMarkets from '@/hooks/useMarkets';
 import type { MarketDetail, MarketOutcome, PoolSnapshot } from '@/types/market';
 import type { Address } from 'viem';
 
@@ -100,6 +102,8 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
   const predictionMarketAddress = addresses?.predictionMarket ?? undefined;
   const marketId = Number.parseInt(marketIdParam, 10);
   const validMarketId = Number.isInteger(marketId) && marketId >= 0 ? BigInt(marketId) : null;
+  const { data: allMarkets } = useMarkets();
+  const prefetchedMarket = allMarkets?.find((m) => String(m.marketId) === marketIdParam);
 
   const marketQuery = useReadContract({
     address: predictionMarketAddress,
@@ -107,6 +111,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
     functionName: 'getMarket',
     args: validMarketId !== null ? [validMarketId] : undefined,
     query: {
+      ...LIVE_PUBLIC_QUERY_OPTIONS,
       enabled: Boolean(predictionMarketAddress) && validMarketId !== null,
     },
   });
@@ -167,6 +172,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
           ]
         : [],
     query: {
+      ...LIVE_PUBLIC_QUERY_OPTIONS,
       enabled: Boolean(predictionMarketAddress) && validMarketId !== null && outcomeCount > 0,
     },
   });
@@ -181,7 +187,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       const result = readResults[outcomeIndex];
       return result?.status === 'success' && typeof result.result === 'bigint'
         ? result.result
-        : 0n;
+        : prefetchedMarket?.outcomes[outcomeIndex]?.reserve ?? 0n;
     });
     const voteWeights = Array.from({ length: outcomeCount }, (_, outcomeIndex) => {
       const result = readResults[outcomeCount + outcomeIndex];
@@ -295,7 +301,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       revealedWinningShares: null,
       canRevealPositions: Boolean(address),
     } satisfies MarketDetail;
-  }, [address, chainId, detailReads.data, marketView, outcomeCount]);
+  }, [address, chainId, detailReads.data, marketView, outcomeCount, prefetchedMarket]);
 
   const error =
     validMarketId === null
@@ -306,7 +312,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
 
   return {
     data,
-    isLoading: marketQuery.isLoading || detailReads.isLoading,
+    isLoading: marketQuery.isLoading,
     isError: Boolean(error),
     error,
   };

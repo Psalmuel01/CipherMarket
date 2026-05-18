@@ -15,22 +15,23 @@ export default function Button({
   return (
     <button
       className={clsx(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-xl border text-sm font-semibold tracking-[0.01em] ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]',
+        'inline-flex items-center justify-center whitespace-nowrap rounded-xl font-bold tracking-widest uppercase transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-30 active:scale-[0.96]',
         // Variants
         variant === 'primary' &&
-          'border-primary/30 bg-primary text-primary-foreground shadow-[0_14px_30px_rgba(141,37,31,0.28)] hover:bg-primary/92 hover:shadow-[0_18px_36px_rgba(141,37,31,0.34)]',
+          'bg-primary text-white border border-primary/20 shadow-[0_0_40px_rgba(var(--primary-rgb),0.2)] hover:scale-[1.02] hover:shadow-[0_0_50px_rgba(var(--primary-rgb),0.3)]',
         variant === 'secondary' &&
-          'border-white/6 bg-secondary text-secondary-foreground hover:bg-secondary/85',
+          'bg-[#0a0c10] text-white border border-white/5 hover:bg-[#101218] hover:border-white/10',
         variant === 'outline' &&
-          'border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:text-foreground',
-        variant === 'ghost' && 'border-transparent hover:bg-white/5 hover:text-foreground',
+          'bg-transparent border border-white/10 text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.02]',
+        variant === 'ghost' && 
+          'border-transparent text-white/40 hover:text-white hover:bg-white/[0.02]',
         variant === 'danger' &&
-          'border-destructive/30 bg-destructive text-destructive-foreground hover:bg-destructive/92',
+          'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20',
         // Sizes
-        size === 'sm' && 'h-9 px-3 text-xs',
-        size === 'md' && 'h-11 px-5',
-        size === 'lg' && 'h-14 px-8 text-base',
-        size === 'icon' && 'h-10 w-10',
+        size === 'sm' && 'h-9 px-4 text-[10px]',
+        size === 'md' && 'h-12 px-6 text-[11px]',
+        size === 'lg' && 'h-16 px-10 text-[12px]',
+        size === 'icon' && 'h-12 w-12',
         className
       )}
       {...props}

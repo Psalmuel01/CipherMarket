@@ -10,6 +10,7 @@ import {
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
 import { computeProbabilitiesFromReserves } from '@/lib/marketMath';
+import { LIVE_PUBLIC_QUERY_OPTIONS } from '@/lib/queryOptions';
 import useAppStore from '@/store/useAppStore';
 import type { MarketLifecycle, MarketOutcome, MarketSummary } from '@/types/market';
 import type { Address } from 'viem';
@@ -125,6 +126,7 @@ export default function useMarkets(): UseMarketsResult {
     abi: PREDICTION_MARKET_ABI,
     functionName: 'nextMarketId',
     query: {
+      ...LIVE_PUBLIC_QUERY_OPTIONS,
       enabled: Boolean(predictionMarketAddress),
     },
   });
@@ -144,6 +146,7 @@ export default function useMarkets(): UseMarketsResult {
         }))
       : [],
     query: {
+      ...LIVE_PUBLIC_QUERY_OPTIONS,
       enabled: Boolean(predictionMarketAddress) && marketIds.length > 0,
     },
   });
@@ -169,6 +172,7 @@ export default function useMarkets(): UseMarketsResult {
         )
       : [],
     query: {
+      ...LIVE_PUBLIC_QUERY_OPTIONS,
       enabled: Boolean(predictionMarketAddress) && marketViews.length > 0,
     },
   });

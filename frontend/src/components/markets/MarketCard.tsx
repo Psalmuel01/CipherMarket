@@ -1,8 +1,11 @@
+'use client';
+
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ExternalLink, Users, Calendar, ArrowRight } from 'lucide-react';
-import LifecycleBadge from '@/components/markets/LifecycleBadge';
+import { ExternalLink, TrendingUp, Calendar, ArrowRight, Fingerprint } from 'lucide-react';
+import PrivacyBadge from '@/components/ui/PrivacyBadge';
 import { formatTokenAmount, formatRelativeExpiry } from '@/lib/formatters';
+import { getOutcomeColor } from '@/lib/outcomeColors';
 import type { MarketSummary } from '@/types/market';
 
 export interface MarketCardProps {
@@ -11,86 +14,133 @@ export interface MarketCardProps {
 }
 
 export default function MarketCard({ index, market }: MarketCardProps): JSX.Element {
+  const visibleOutcomes = market.outcomes.slice(0, 4);
+
   return (
     <motion.article
-      className="glass-card interactive-glow group relative flex flex-col overflow-hidden rounded-[32px] p-6 transition-all duration-500 hover:-translate-y-2"
-      initial={{ opacity: 0, y: 30 }}
+      className="group relative flex flex-col overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all duration-500 hover:-translate-y-1 hover:border-white/15 hover:bg-white/[0.04] active:scale-[0.99]"
+      initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-100px" }}
+      viewport={{ once: true }}
       transition={{
-        type: "spring",
-        damping: 20,
-        stiffness: 100,
-        delay: index * 0.08
+        duration: 0.8,
+        delay: index * 0.1,
+        ease: [0.16, 1, 0.3, 1]
       }}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-primary">
-              {market.category}
-            </p>
-            <h2 className="text-lg font-semibold leading-relaxed tracking-tight text-[#e8e4df] transition-colors group-hover:text-primary">
+      <div className="relative z-10 flex h-full flex-col space-y-7">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-6">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+                {market.category}
+              </span>
+              <PrivacyBadge state="sealed" size="sm" showTooltip={false} />
+              {market.outcomeCount > 4 ? (
+                <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-white/35">
+                  +{market.outcomeCount - 4} outcomes
+                </span>
+              ) : null}
+            </div>
+            <h2 className="line-clamp-2 text-xl font-semibold leading-tight tracking-tight text-white transition-colors group-hover:text-white">
               {market.title}
             </h2>
           </div>
-          <LifecycleBadge status={market.status} />
+          <Link
+            href={`/markets/${market.marketId}`}
+            className="shrink-0 flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.03] text-white/30 hover:text-primary transition-all border border-white/10 hover:border-primary/40"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </Link>
         </div>
-        <Link
-          href={`/markets/${market.marketId}`}
-          className="relative z-20 flex p-1.5 items-center justify-center rounded-xl bg-white/[0.03] text-white/20 hover:text-primary transition-colors border border-white/5 hover:border-primary/20 active:scale-95"
-        >
-          <ExternalLink className="h-4 w-4" />
-        </Link>
-      </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 border-t border-white/[0.05] pt-5">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-white/20">
-            <Users className="h-3 w-3" />
-            <span>Pool</span>
-          </div>
-          <p className="font-mono text-base font-semibold tracking-tight text-[#e8e4df]">
-            {formatTokenAmount(
-              market.totalLiquidity,
-              market.collateralSymbol === 'USDC' ? 6 : 18,
-              market.collateralSymbol,
-            )}
-          </p>
-        </div>
-        <div className="space-y-1 text-right">
-          <div className="flex items-center justify-end gap-2 text-[9px] font-bold uppercase tracking-widest text-white/20">
-            <Calendar className="h-3 w-3" />
-            <span>Time</span>
-          </div>
-          <p className="font-mono text-base font-semibold tracking-tight text-[#e8e4df]">
-            {formatRelativeExpiry(market.expiryTime)}
-          </p>
-        </div>
-      </div>
+        {/* Probabilities Section */}
+        <div className="space-y-3">
+          {visibleOutcomes.map((outcome) => {
+            const color = getOutcomeColor(outcome.outcomeIndex);
 
-      <div className="mt-6 flex items-end justify-between gap-4">
-        <div className="space-y-2">
-          {market.outcomes.slice(0, 2).map((outcome) => (
-            <div key={outcome.id} className="flex items-center gap-3 text-[11px] text-white/30">
-              <span className="min-w-[48px] text-[#e8e4df] font-medium">{outcome.label}</span>
-              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/5">
+            return (
+              <div key={outcome.id} className="space-y-2">
+                <div className="flex items-end justify-between gap-4 text-[10px] font-mono uppercase tracking-[0.1em]">
+                  <span className="flex min-w-0 items-center gap-2 text-white/55">
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{
+                        backgroundColor: color.hex,
+                        boxShadow: `0 0 12px ${color.shadow}`,
+                      }}
+                    />
+                    <span className="truncate">{outcome.label}</span>
+                  </span>
+                  <span className="shrink-0 font-bold" style={{ color: color.text }}>
+                    {outcome.impliedShare}%
+                  </span>
+                </div>
                 <div
-                  className="h-full bg-primary/70"
-                  style={{ width: `${Math.max(outcome.impliedShare, 4)}%` }}
-                />
+                  className="h-2 w-full overflow-hidden rounded-full p-[1px]"
+                  style={{
+                    backgroundColor: color.softBackground,
+                    border: `1px solid ${color.border}`,
+                  }}
+                >
+                  <motion.div
+                    initial={{ width: 0 }}
+                    whileInView={{ width: `${outcome.impliedShare}%` }}
+                    transition={{ duration: 1.5, ease: "circOut" }}
+                    className="h-full rounded-full"
+                    style={{
+                      background: `linear-gradient(90deg, rgba(${color.rgb}, 0.72), ${color.hex})`,
+                      boxShadow: `0 0 14px ${color.shadow}`,
+                    }}
+                  />
+                </div>
               </div>
-              <span className="font-mono text-[10px] text-white/20">{outcome.impliedShare}%</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        <Link
-          className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-4 text-[12px] font-bold text-primary-foreground transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
-          href={`/markets/${market.marketId}`}
-        >
-          View
-          <ArrowRight className="h-3 w-3" />
-        </Link>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-6 border-y border-white/10 py-5">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-[0.2em] text-white/40">
+              <TrendingUp className="h-3 w-3" />
+              <span>Volume</span>
+            </div>
+            <p className="text-base font-semibold text-white/80">
+              {formatTokenAmount(
+                market.totalLiquidity,
+                market.collateralSymbol === 'USDC' ? 6 : 18,
+                market.collateralSymbol,
+              )}
+            </p>
+          </div>
+          <div className="space-y-1 text-right">
+            <div className="flex items-center justify-end gap-2 text-[9px] font-mono uppercase tracking-[0.2em] text-white/40">
+              <Calendar className="h-3 w-3" />
+              <span>Expires</span>
+            </div>
+            <p className="text-base font-semibold text-white/80">
+              {formatRelativeExpiry(market.expiryTime)}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer Action */}
+        <div className="mt-auto flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[9px] text-white/30 font-mono tracking-[0.2em] uppercase">
+            <Fingerprint className="h-3.5 w-3.5 text-primary/60" />
+            <span>FHE Sealed</span>
+          </div>
+          <Link
+            className="group/btn relative inline-flex h-12 items-center gap-3 rounded-2xl bg-[#080a0f] border border-primary/30 px-6 text-[12px] font-bold text-white transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)] overflow-hidden"
+            href={`/markets/${market.marketId}`}
+          >
+            <div className="absolute inset-0 bg-primary/5 -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-500" />
+            <span className="relative z-10">Trade Market</span>
+            <ArrowRight className="relative z-10 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+          </Link>
+        </div>
       </div>
     </motion.article>
   );

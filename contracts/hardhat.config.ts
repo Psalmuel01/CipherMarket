@@ -26,17 +26,27 @@ const config: HardhatUserConfig = {
     hardhat: {
       chainId: 420105,
     },
-    'sepolia': {
-      url: process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com',
+    'arbitrum-sepolia': {
+      url: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://arbitrum-sepolia.infura.io/v3/d8bc683c0b7841b18d5976c3dedf25c6',
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      chainId: 11155111,
+      chainId: 421614,
       gasMultiplier: 1.2,
       timeout: 60000,
-      httpHeaders: {},
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    // Migration to V2: use a single API key and the centralized V2 endpoint
+    apiKey: process.env.ARBISCAN_API_KEY || '',
+    customChains: [
+      {
+        network: 'arbitrum-sepolia',
+        chainId: 421614,
+        urls: {
+          apiURL: 'https://api.etherscan.io/v2/api',
+          browserURL: 'https://sepolia.arbiscan.io',
+        },
+      },
+    ],
   },
 };
 

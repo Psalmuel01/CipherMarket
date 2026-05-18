@@ -23,7 +23,7 @@ CipherMarket today includes:
 - singleton prediction market architecture
 - public FPMM pool state
 - encrypted per-user positions
-- market creation with ETH or Sepolia USDC
+- market creation with ETH or Arbitrum Sepolia USDC
 - private portfolio reveal flows
 - oracle registration
 - oracle proposal and dispute window

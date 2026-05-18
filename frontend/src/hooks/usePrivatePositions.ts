@@ -4,7 +4,8 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useCofheContext } from '@cofhe/react';
 import { FheTypes } from '@cofhe/sdk';
-import { useAccount, useChainId, useReadContracts } from 'wagmi';
+import { useAccount, useChainId, usePublicClient, useReadContracts, useWalletClient } from 'wagmi';
+import { ensureCofheConnected } from '@/lib/cofheClient';
 import { withFreshSelfPermit } from '@/lib/cofhePermits';
 import { getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 
@@ -27,6 +28,8 @@ export default function usePrivatePositions(
 ): UsePrivatePositionsResult {
   const chainId = useChainId();
   const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
   const { client } = useCofheContext();
   const addresses = getContractAddresses(chainId);
   const predictionMarketAddress = addresses?.predictionMarket;
@@ -65,18 +68,23 @@ export default function usePrivatePositions(
     enabled:
       enabled &&
       Boolean(client) &&
+      Boolean(chainId) &&
       Boolean(address) &&
+      Boolean(publicClient) &&
+      Boolean(walletClient) &&
       Boolean(predictionMarketAddress) &&
       Boolean(handlesQuery.data?.length),
     queryFn: async () => {
-      if (!address || !predictionMarketAddress) {
+      if (!address || !chainId || !publicClient || !walletClient || !predictionMarketAddress) {
         return outcomeIndexes.map(() => 0n);
       }
 
       try {
+        await ensureCofheConnected(client, publicClient, walletClient);
+
         const values = await withFreshSelfPermit(
           client,
-          chainId ?? 11155111,
+          chainId,
           address,
           `CipherMarket ${marketId} position view`,
           async (permit) =>
@@ -95,7 +103,7 @@ export default function usePrivatePositions(
                 const unsealed = await client
                   .decryptForView(handle, FheTypes.Uint128)
                   .setAccount(address)
-                  .setChainId(chainId ?? 11155111)
+                  .setChainId(chainId)
                   .withPermit(permit)
                   .execute();
 
