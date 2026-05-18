@@ -9,6 +9,13 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './OracleRegistry.sol';
 import './PredictionMarketMath.sol';
 
+interface IConfidentialEscrow {
+  function exists(uint256 escrowId) external view returns (bool);
+  function getConditionResolver(uint256 escrowId) external view returns (address);
+  function getResolverData(uint256 escrowId) external view returns (bytes memory);
+  function redeem(uint256 escrowId) external;
+}
+
 /// @title PredictionMarket
 /// @notice Singleton share-based prediction market with public FPMM pool state and encrypted
 /// user balances for economic v1 privacy.
@@ -198,6 +205,12 @@ contract PredictionMarket is Ownable {
   mapping(uint256 => mapping(address => uint256)) public oracleVoteWeightSnapshot;
   mapping(uint256 => mapping(address => bool)) private oracleRewardClaimed;
 
+  address public disputeEscrowRegistry;
+  bool public disputeEscrowEnabled;
+
+  mapping(uint256 => uint256) public marketDisputeEscrowId;
+  mapping(uint256 => uint256) public disputeEscrowToMarketId;
+
   constructor(address oracleRegistry_, uint64 defaultDisputeWindow_) Ownable(msg.sender) {
     require(oracleRegistry_ != address(0), 'Oracle registry is required');
     require(defaultDisputeWindow_ > 0, 'Dispute window is required');
@@ -208,6 +221,9 @@ contract PredictionMarket is Ownable {
     defaultResolutionQuorumStake = 1 ether;
     defaultProposerSlashBps = 2_000;
     acceptedCollateral[address(0)] = true;
+
+    disputeEscrowRegistry = 0xC4333F84F5034D8691CB95f068def2e3B6DC60Fa;
+    disputeEscrowEnabled = true;
   }
 
   /// @notice Whitelists or removes an ERC20 collateral token for new markets.
@@ -592,6 +608,95 @@ contract PredictionMarket is Ownable {
     disputeContributions[marketId][msg.sender] += stakeAmount;
 
     emit DisputeOpened(marketId, msg.sender, counterOutcomeIndex, stakeAmount);
+  }
+
+  function setDisputeEscrowRegistry(address registry) external onlyOwner {
+    disputeEscrowRegistry = registry;
+  }
+
+  function setDisputeEscrowEnabled(bool enabled) external onlyOwner {
+    disputeEscrowEnabled = enabled;
+  }
+
+  /// @notice Opens a counter-outcome challenge using a Privara-backed dispute escrow.
+  function openDisputeWithEscrow(
+    uint256 marketId,
+    uint8 counterOutcomeIndex,
+    uint256 escrowId
+  ) external {
+    require(disputeEscrowEnabled, 'Escrow disputes are disabled');
+    require(disputeEscrowRegistry != address(0), 'Escrow registry not set');
+
+    IConfidentialEscrow registry = IConfidentialEscrow(disputeEscrowRegistry);
+    require(registry.exists(escrowId), 'Escrow does not exist');
+    require(registry.getConditionResolver(escrowId) == address(this), 'Resolver mismatch');
+
+    bytes memory data = registry.getResolverData(escrowId);
+    require(data.length >= 32, 'Invalid resolver data');
+    uint256 decodedMarketId = abi.decode(data, (uint256));
+    require(decodedMarketId == marketId, 'Market ID mismatch');
+
+    Market storage market = _getMarketStorage(marketId);
+    require(market.state == MarketState.RESOLUTION_OPEN, 'Resolution closed');
+    require(block.timestamp <= market.resolutionWindowEndsAt, 'Window closed');
+    require(!market.disputeOpened, 'Dispute is already open');
+    _requireValidOutcome(marketId, counterOutcomeIndex);
+    require(counterOutcomeIndex != market.proposedOutcome, 'Counter must differ');
+
+    market.disputeOpened = true;
+    market.disputeCounterOutcome = counterOutcomeIndex;
+    market.disputeOpenedBy = msg.sender;
+
+    marketDisputeEscrowId[marketId] = escrowId;
+    disputeEscrowToMarketId[escrowId] = marketId;
+
+    emit DisputeOpened(marketId, msg.sender, counterOutcomeIndex, 0);
+  }
+
+  /// @notice Standard Privara Condition Resolver check.
+  /// @dev Returns true if the dispute escrow's market is resolved and finalized.
+  function isConditionMet(uint256 escrowId) external view returns (bool) {
+    uint256 marketId = disputeEscrowToMarketId[escrowId];
+    if (marketId == 0) {
+      return false;
+    }
+    
+    Market storage market = markets[marketId];
+    return market.state == MarketState.FINALIZED;
+  }
+
+  /// @notice Settles a finalized dispute escrow by redeeming from Privara and distributing USDC.
+  function settleEscrowDispute(uint256 marketId) external {
+    Market storage market = _getMarketStorage(marketId);
+    require(market.state == MarketState.FINALIZED, 'Market not finalized');
+    require(market.disputeOpened, 'No dispute');
+    
+    uint256 escrowId = marketDisputeEscrowId[marketId];
+    require(escrowId > 0, 'No dispute escrow');
+
+    marketDisputeEscrowId[marketId] = 0;
+    disputeEscrowToMarketId[escrowId] = 0;
+
+    IERC20 collateral = IERC20(market.collateralToken);
+
+    uint256 balanceBefore = collateral.balanceOf(address(this));
+
+    IConfidentialEscrow(disputeEscrowRegistry).redeem(escrowId);
+
+    uint256 balanceAfter = collateral.balanceOf(address(this));
+    uint256 disputeStake = balanceAfter - balanceBefore;
+    require(disputeStake > 0, 'No collateral redeemed');
+
+    if (market.disputeRefundsEnabled) {
+      collateral.safeTransfer(market.disputeOpenedBy, disputeStake);
+      emit DisputeRefundClaimed(marketId, market.disputeOpenedBy, disputeStake);
+    } else {
+      uint256 oracleRewardShare = Math.mulDiv(disputeStake, 8_000, BPS_DENOMINATOR);
+      uint256 protocolShare = disputeStake - oracleRewardShare;
+
+      market.committeeRewardPool += uint128(oracleRewardShare);
+      protocolDisputeFees[marketId] += protocolShare;
+    }
   }
 
   /// @notice Casts a stake-weighted oracle vote during the active resolution window.

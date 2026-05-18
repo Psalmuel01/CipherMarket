@@ -26,7 +26,7 @@ export default function DashboardPage(): JSX.Element {
               <Sparkles className="h-3.5 w-3.5 text-primary" />
               Live market desk
             </div>
-            <div className="max-w-3xl space-y-4">
+            <div className="max-w-3xl space-y-3">
               <h1 className="text-4xl font-semibold leading-[1.02] tracking-tight text-white md:text-5xl">
                 Explore markets with public odds and private positions.
               </h1>

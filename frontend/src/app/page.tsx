@@ -131,13 +131,13 @@ export default function LandingPage(): JSX.Element {
             >
               <Link href="/dashboard">
                 <Button size="lg" className="h-16 px-10 gap-4 group/btn">
-                  Access Markets
+                  Open Markets
                   <ArrowRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
                 </Button>
               </Link>
               <Link href="#protocol">
                 <Button variant="outline" size="lg" className="h-16 px-10">
-                  Protocol Specs
+                  How it works
                 </Button>
               </Link>
             </motion.div>
@@ -339,7 +339,7 @@ export default function LandingPage(): JSX.Element {
           <div className="relative flex justify-center gap-8">
             <Link href="/dashboard">
               <Button size="md" className="h-16 px-12 gap-4">
-                Access Markets
+                Open Markets
                 <ArrowRight className="h-6 w-6" />
               </Button>
             </Link>

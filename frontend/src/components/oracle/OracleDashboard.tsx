@@ -68,7 +68,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                   <ShieldCheck className="h-3.5 w-3.5 text-primary" />
                   {data?.isRegistered ? 'Oracle Node Active' : 'Oracle Seat Available'}
                 </div>
-                <div className="max-w-2xl space-y-4">
+                <div className="max-w-2xl space-y-3">
                   <h1 className="text-4xl font-semibold leading-[1.02] tracking-tight text-white md:text-5xl">
                     Oracle Governance.
                   </h1>
