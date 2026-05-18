@@ -97,7 +97,7 @@ export default function LandingPage(): JSX.Element {
             >
               <div className="h-px w-10 bg-primary/40" />
               <span className="text-[10px] font-mono font-bold uppercase tracking-[0.5em] text-primary/80">
-                Institutional Privacy Protocol v1.0
+                confidential prediction market
               </span>
             </motion.div>
 
@@ -116,7 +116,7 @@ export default function LandingPage(): JSX.Element {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.8 }}
-                className="text-xl lg:text-2xl text-white/40 font-light leading-relaxed max-w-xl"
+                className="text-lg lg:text-xl text-white/40 font-light leading-relaxed max-w-xl"
               >
                 CipherMarket leverages <span className="text-white/80">Fully Homomorphic Encryption</span> to secure prediction markets.
                 Your positions are encrypted end-to-end, protecting strategic alpha.

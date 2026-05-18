@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
-import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI, ERC20_ABI } from '@/lib/contracts';
 import { getBufferedGasFees, requireBufferedContractGas } from '@/lib/gas';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 
 export interface AddLiquidityReceipt {
   txHash: string;
@@ -21,6 +22,7 @@ export interface UseAddLiquidityResult {
     amount: string,
     decimals: number,
     isNative: boolean,
+    collateralToken: string,
   ) => Promise<void>;
 }
 
@@ -29,6 +31,7 @@ export default function useAddLiquidity(): UseAddLiquidityResult {
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const refreshProtocolData = useProtocolRefresh();
   const [data, setData] = useState<AddLiquidityReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +41,7 @@ export default function useAddLiquidity(): UseAddLiquidityResult {
     amount: string,
     decimals: number,
     isNative: boolean,
+    collateralToken: string,
   ): Promise<void> => {
     try {
       const predictionMarketAddress = getContractAddresses(chainId)?.predictionMarket;
@@ -62,6 +66,22 @@ export default function useAddLiquidity(): UseAddLiquidityResult {
       setData(null);
       setError(null);
       setIsLoading(true);
+
+      // 1. Approval if needed
+      if (!isNative && collateralToken) {
+        toast.info('Approving token allowance...');
+        const approvalGasFees = await getBufferedGasFees(publicClient);
+        const approvalHash = await writeContractAsync({
+          address: collateralToken as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [predictionMarketAddress, collateralAmount],
+          ...approvalGasFees,
+        });
+
+        await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+        toast.success('Allowance approved.');
+      }
       const gasFees = await getBufferedGasFees(publicClient);
       const gas = await requireBufferedContractGas(publicClient, {
         account: address,
@@ -88,6 +108,7 @@ export default function useAddLiquidity(): UseAddLiquidityResult {
       }
 
       setData({ txHash: hash });
+      await refreshProtocolData();
       toast.success('Liquidity added.');
     } catch (caughtError) {
       const nextError =

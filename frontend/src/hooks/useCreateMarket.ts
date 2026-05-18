@@ -13,6 +13,7 @@ import {
 } from '@/lib/contracts';
 import { getBufferedGasFees } from '@/lib/gas';
 import type { CreateMarketDraft, MarketType } from '@/types/market';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 
 export interface CreateMarketReceipt {
   txHash: string;
@@ -35,6 +36,7 @@ export default function useCreateMarket(): UseCreateMarketResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const refreshProtocolData = useProtocolRefresh();
   const [data, setData] = useState<CreateMarketReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -145,6 +147,7 @@ export default function useCreateMarket(): UseCreateMarketResult {
       }
 
       setData({ txHash: hash });
+      await refreshProtocolData();
       toast.success('Market created with seeded liquidity.');
     } catch (caughtError) {
       console.error('CipherMarket createMarket failed:', caughtError);

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 import { getBufferedGasFees } from '@/lib/gas';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 
 export interface ClaimLpPayoutReceipt {
   txHash: string;
@@ -22,6 +23,7 @@ export default function useClaimLpPayout(): UseClaimLpPayoutResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const refreshProtocolData = useProtocolRefresh();
   const [data, setData] = useState<ClaimLpPayoutReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +55,7 @@ export default function useClaimLpPayout(): UseClaimLpPayoutResult {
 
       await publicClient.waitForTransactionReceipt({ hash });
       setData({ txHash: hash });
+      await refreshProtocolData();
       toast.success('LP payout claimed.');
     } catch (caughtError) {
       const nextError =

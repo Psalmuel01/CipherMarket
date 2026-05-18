@@ -15,6 +15,7 @@ import type { TradeDraft } from '@/types/market';
 
 import useTransactionLifecycle from '@/hooks/useTransactionLifecycle';
 import usePendingTransactions from '@/hooks/usePendingTransactions';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 import type { TransactionLifecycleState } from '@/hooks/useTransactionLifecycle';
 
 export interface UseBuySharesResult {
@@ -32,6 +33,7 @@ export default function useBuyShares(): UseBuySharesResult {
   const { writeContractAsync } = useWriteContract();
   const lifecycle = useTransactionLifecycle();
   const { addTransaction, updateTransaction } = usePendingTransactions();
+  const refreshProtocolData = useProtocolRefresh();
 
   const buyShares = async (draft: TradeDraft): Promise<void> => {
     let pendingTxId: string | null = null;
@@ -115,8 +117,7 @@ export default function useBuyShares(): UseBuySharesResult {
       lifecycle.setStage('settling');
       updateTransaction(pendingTxId, { stage: 'settling' });
 
-      // Artificial wait for state sync
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await refreshProtocolData();
 
       lifecycle.setStage('success');
       updateTransaction(pendingTxId, { stage: 'success' });

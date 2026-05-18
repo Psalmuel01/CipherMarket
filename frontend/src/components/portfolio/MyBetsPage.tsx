@@ -14,7 +14,10 @@ import useMarkets from '@/hooks/useMarkets';
 import usePrivatePortfolio from '@/hooks/usePrivatePortfolio';
 import usePortfolioAnalytics from '@/hooks/usePortfolioAnalytics';
 import useAppStore from '@/store/useAppStore';
+import { getOutcomeColor } from '@/lib/outcomeColors';
 import type { PrivacyState } from '@/components/ui/PrivacyBadge';
+
+const heroSwatches = [0, 1, 2, 3].map((index) => getOutcomeColor(index));
 
 function PortfolioDesk(): JSX.Element {
   const { data: markets, isLoading: marketsLoading } = useMarkets();
@@ -71,12 +74,12 @@ function PortfolioDesk(): JSX.Element {
       <header className="mb-8">
         {/* <div className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.25em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-4 py-2 mb-6">
           <span className="w-1.5 h-1.5 rounded-full bg-[#e8533a]" />
-          Private Portfolio
+            Private Portfolio
         </div> */}
         <h1 className="text-[32px] lg:text-[40px] leading-[1.1] tracking-[-0.04em]">
           <span className="font-serif italic text-[#e8e4df]">My</span>
           <span className="font-sans font-light text-white/35 ml-2">positions.</span>
-        </h1>
+            </h1>
       </header>
 
       <main className="space-y-8">
@@ -120,8 +123,16 @@ function PortfolioDesk(): JSX.Element {
         {/* Positions Table */}
         <section className="space-y-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#e8533a]/10 flex items-center justify-center border border-[#e8533a]/20">
-              <Ticket className="h-5 w-5 text-[#e8533a]" />
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-500 hover:scale-105"
+              style={{
+                backgroundColor: heroSwatches[0].softBackground,
+                borderColor: heroSwatches[0].border,
+                color: heroSwatches[0].text,
+                boxShadow: `0 0 24px ${heroSwatches[0].shadow}`,
+              }}
+            >
+              <Ticket className="h-5 w-5" />
             </div>
             <h2 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
               Open Positions
@@ -129,7 +140,7 @@ function PortfolioDesk(): JSX.Element {
           </div>
 
           {!isPortfolioVisible ? (
-            <div className="glass-card rounded-[24px] p-10 text-center">
+            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-10 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
               <p className="text-sm text-white/25 font-light">
                 Reveal your portfolio to see your encrypted positions.
               </p>
@@ -141,7 +152,7 @@ function PortfolioDesk(): JSX.Element {
               <ContentSkeleton variant="position-row" />
             </div>
           ) : openPositions.length === 0 ? (
-            <div className="glass-card rounded-[24px] p-10 text-center space-y-3">
+            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-10 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)] space-y-3">
               <p className="text-sm text-white/30 font-light">
                 No positions found for this wallet.
               </p>
@@ -153,7 +164,7 @@ function PortfolioDesk(): JSX.Element {
               </Link>
             </div>
           ) : (
-            <div className="glass-card rounded-[24px] overflow-hidden">
+            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
               {/* Table header */}
               <div className="hidden md:grid md:grid-cols-[2.5fr,1fr,1fr,0.8fr,0.8fr,auto] gap-4 px-6 lg:px-8 py-3 border-b border-white/5 bg-white/[0.02]">
                 {['Market', 'Outcome', 'Shares', 'Est. Value', 'Status', 'Action'].map((col) => (

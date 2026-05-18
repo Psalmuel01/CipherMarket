@@ -32,8 +32,16 @@ export default function RedeemableSection({
   return (
     <section className="space-y-5">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-          <Trophy className="h-5 w-5 text-emerald-500" />
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-500 hover:scale-105"
+          style={{
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            borderColor: 'rgba(16, 185, 129, 0.2)',
+            color: '#10b981',
+            boxShadow: '0 0 24px rgba(16, 185, 129, 0.2)',
+          }}
+        >
+          <Trophy className="h-5 w-5" />
         </div>
         <h2 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
           Redeemable Winnings
@@ -51,7 +59,7 @@ export default function RedeemableSection({
               key={market.marketId}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="glass-card glass-card--success rounded-[24px] p-6 flex flex-col justify-between space-y-3"
+              className="relative overflow-hidden rounded-[28px] border border-emerald-500/20 bg-emerald-500/[0.025] p-6 flex flex-col justify-between space-y-3 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-emerald-500/[0.04]"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">

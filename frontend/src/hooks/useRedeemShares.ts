@@ -14,6 +14,7 @@ export interface RedeemSharesReceipt {
 
 import useTransactionLifecycle from '@/hooks/useTransactionLifecycle';
 import usePendingTransactions from '@/hooks/usePendingTransactions';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 import type { TransactionLifecycleState } from '@/hooks/useTransactionLifecycle';
 
 export interface UseRedeemSharesResult {
@@ -34,6 +35,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
   const { writeContractAsync } = useWriteContract();
   const lifecycle = useTransactionLifecycle();
   const { addTransaction, updateTransaction } = usePendingTransactions();
+  const refreshProtocolData = useProtocolRefresh();
 
   const redeemShares = async (
     marketId: number,
@@ -143,7 +145,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
 
       lifecycle.setStage('settling');
       updateTransaction(pendingTxId, { stage: 'settling' });
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await refreshProtocolData();
 
       lifecycle.setStage('success');
       updateTransaction(pendingTxId, { stage: 'success' });

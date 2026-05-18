@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 import { getBufferedGasFees, requireBufferedContractGas } from '@/lib/gas';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 
 export interface RemoveLiquidityReceipt {
   txHash: string;
@@ -29,6 +30,7 @@ export default function useRemoveLiquidity(): UseRemoveLiquidityResult {
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const refreshProtocolData = useProtocolRefresh();
   const [data, setData] = useState<RemoveLiquidityReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,6 +88,7 @@ export default function useRemoveLiquidity(): UseRemoveLiquidityResult {
       }
 
       setData({ txHash: hash });
+      await refreshProtocolData();
       toast.success('Liquidity removed.');
     } catch (caughtError) {
       const nextError =

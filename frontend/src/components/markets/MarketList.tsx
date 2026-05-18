@@ -10,10 +10,13 @@ import useMarkets from '@/hooks/useMarkets';
 import useAppStore from '@/store/useAppStore';
 import type { MarketSummary } from '@/types/market';
 
-type SortKey = 'liquidity' | 'expiry' | 'outcomes';
+type SortKey = 'newest' | 'liquidity' | 'expiry' | 'outcomes';
 
 function sortMarkets(markets: MarketSummary[], sortKey: SortKey): MarketSummary[] {
   return [...markets].sort((left, right) => {
+    if (sortKey === 'newest') {
+      return right.marketId - left.marketId;
+    }
     if (sortKey === 'liquidity') {
       if (left.totalLiquidity === right.totalLiquidity) return 0;
       return left.totalLiquidity > right.totalLiquidity ? -1 : 1;
@@ -34,7 +37,7 @@ export default function MarketList({ description, heading }: MarketListProps): J
   const { availableStatuses, data, error, isError, isLoading } = useMarkets();
   const activeStatusFilter = useAppStore((state) => state.activeStatusFilter);
   const setActiveStatusFilter = useAppStore((state) => state.setActiveStatusFilter);
-  const [sortKey, setSortKey] = useState<SortKey>('liquidity');
+  const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredMarkets = useMemo(() => {
@@ -101,7 +104,7 @@ export default function MarketList({ description, heading }: MarketListProps): J
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">Sort</span>
           <div className="flex gap-1.5 p-1 rounded-xl bg-white/[0.02] border border-white/5">
-            {(['liquidity', 'expiry', 'outcomes'] as SortKey[]).map((key) => (
+            {(['newest', 'liquidity', 'expiry', 'outcomes'] as SortKey[]).map((key) => (
               <button
                 key={key}
                 onClick={() => setSortKey(key)}

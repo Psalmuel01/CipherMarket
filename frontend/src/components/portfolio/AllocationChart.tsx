@@ -73,19 +73,19 @@ export default function AllocationChart({
 
   if (!isRevealed) {
     return (
-      <div className={clsx('glass-card rounded-[24px] p-8', className)}>
+      <div className={clsx('relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04]', className)}>
         <div className="flex items-center gap-3 mb-6">
           <h3 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
             Allocation
           </h3>
         </div>
         <div className="flex flex-col items-center justify-center py-8 space-y-3">
-          <div className="w-32 h-32 rounded-full border-2 border-dashed border-white/10 flex items-center justify-center">
-            <div className="w-24 h-24 rounded-full bg-white/[0.02] flex items-center justify-center">
-              <span className="font-mono text-sm text-white/15">Sealed</span>
+          <div className="w-32 h-32 rounded-full border border-dashed border-white/20 flex items-center justify-center shadow-[0_0_24px_rgba(255,255,255,0.02)]">
+            <div className="w-24 h-24 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center">
+              <span className="font-mono text-sm text-white/30 tracking-wider">Sealed</span>
             </div>
           </div>
-          <p className="text-xs text-white/25 text-center max-w-xs">
+          <p className="text-xs text-white/25 text-center max-w-xs leading-relaxed">
             Reveal your portfolio to see your position allocation across markets.
           </p>
         </div>
@@ -95,7 +95,7 @@ export default function AllocationChart({
 
   if (segments.length === 0) {
     return (
-      <div className={clsx('glass-card rounded-[24px] p-8', className)}>
+      <div className={clsx('relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04]', className)}>
         <div className="flex items-center gap-3 mb-6">
           <h3 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
             Allocation
@@ -109,7 +109,7 @@ export default function AllocationChart({
   }
 
   return (
-    <div className={clsx('glass-card rounded-[24px] p-8', className)}>
+    <div className={clsx('relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04]', className)}>
       <div className="flex items-center gap-3 mb-6">
         <h3 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
           Allocation

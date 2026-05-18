@@ -10,6 +10,7 @@ import {
   ORACLE_REGISTRY_ABI,
 } from '@/lib/contracts';
 import { getBufferedGasFees } from '@/lib/gas';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 
 export interface RegisterOracleReceipt {
   txHash: string;
@@ -31,6 +32,7 @@ export default function useRegisterOracle(): UseRegisterOracleResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const refreshProtocolData = useProtocolRefresh();
   const [data, setData] = useState<RegisterOracleReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -63,6 +65,7 @@ export default function useRegisterOracle(): UseRegisterOracleResult {
       await publicClient.waitForTransactionReceipt({ hash });
 
       setData({ txHash: hash });
+      await refreshProtocolData();
       toast.success('Oracle registration submitted.');
     } catch (caughtError) {
       const nextError =

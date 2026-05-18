@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
 import { formatContractError, getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 import { getBufferedGasFees } from '@/lib/gas';
+import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 
 export interface ProposeOutcomeReceipt {
   txHash: string;
@@ -26,6 +27,7 @@ export default function useProposeOutcome(): UseProposeOutcomeResult {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
+  const refreshProtocolData = useProtocolRefresh();
   const [data, setData] = useState<ProposeOutcomeReceipt | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -58,6 +60,7 @@ export default function useProposeOutcome(): UseProposeOutcomeResult {
       await publicClient.waitForTransactionReceipt({ hash });
 
       setData({ txHash: hash });
+      await refreshProtocolData();
       toast.success('Outcome proposal submitted.');
     } catch (caughtError) {
       const nextError =

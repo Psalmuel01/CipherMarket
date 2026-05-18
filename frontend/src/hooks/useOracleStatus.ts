@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { formatEther } from 'viem';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { formatContractError, getContractAddresses, ORACLE_REGISTRY_ABI } from '@/lib/contracts';
+import { LIVE_PUBLIC_QUERY_OPTIONS } from '@/lib/queryOptions';
 import useMarkets from '@/hooks/useMarkets';
 import type { OracleProfile } from '@/types/market';
 
@@ -37,6 +38,7 @@ export default function useOracleStatus(): UseOracleStatusResult {
     functionName: 'getOracle',
     args: address ? [address] : undefined,
     query: {
+      ...LIVE_PUBLIC_QUERY_OPTIONS,
       enabled: Boolean(oracleRegistryAddress) && Boolean(address),
     },
   });
@@ -46,6 +48,7 @@ export default function useOracleStatus(): UseOracleStatusResult {
     abi: ORACLE_REGISTRY_ABI,
     functionName: 'minimumStake',
     query: {
+      ...LIVE_PUBLIC_QUERY_OPTIONS,
       enabled: Boolean(oracleRegistryAddress),
     },
   });
@@ -56,6 +59,7 @@ export default function useOracleStatus(): UseOracleStatusResult {
     functionName: 'getOracleProposalLocks',
     args: address ? [address] : undefined,
     query: {
+      ...LIVE_PUBLIC_QUERY_OPTIONS,
       enabled: Boolean(oracleRegistryAddress) && Boolean(address),
     },
   });

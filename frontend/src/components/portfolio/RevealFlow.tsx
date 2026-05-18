@@ -28,7 +28,7 @@ export default function RevealFlow({
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card glass-card--active rounded-[24px] p-8"
+        className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-primary/[0.02] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)]"
       >
         <div className="flex flex-col items-center text-center space-y-5">
           <ProgressRing stage="decrypting" size={56} />
@@ -69,7 +69,7 @@ export default function RevealFlow({
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card glass-card--error rounded-[24px] p-8"
+        className="relative overflow-hidden rounded-[28px] border border-red-500/30 bg-red-500/[0.02] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)]"
       >
         <div className="flex flex-col items-center text-center space-y-3">
           <div className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/25 flex items-center justify-center">
@@ -95,7 +95,7 @@ export default function RevealFlow({
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="glass-card rounded-[24px] p-8"
+        className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04]"
       >
         <div className="flex flex-col items-center text-center space-y-5">
           <motion.div

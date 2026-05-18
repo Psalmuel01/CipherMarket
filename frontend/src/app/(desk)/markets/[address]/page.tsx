@@ -92,7 +92,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const chainId = useChainId();
   const { address } = useAccount();
   const addresses = getContractAddresses(chainId);
-  const [selectedOutcomeId, setSelectedOutcomeId] = useState<string>('0');
+  const [selectedOutcomeId, setSelectedOutcomeId] = useState<string>('');
   const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
   const [isModalOpen, setModalOpen] = useState<boolean>(false);
   const [isRedeemModalOpen, setRedeemModalOpen] = useState<boolean>(false);
@@ -100,6 +100,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const [disputeAmount, setDisputeAmount] = useState<string>('0.01');
   const [disputeOutcomeId, setDisputeOutcomeId] = useState<string>('0');
   const [resolutionOutcomeId, setResolutionOutcomeId] = useState<string>('0');
+  const [votingOutcomeIndex, setVotingOutcomeIndex] = useState<number | null>(null);
   const [addLiquidityAmount, setAddLiquidityAmount] = useState<string>('1');
   const [removeLiquidityAmount, setRemoveLiquidityAmount] = useState<string>('0');
   const { data, error, isError, isLoading } = useMarketDetails(marketIdParam);
@@ -143,7 +144,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   }, [data, isPortfolioVisible, privatePositions.data]);
 
   const selectedOutcome =
-    enrichedOutcomes.find((outcome) => outcome.id === selectedOutcomeId) ?? enrichedOutcomes[0] ?? null;
+    enrichedOutcomes.find((outcome) => outcome.id === selectedOutcomeId) ?? null;
   const finalOutcome =
     data?.finalOutcomeIndex !== null && data?.finalOutcomeIndex !== undefined
       ? enrichedOutcomes.find((outcome) => outcome.outcomeIndex === data.finalOutcomeIndex) ?? null
@@ -171,9 +172,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
       return;
     }
 
-    if (!selectedOutcomeId || !enrichedOutcomes.some((outcome) => outcome.id === selectedOutcomeId)) {
-      setSelectedOutcomeId(enrichedOutcomes[0]?.id ?? '0');
-    }
+
 
     if (
       !resolutionOutcomeId ||
@@ -224,6 +223,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
       addLiquidityAmount,
       collateralDecimals,
       isNativeCollateral,
+      data.collateralToken,
     );
   };
 
@@ -358,17 +358,22 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                         variant="outline"
                         className="gap-2"
                         disabled={voteOnResolutionMutation.isLoading || data.hasVotedOnResolution}
-                        onClick={() =>
-                          voteOnResolutionMutation.voteOnResolution(
-                            data.marketId,
-                            outcome.outcomeIndex,
-                          )
-                        }
+                        onClick={async () => {
+                          setVotingOutcomeIndex(outcome.outcomeIndex);
+                          try {
+                            await voteOnResolutionMutation.voteOnResolution(
+                              data.marketId,
+                              outcome.outcomeIndex,
+                            );
+                          } finally {
+                            setVotingOutcomeIndex(null);
+                          }
+                        }}
                         type="button"
                       >
                         <Vote className="h-4 w-4" />
                         {voteOnResolutionMutation.isLoading &&
-                          selectedOutcome?.outcomeIndex === outcome.outcomeIndex
+                          votingOutcomeIndex === outcome.outcomeIndex
                           ? 'Voting...'
                           : data.hasVotedOnResolution &&
                             data.myVoteOutcomeIndex === outcome.outcomeIndex
@@ -386,52 +391,56 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 ) : null}
               </div>
             )}
-            <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-foreground">Open dispute</p>
-                <p className="text-xs text-muted-foreground">
-                  Challenge the proposal by selecting a counter-outcome and posting dispute stake.
-                </p>
+            {!data.disputeOpened ? (
+              <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">Open dispute</p>
+                  <p className="text-xs text-muted-foreground">
+                    Challenge the proposal by selecting a counter-outcome and posting dispute stake.
+                  </p>
+                </div>
+                <select
+                  className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                  onChange={(event) => setDisputeOutcomeId(event.target.value)}
+                  value={selectedDisputeOutcome?.id ?? ''}
+                >
+                  {enrichedOutcomes
+                    .filter((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex)
+                    .map((outcome) => (
+                      <option key={outcome.id} value={outcome.id}>
+                        {outcome.label}
+                      </option>
+                    ))}
+                </select>
+                <input
+                  className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                  onChange={(event) => setDisputeAmount(event.target.value)}
+                  value={disputeAmount}
+                />
               </div>
-              <select
-                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
-                onChange={(event) => setDisputeOutcomeId(event.target.value)}
-                value={selectedDisputeOutcome?.id ?? ''}
-              >
-                {enrichedOutcomes
-                  .filter((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex)
-                  .map((outcome) => (
-                    <option key={outcome.id} value={outcome.id}>
-                      {outcome.label}
-                    </option>
-                  ))}
-              </select>
-              <input
-                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
-                onChange={(event) => setDisputeAmount(event.target.value)}
-                value={disputeAmount}
-              />
-            </div>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() =>
-                disputeOutcomeMutation.disputeOutcome(
-                  data.marketId,
-                  selectedDisputeOutcome?.outcomeIndex ?? 0,
-                  disputeAmount,
-                  collateralDecimals,
-                  data.collateralToken === '0x0000000000000000000000000000000000000000',
-                )
-              }
-              disabled={disputeOutcomeMutation.isLoading || !selectedDisputeOutcome}
-              type="button"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              {disputeOutcomeMutation.isLoading ? 'Staking...' : 'Open Dispute'}
-            </Button>
+            {!data.disputeOpened ? (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() =>
+                  disputeOutcomeMutation.disputeOutcome(
+                    data.marketId,
+                    selectedDisputeOutcome?.outcomeIndex ?? 0,
+                    disputeAmount,
+                    collateralDecimals,
+                    data.collateralToken === '0x0000000000000000000000000000000000000000',
+                  )
+                }
+                disabled={disputeOutcomeMutation.isLoading || !selectedDisputeOutcome}
+                type="button"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                {disputeOutcomeMutation.isLoading ? 'Staking...' : 'Open Dispute'}
+              </Button>
+            ) : null}
             <Button
               className="gap-2"
               onClick={() => finalizeMarketMutation.finalizeMarket(data.marketId)}
