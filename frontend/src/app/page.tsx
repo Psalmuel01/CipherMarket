@@ -25,13 +25,19 @@ import Button from '@/components/ui/Button';
 import clsx from 'clsx';
 
 const TERMINAL_LINES = [
-  { text: '$ cipher init --secure', color: 'text-white/40', delay: 0 },
-  { text: '> [FHE] Initializing TFHE-rs context...', color: 'text-primary/70', delay: 400 },
-  { text: '> [FHE] Keypair generated successfully.', color: 'text-primary', delay: 1000 },
-  { text: '$ cipher stake --amount 1250 --outcome "YES"', color: 'text-white/60', delay: 1600 },
-  { text: '> Encrypting payload (128-bit security)...', color: 'text-white/40', delay: 2200 },
-  { text: '> [PHASE 1] Ciphertext submitted: 0x8d...f901', color: 'text-emerald-400', delay: 3000 },
-  { text: '> SUCCESS: Position sealed and recorded.', color: 'text-primary font-bold', delay: 3800 },
+  { text: '$ cipher market quote --private', color: 'text-white/40', delay: 0 },
+  { text: '> Pool odds public. Wallet position sealed.', color: 'text-primary/70', delay: 400 },
+  { text: '> CoFHE self-permit ready.', color: 'text-primary', delay: 1000 },
+  { text: '$ cipher buy --outcome YES --amount 0.03', color: 'text-white/60', delay: 1600 },
+  { text: '> Encrypting trade intent...', color: 'text-white/40', delay: 2200 },
+  { text: '> Position handle: 0x8d...f901', color: 'text-emerald-400', delay: 3000 },
+  { text: '> SUCCESS: shares minted, position hidden.', color: 'text-primary font-bold', delay: 3800 },
+] as const;
+
+const HERO_MARKETS = [
+  { label: 'Lagos Rain', odds: '64%', color: '#38bdf8' },
+  { label: 'ARB Gas Spike', odds: '41%', color: '#f97316' },
+  { label: 'BTC Flow Day', odds: '72%', color: '#22c55e' },
 ] as const;
 
 function TerminalMockup(): JSX.Element {
@@ -84,9 +90,12 @@ function TerminalMockup(): JSX.Element {
 
 export default function LandingPage(): JSX.Element {
   return (
-    <div className="relative max-w-[1400px] px-8 lg:px-16 mx-auto space-y-64 py-32 bg-black">
+    <div className="relative max-w-[1400px] px-8 lg:px-16 mx-auto space-y-56 py-28 bg-black">
       {/* ── HERO SECTION ── */}
-      <section className="relative min-h-[90vh] flex flex-col justify-center">
+      <section className="relative min-h-[90vh] flex flex-col justify-center overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-8 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+        <div className="pointer-events-none absolute -right-24 top-24 h-72 w-72 rounded-full border border-primary/15" />
+        <div className="pointer-events-none absolute -left-16 bottom-20 h-56 w-56 rounded-full border border-sky-300/10" />
         <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-24 items-center">
 
           <div className="space-y-16">
@@ -106,10 +115,10 @@ export default function LandingPage(): JSX.Element {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.8 }}
-                className="text-[72px] lg:text-[96px] xl:text-[112px] leading-[0.85] tracking-tighter font-serif italic text-white"
+                className="text-[72px] lg:text-[96px] xl:text-[116px] leading-[0.84] tracking-tighter font-serif italic text-white"
               >
-                Trade<br />
-                <span className="font-sans font-light not-italic text-white/10 italic">The Future.</span>
+                Trade the<br />
+                <span className="font-sans font-light not-italic text-white/12">unknown.</span>
               </motion.h1>
 
               <motion.p
@@ -118,8 +127,8 @@ export default function LandingPage(): JSX.Element {
                 transition={{ delay: 0.4, duration: 0.8 }}
                 className="text-lg lg:text-xl text-white/40 font-light leading-relaxed max-w-xl"
               >
-                CipherMarket leverages <span className="text-white/80">Fully Homomorphic Encryption</span> to secure prediction markets.
-                Your positions are encrypted end-to-end, protecting strategic alpha.
+                Public odds, private positions. CipherMarket uses <span className="text-white/80">CoFHE encryption</span> so markets stay readable
+                while your individual book stays sealed.
               </motion.p>
             </div>
 
@@ -142,15 +151,15 @@ export default function LandingPage(): JSX.Element {
               </Link>
             </motion.div>
 
-            <div className="flex items-center gap-20 pt-20 border-t border-white/10">
+            <div className="grid gap-3 sm:grid-cols-3 pt-14 border-t border-white/10">
               {[
-                { label: 'Sealed Liquidity', value: '$42.8M' },
-                { label: 'Active Markets', value: '124' },
-                { label: 'Compute Proofs', value: '1.2M+' },
+                { label: 'Position Privacy', value: 'FHE' },
+                { label: 'Resolution Window', value: '5m' },
+                { label: 'Test Network', value: 'Arbitrum' },
               ].map((stat) => (
-                <div key={stat.label} className="space-y-2">
-                  <p className="text-4xl font-serif italic text-white/90">{stat.value}</p>
-                  <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-white/20">{stat.label}</p>
+                <div key={stat.label} className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+                  <p className="text-3xl font-serif italic text-white/90">{stat.value}</p>
+                  <p className="mt-2 text-[9px] font-mono uppercase tracking-[0.3em] text-white/28">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -163,6 +172,23 @@ export default function LandingPage(): JSX.Element {
             className="relative hidden lg:block"
           >
             <TerminalMockup />
+
+            <div className="absolute -left-8 -top-10 w-64 rounded-2xl border border-white/10 bg-black/90 p-4 shadow-2xl">
+              <p className="mb-4 text-[9px] font-mono uppercase tracking-[0.28em] text-white/25">Live odds</p>
+              <div className="space-y-3">
+                {HERO_MARKETS.map((market) => (
+                  <div key={market.label} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.14em]">
+                      <span className="text-white/45">{market.label}</span>
+                      <span style={{ color: market.color }}>{market.odds}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+                      <div className="h-full rounded-full" style={{ width: market.odds, backgroundColor: market.color }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -187,7 +213,7 @@ export default function LandingPage(): JSX.Element {
                   />
                 </div>
                 <div className="flex justify-between text-[11px] font-mono text-white/30 uppercase tracking-widest font-bold">
-                  <span>Outcome Alpha</span>
+                  <span>Private Balance</span>
                   <span className="text-white/80">74.2%</span>
                 </div>
               </div>
@@ -228,7 +254,7 @@ export default function LandingPage(): JSX.Element {
             },
             {
               title: 'Staked Resolution',
-              desc: 'Institutional oracles resolve outcomes with 48h dispute windows.',
+              desc: 'Staked oracles propose, vote, and resolve with short testnet windows.',
               icon: Scale
             }
           ].map((item, i) => (

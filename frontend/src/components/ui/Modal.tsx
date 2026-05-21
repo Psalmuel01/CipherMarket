@@ -1,6 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 
 export interface ModalProps {
@@ -21,6 +22,19 @@ export default function Modal({
   title,
 }: ModalProps): JSX.Element {
   const maxWidthClass = size === 'md' ? 'max-w-xl' : 'max-w-2xl';
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose, open]);
 
   return (
     <AnimatePresence>
@@ -46,7 +60,7 @@ export default function Modal({
               </div>
               <button
                 aria-label="Close modal"
-                className="rounded-md border border-white/10 px-2 py-1 text-xs text-muted transition-colors hover:border-white/20 hover:text-text"
+                className="rounded-md border border-white/25 bg-white/[0.07] px-2.5 py-1 text-xs font-semibold text-white/75 shadow-sm transition-colors hover:border-white/40 hover:bg-white/[0.12] hover:text-white"
                 onClick={onClose}
                 type="button"
               >

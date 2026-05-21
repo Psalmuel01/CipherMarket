@@ -152,6 +152,12 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
                   {
                     address: predictionMarketAddress,
                     abi: PREDICTION_MARKET_ABI,
+                    functionName: 'hasRedeemed',
+                    args: [validMarketId, address],
+                  },
+                  {
+                    address: predictionMarketAddress,
+                    abi: PREDICTION_MARKET_ABI,
                     functionName: 'oracleHasVoted',
                     args: [validMarketId, address],
                   },
@@ -206,7 +212,13 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
         ? myLpSharesResult.result
         : 0n;
     const probabilities = computeProbabilitiesFromReserves(reserves);
-    const oracleReadOffset = outcomeCount * 2 + 1 + (address ? 1 : 0);
+    const accountReadOffset = outcomeCount * 2 + 1;
+    const hasRedeemedResult = address ? readResults[accountReadOffset + 1] : null;
+    const hasRedeemed =
+      hasRedeemedResult?.status === 'success' && typeof hasRedeemedResult.result === 'boolean'
+        ? hasRedeemedResult.result
+        : false;
+    const oracleReadOffset = outcomeCount * 2 + 1 + (address ? 2 : 0);
     const hasVotedResult = address ? readResults[oracleReadOffset] : null;
     const voteChoiceResult = address ? readResults[oracleReadOffset + 1] : null;
     const voteWeightSnapshotResult = address ? readResults[oracleReadOffset + 2] : null;
@@ -292,6 +304,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       disputeRefundsEnabled: marketView.disputeRefundsEnabled,
       disputeOpened: marketView.disputeOpened,
       committeeResolved: marketView.committeeResolved,
+      hasRedeemed,
       myLpShares,
       totalLpShares,
       estimatedLpCollateralOut:

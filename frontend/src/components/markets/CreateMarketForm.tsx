@@ -77,6 +77,17 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
   const expiryTimestamp = new Date(expiryTime).getTime();
   const isExpiryInPast = !Number.isNaN(expiryTimestamp) && expiryTimestamp <= Date.now();
 
+  const isValidUrl = (value: string): boolean => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  const isOracleSourceValid = oracleSource.trim().length === 0 || isValidUrl(oracleSource.trim());
+
   const minimumRequiredSeedLiquidity = useMemo(() => {
     try {
       const parsedMinimumTrade = parseUnits(minimumTrade || '0', collateralDecimals);
@@ -147,7 +158,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
         return (
           expiryTime.length > 0 &&
           !isExpiryInPast &&
-          oracleSource.trim().length > 0 &&
+          isValidUrl(oracleSource.trim()) &&
           parseFloat(minimumTrade) > 0 &&
           !isSeedLiquidityTooSmall
         );
@@ -497,12 +508,23 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
                     <div className="relative group">
                       <Cpu className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-white/20 group-focus-within:text-primary transition-colors" />
                       <input
-                        className="h-14 w-full rounded-xl border border-white/10 bg-white/[0.01] pl-16 pr-8 text-base font-medium text-white/60 outline-none focus:border-primary/50"
+                        className={clsx(
+                          "h-14 w-full rounded-xl border bg-white/[0.01] pl-16 pr-8 text-base font-medium text-white/60 outline-none transition-all",
+                          !isOracleSourceValid
+                            ? 'border-red-500/50 focus:border-red-500/70'
+                            : 'border-white/10 focus:border-primary/50'
+                        )}
                         onChange={(e) => { reset(); setOracleSource(e.target.value); }}
-                        placeholder="Resolution URL or decentralized oracle target"
+                        placeholder="https://example.com/resolution-source"
+                        type="url"
                         value={oracleSource}
                       />
                     </div>
+                    {!isOracleSourceValid && (
+                      <p className="px-2 text-[11px] font-medium text-red-400">
+                        Oracle source must be a valid URL (https://...)
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-8 md:col-span-2">

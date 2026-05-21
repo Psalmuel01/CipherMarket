@@ -7,6 +7,7 @@ import PrivacyBadge from '@/components/ui/PrivacyBadge';
 import { formatTokenAmount, formatRelativeExpiry } from '@/lib/formatters';
 import { getOutcomeColor } from '@/lib/outcomeColors';
 import type { MarketSummary } from '@/types/market';
+import LifecycleBadge from '@/components/markets/LifecycleBadge';
 
 export interface MarketCardProps {
   market: MarketSummary;
@@ -37,6 +38,7 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
                 {market.category}
               </span>
               <PrivacyBadge state="sealed" size="sm" showTooltip={false} />
+              <LifecycleBadge status={market.status} />
               {market.outcomeCount > 4 ? (
                 <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-white/35">
                   +{market.outcomeCount - 4} outcomes

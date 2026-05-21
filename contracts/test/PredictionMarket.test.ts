@@ -82,6 +82,19 @@ describe('PredictionMarket Wave 3A', () => {
     return inverseBalances.map((value) => (value * scale) / inverseSum);
   }
 
+  function encodeEscrowResolverData(
+    marketId: bigint | number,
+    disputer: string,
+    counterOutcomeIndex: number,
+    stakeAmount: bigint,
+    collateralToken: string,
+  ): string {
+    return ethers.AbiCoder.defaultAbiCoder().encode(
+      ['uint256', 'address', 'uint8', 'uint128', 'address'],
+      [marketId, disputer, counterOutcomeIndex, stakeAmount, collateralToken],
+    );
+  }
+
   it('creates an ETH market with metadata, equal reserve splits, and stable buy quotes', async () => {
     const { creator, predictionMarket } = await deployFixture();
     const expiryTime = (await latestTimestamp()) + 60;
@@ -354,6 +367,152 @@ describe('PredictionMarket Wave 3A', () => {
     await expect(predictionMarket.connect(disputer).claimDisputeRefund(0)).to.be.revertedWith(
       'No dispute refund',
     );
+  });
+
+  it('registers and settles a successful USDC dispute through escrow, including market 0', async () => {
+    const { creator, proposerOracle, committeeOracle, disputer, registry, predictionMarket, usdc } =
+      await deployFixture();
+    const escrow = await ethers.deployContract('MockConfidentialEscrow');
+    await escrow.waitForDeployment();
+    await predictionMarket.setDisputeEscrowRegistry(await escrow.getAddress());
+
+    const expiryTime = (await latestTimestamp()) + 60;
+    const seedLiquidity = 1_000_000n;
+    await usdc.connect(creator).approve(await predictionMarket.getAddress(), seedLiquidity);
+    await predictionMarket.connect(creator).createMarket(
+      'Will a verifier bug be fixed?',
+      'Resolution based on the tagged release note.',
+      'Security',
+      'https://example.com/verifier-release',
+      0,
+      ['YES', 'NO'],
+      expiryTime,
+      await usdc.getAddress(),
+      100_000n,
+      seedLiquidity,
+    );
+
+    await registry.connect(proposerOracle).register({ value: ethers.parseEther('2') });
+    await registry.connect(committeeOracle).register({ value: ethers.parseEther('3') });
+
+    await moveTime(61);
+    await predictionMarket.connect(proposerOracle).proposeOutcome(0, 0);
+
+    const stakeAmount = 100_000n;
+    const escrowId = 77n;
+    const resolverData = encodeEscrowResolverData(
+      0,
+      disputer.address,
+      1,
+      stakeAmount,
+      await usdc.getAddress(),
+    );
+    await usdc.connect(disputer).approve(await escrow.getAddress(), stakeAmount);
+    await escrow.connect(disputer).createEscrow(
+      escrowId,
+      await usdc.getAddress(),
+      stakeAmount,
+      await predictionMarket.getAddress(),
+      await predictionMarket.getAddress(),
+      resolverData,
+    );
+
+    await predictionMarket.connect(disputer).openDisputeWithEscrow(0, 1, stakeAmount, escrowId);
+    expect(await predictionMarket.marketDisputeEscrowId(0)).to.equal(escrowId);
+    expect(await predictionMarket.isConditionMet(escrowId)).to.equal(false);
+
+    await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
+    await predictionMarket.connect(committeeOracle).voteOnResolution(0, 1);
+    await moveTime(3601);
+    await predictionMarket.finalizeByQuorum(0);
+
+    expect(await predictionMarket.isConditionMet(escrowId)).to.equal(true);
+    await expect(() =>
+      predictionMarket.settleEscrowDispute(0),
+    ).to.changeTokenBalances(usdc, [escrow, disputer], [-stakeAmount, stakeAmount]);
+
+    const market = await predictionMarket.getMarket(0);
+    expect(market.disputeRefundsEnabled).to.equal(true);
+    expect(market.disputeStakeTotal).to.equal(0n);
+    expect(await predictionMarket.marketDisputeEscrowId(0)).to.equal(0n);
+    expect(await predictionMarket.isConditionMet(escrowId)).to.equal(false);
+  });
+
+  it('settles a failed USDC escrow dispute into oracle rewards and protocol fees', async () => {
+    const { creator, proposerOracle, committeeOracle, disputer, registry, predictionMarket, usdc } =
+      await deployFixture();
+    const escrow = await ethers.deployContract('MockConfidentialEscrow');
+    await escrow.waitForDeployment();
+    await predictionMarket.setDisputeEscrowRegistry(await escrow.getAddress());
+
+    const expiryTime = (await latestTimestamp()) + 60;
+    const seedLiquidity = 1_000_000n;
+    await usdc.connect(creator).approve(await predictionMarket.getAddress(), seedLiquidity);
+    await predictionMarket.connect(creator).createMarket(
+      'Will the bridge pause this week?',
+      'Resolution based on the official status page.',
+      'Infra',
+      'https://example.com/status',
+      0,
+      ['YES', 'NO'],
+      expiryTime,
+      await usdc.getAddress(),
+      100_000n,
+      seedLiquidity,
+    );
+
+    await registry.connect(proposerOracle).register({ value: ethers.parseEther('2') });
+    await registry.connect(committeeOracle).register({ value: ethers.parseEther('3') });
+
+    await moveTime(61);
+    await predictionMarket.connect(proposerOracle).proposeOutcome(0, 0);
+
+    const stakeAmount = 100_000n;
+    const escrowId = 78n;
+    const resolverData = encodeEscrowResolverData(
+      0,
+      disputer.address,
+      1,
+      stakeAmount,
+      await usdc.getAddress(),
+    );
+    await usdc.connect(disputer).approve(await escrow.getAddress(), stakeAmount);
+    await escrow.connect(disputer).createEscrow(
+      escrowId,
+      await usdc.getAddress(),
+      stakeAmount,
+      await predictionMarket.getAddress(),
+      await predictionMarket.getAddress(),
+      resolverData,
+    );
+
+    await predictionMarket.connect(disputer).openDisputeWithEscrow(0, 1, stakeAmount, escrowId);
+    await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
+    await predictionMarket.connect(committeeOracle).voteOnResolution(0, 0);
+    await moveTime(3601);
+    await predictionMarket.finalizeByQuorum(0);
+
+    let market = await predictionMarket.getMarket(0);
+    expect(market.committeeRewardPool).to.equal(0n);
+    expect(market.protocolDisputeFees).to.equal(0n);
+
+    await expect(() =>
+      predictionMarket.settleEscrowDispute(0),
+    ).to.changeTokenBalances(usdc, [escrow, predictionMarket], [-stakeAmount, stakeAmount]);
+
+    market = await predictionMarket.getMarket(0);
+    expect(market.disputeRefundsEnabled).to.equal(false);
+    expect(market.committeeRewardPool).to.equal(80_000n);
+    expect(market.protocolDisputeFees).to.equal(20_000n);
+    expect(market.disputeStakeTotal).to.equal(0n);
+
+    await expect(() =>
+      predictionMarket.connect(proposerOracle).claimOracleResolutionReward(0),
+    ).to.changeTokenBalances(usdc, [predictionMarket, proposerOracle], [-32_000n, 32_000n]);
+
+    await expect(() =>
+      predictionMarket.connect(committeeOracle).claimOracleResolutionReward(0),
+    ).to.changeTokenBalances(usdc, [predictionMarket, committeeOracle], [-48_000n, 48_000n]);
   });
 
   it('escalates unresolved committee markets and restricts oracle rewards to committee-resolved outcomes', async () => {

@@ -92,6 +92,7 @@ export interface MarketDetail extends MarketSummary {
   disputeRefundsEnabled: boolean;
   disputeOpened: boolean;
   committeeResolved: boolean;
+  hasRedeemed: boolean;
   myLpShares: bigint;
   totalLpShares: bigint;
   estimatedLpCollateralOut: bigint;

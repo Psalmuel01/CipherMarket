@@ -162,10 +162,11 @@ async function main(): Promise<void> {
   const predictionMarketMath = await deploy(hre, provider, 'PredictionMarketMath');
 
   // ── 3. PredictionMarket ────────────────────────────────────────────────────
-  // Constructor args: oracle registry address, dispute window in seconds (24h)
+  // Constructor args: oracle registry address, dispute window in seconds.
+  // Testnet deployments use a short 5-minute window so full resolution can be exercised quickly.
   const predictionMarket = await deploy(hre, provider, 'PredictionMarket', [
     oracleRegistry.address,
-    24 * 60 * 60,
+    5 * 60,
   ], {
     PredictionMarketMath: predictionMarketMath.address,
   });

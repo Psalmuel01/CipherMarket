@@ -130,84 +130,13 @@ export default function useDisputeEscrow(): UseDisputeEscrowResult {
         return;
       }
 
-      // Privara Escrow Flow:
-      // Stage 1: Client-Side FHE Encryption
-      lifecycle.setStage('encrypting');
-      updateTransaction(pendingTxId, { stage: 'encrypting' });
-      await new Promise((resolve) => setTimeout(resolve, 3000)); // Simulate FHE parameter encryption delay
-
-      // Stage 2: Token Approval for Escrow Registry
-      lifecycle.setStage('approving');
-      updateTransaction(pendingTxId, { stage: 'approving' });
-      
-      const escrowRegistryAddress = '0xC4333F84F5034D8691CB95f068def2e3B6DC60Fa';
-      if (collateralToken.toLowerCase() !== zeroAddress) {
-        const approvalGasFees = await getBufferedGasFees(publicClient);
-        const approveHash = await writeContractAsync({
-          address: collateralToken as `0x${string}`,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [escrowRegistryAddress, stakeAmount],
-          ...approvalGasFees,
-        });
-        await publicClient.waitForTransactionReceipt({ hash: approveHash as `0x${string}` });
+      if (collateralToken.toLowerCase() === zeroAddress) {
+        throw new Error('Privara escrow disputes currently require USDC collateral. Use Direct Custody for ETH markets.');
       }
 
-      // Stage 3: Awaiting Escrow Creation & Funding
-      lifecycle.setStage('awaiting_wallet');
-      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
-
-      // Generate a mock/deterministic escrow ID for demonstration purposes
-      // On production FHE client this represents the returned value from sdk.escrow.create()
-      const mockEscrowId = BigInt(Math.floor(Date.now() / 1000));
-
-      // Simulate a small FHE block verification delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Stage 4: Register Dispute with Escrow on PredictionMarket
-      lifecycle.setStage('settling');
-      updateTransaction(pendingTxId, { stage: 'settling' });
-
-      const disputeGasFees = await getBufferedGasFees(publicClient);
-
-      // We call openDisputeWithEscrow on PredictionMarket.sol
-      // If the escrow registry is not deployed/accessible natively in the testnet,
-      // it will revert. If so, we elegantly catch and fallback to native openDispute.
-      let hash: string;
-      try {
-        hash = await writeContractAsync({
-          address: predictionMarketAddress,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'openDisputeWithEscrow',
-          args: [BigInt(marketId), counterOutcomeIndex, mockEscrowId],
-          ...disputeGasFees,
-        });
-      } catch (err) {
-        console.warn('Escrow registry contract not deployed or simulated. Falling back to native dispute bond custody.', err);
-        // Seamless fallback to standard openDispute so the transaction succeeds on-chain!
-        hash = await writeContractAsync({
-          address: predictionMarketAddress,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'openDispute',
-          args: [BigInt(marketId), counterOutcomeIndex, stakeAmount],
-          value: collateralToken.toLowerCase() === zeroAddress ? stakeAmount : 0n,
-          ...disputeGasFees,
-        });
-      }
-
-      lifecycle.setTxHash(hash);
-      lifecycle.setStage('confirming');
-      updateTransaction(pendingTxId, { stage: 'confirming', txHash: hash });
-
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}` });
-      if (receipt.status !== 'success') {
-        throw new Error('Dispute transaction reverted on-chain.');
-      }
-
-      lifecycle.setStage('success');
-      updateTransaction(pendingTxId, { stage: 'success' });
-      toast.success(`Dispute registered with Privara Escrow for ${marketTitle}`);
-      await refreshProtocolData();
+      throw new Error(
+        'Privara escrow is contract-ready but not enabled in the browser yet. Use Direct Custody until the live Privara SDK/relay path is validated.',
+      );
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error

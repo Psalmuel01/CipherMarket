@@ -64,33 +64,34 @@ If refund vs forfeiture cannot be expressed reliably against finalized CipherMar
 
 ---
 
-## Validation Results (PASS)
-**Status**: `PASS` — Wave 3C is highly feasible and ready to proceed into full contract integration.
+## Validation Results (PARTIAL)
+**Status**: `PARTIAL` — Wave 3C is feasible, but should remain behind an explicit escrow mode until the live end-to-end Privara flow is revalidated after the contract changes.
 
 ### Summary of Answers
 
 1. **Can Privara escrow be created and funded on Arbitrum Sepolia for the dispute collateral?**
-   * **Yes**. The Reineira OS / Privara SDK has native addresses deployed on Arbitrum Sepolia (`escrow: '0xC4333F84F5034D8691CB95f068def2e3B6DC60Fa'`), and natively supports Arbitrum Sepolia USDC (`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`) which is the exact collateral used by CipherMarket. The transaction successfully executes and triggers the correct state validation paths.
+   * **Partial**. The Reineira OS / Privara SDK has native addresses deployed on Arbitrum Sepolia (`escrow: '0xC4333F84F5034D8691CB95f068def2e3B6DC60Fa'`) and supports Arbitrum Sepolia USDC (`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`). A standalone SDK escrow creation script exists, but the full CipherMarket dispute path still needs a live escrow create -> fund -> register -> finalize -> settle validation run.
    
 2. **Can Privara conditions depend on finalized CipherMarket state?**
-   * **Yes**. The SDK supports conditional resolvers via `escrow.condition(resolverAddress, resolverData)`. The resolver contract implements the `CONDITION_RESOLVER_ABI`:
+   * **Partial**. The SDK supports conditional resolvers via `escrow.condition(resolverAddress, resolverData)`. The resolver contract implements the `CONDITION_RESOLVER_ABI`:
      ```solidity
      function isConditionMet(uint256 escrowId) view returns (bool)
      ```
-     By implementing this interface directly inside `PredictionMarket.sol` (or a helper resolver contract), the Privara escrow will automatically query the canonical, finalized state of the prediction market on-chain to decide whether the condition is met.
+     `PredictionMarket.sol` now implements this interface and validates resolver data before registering an escrow-backed dispute.
 
 3. **Can the condition distinguish dispute success, dispute failure, and not-yet-finalized markets?**
-   * **Yes**.
-     * **Dispute Success**: If the dispute succeeds, the condition returns `true` and the disputer can call `redeem()` on the escrow to recover their USDC.
-     * **Dispute Failure**: If the dispute fails, the escrow condition remains `false`. A timeout (expiration) or a separate dispute settlement contract path allows the funds to be released/routed to the `DisputeSettlementReceiver` to split (80% to winning oracles, 20% to treasury).
-     * **Not-yet-finalized**: While the market is active, disputed, or voting, `isConditionMet` returns `false`, keeping the funds safely locked in escrow.
+   * **Partial**.
+     * **Not-yet-finalized**: `isConditionMet` returns `false`, keeping funds locked.
+     * **Finalized**: `isConditionMet` returns `true`, allowing escrow release to `PredictionMarket`.
+     * **Success vs failure**: `PredictionMarket.settleEscrowDispute(...)` distinguishes successful disputes from failed disputes and routes funds accordingly.
 
 4. **Can the normal release path complete without manual operator action?**
-   * **Yes**. Once the `PredictionMarket` contract state changes to `FINALIZED` on-chain, anyone (or the user directly via the frontend) can call the `redeem(escrowId)` function on the Privara Escrow contract. It is a completely decentralized, pull-based release mechanism.
+   * **Partial**. Once the `PredictionMarket` contract state changes to `FINALIZED`, anyone can call `PredictionMarket.settleEscrowDispute(marketId)`. Local tests prove the settlement path against a mock Privara escrow. The same path still needs live Arbitrum Sepolia validation against the real Privara escrow contract.
 
 5. **Can CipherMarket keep a safe native fallback path if Privara is unavailable?**
-   * **Yes**. We will implement a `disputeEscrowEnabled` toggle in `PredictionMarket.sol` (controlled by the protocol owner). If enabled, disputes require a registered Privara `escrowId`. If disabled (e.g. if the Privara network is experiencing latency), `openDispute(...)` automatically falls back to native in-contract custody of USDC dispute bonds.
+   * **Yes**. `PredictionMarket.sol` includes a `disputeEscrowEnabled` toggle. The frontend also exposes Direct Custody separately. Privara mode no longer silently falls back to native custody if escrow creation fails.
 
 ### Technical Discovery Notes
 * **Mock CoFHE Integration for Local Testing**: Because native Node.js FHE compilation has environmental constraints in pure CLI runners, we developed a mock injection pipeline using `injectCofhe(mockModule)` from the SDK. This enables developers to test the full escrow lifecycle, wallet balance queries, and transaction pipelines locally without running into native FHE compilation issues.
-* **Release Targets**: Released forfeited funds will route directly to a newly coded `DisputeSettlementReceiver` contract, which handles the Wave 3A split (80% to winning oracle voters, 20% to protocol treasury) and transfers funds back to the main prediction market.
+* **Release Targets**: Current implementation releases escrow funds to `PredictionMarket`, then `settleEscrowDispute(...)` routes the bond: successful dispute refunds the disputer; failed committee dispute allocates 80% to the winning oracle reward pool and 20% to protocol fees.
+* **Test Coverage**: Local contract tests now cover successful and failed USDC escrow disputes with a mock Privara escrow, including market ID `0`.

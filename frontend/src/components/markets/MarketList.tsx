@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { Search, SlidersHorizontal, ArrowUpDown, Filter } from 'lucide-react';
 import clsx from 'clsx';
 import MarketCard from '@/components/markets/MarketCard';
+import { getLifecycleLabel } from '@/components/markets/LifecycleBadge';
 import Button from '@/components/ui/Button';
 import ContentSkeleton from '@/components/ui/ContentSkeleton';
 import useMarkets from '@/hooks/useMarkets';
@@ -96,7 +97,7 @@ export default function MarketList({ description, heading }: MarketListProps): J
                   : 'bg-white/[0.02] border-white/5 text-white/30 hover:text-white/50 hover:bg-white/5'
               )}
             >
-              {status}
+              {status === 'ALL' ? 'All' : getLifecycleLabel(status)}
             </button>
           ))}
         </div>
