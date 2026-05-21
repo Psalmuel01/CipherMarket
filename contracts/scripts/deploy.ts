@@ -179,14 +179,14 @@ async function main(): Promise<void> {
   await sendConfig(provider, 'setPredictionMarket', setPMTx);
 
   const market = await hre.ethers.getContractAt('PredictionMarket', predictionMarket.address);
-  const sepoliaUsdcAddress = process.env.SEPOLIA_USDC_ADDRESS;
+  const sepoliaUsdcAddress = process.env.ARBITRUM_SEPOLIA_USDC_ADDRESS;
 
   if (sepoliaUsdcAddress) {
     console.log(`\n  PredictionMarket.setAcceptedCollateral(${sepoliaUsdcAddress}, true)`);
     const setColTx = await market.setAcceptedCollateral(sepoliaUsdcAddress, true);
     await sendConfig(provider, 'setAcceptedCollateral', setColTx);
   } else {
-    console.log('\n  No SEPOLIA_USDC_ADDRESS configured. Skipping ERC20 collateral whitelist.');
+    console.log('\n  No ARBITRUM_SEPOLIA_USDC_ADDRESS configured. Skipping ERC20 collateral whitelist.');
   }
 
   // ── Summary ────────────────────────────────────────────────────────────────
@@ -218,7 +218,7 @@ async function main(): Promise<void> {
   console.log('');
   console.log('  Next steps:');
   console.log('  1. Copy the addresses above into your frontend .env');
-  console.log('  2. Set NEXT_PUBLIC_SEPOLIA_USDC_ADDRESS in frontend/.env.local');
+  console.log('  2. Set NEXT_PUBLIC_ARBITRUM_SEPOLIA_USDC_ADDRESS in frontend/.env.local');
   console.log('  3. Register an oracle via OracleRegistry.register()');
   console.log('══════════════════════════════════════');
 }

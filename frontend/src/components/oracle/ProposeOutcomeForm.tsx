@@ -124,7 +124,7 @@ export default function ProposeOutcomeForm({ className, isOracleRegistered }: Pr
           </label>
           <input
             className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
-            defaultValue="https://issuer.example/report-q2-2026"
+            placeholder="https://issuer.example/report-q2-2026"
           />
         </div>
 

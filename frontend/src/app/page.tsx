@@ -117,8 +117,8 @@ export default function LandingPage(): JSX.Element {
                 transition={{ delay: 0.2, duration: 0.8 }}
                 className="text-[72px] lg:text-[96px] xl:text-[116px] leading-[0.84] tracking-tighter font-serif italic text-white"
               >
-                Trade the<br />
-                <span className="font-sans font-light not-italic text-white/12">unknown.</span>
+                Trade<br />
+                <span className="font-sans font-light not-italic text-white/10">The Future.</span>
               </motion.h1>
 
               <motion.p
