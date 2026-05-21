@@ -13,6 +13,8 @@ export interface RedeemModalProps {
   winningShares: bigint;
   collateralSymbol: string;
   collateralDecimals: number;
+  finalOutcomeIndex: number | null;
+  hasRedeemed: boolean;
   open: boolean;
   onClose: () => void;
 }
@@ -23,13 +25,15 @@ export default function RedeemModal({
   winningShares,
   collateralSymbol,
   collateralDecimals,
+  finalOutcomeIndex,
+  hasRedeemed,
   open,
   onClose,
 }: RedeemModalProps): JSX.Element {
   const { state, redeemShares, reset } = useRedeemShares();
 
   const handleRedeem = async (): Promise<void> => {
-    await redeemShares(marketId, winningShares, collateralSymbol, collateralDecimals);
+    await redeemShares(marketId, winningShares, collateralSymbol, collateralDecimals, finalOutcomeIndex);
   };
 
   const handleClose = (): void => {
@@ -84,7 +88,9 @@ export default function RedeemModal({
               </p>
             </div>
             <p className="text-[12px] text-white/40 leading-relaxed">
-              Redeeming winnings requires a one-time decryption request to the FHE coprocessor. This ensures your final payout amount remains private until the moment of execution.
+              {hasRedeemed
+                ? 'This wallet has already redeemed its winning shares for this market.'
+                : 'Redeeming winnings requires a one-time decryption request to the FHE coprocessor. This ensures your final payout amount remains private until the moment of execution.'}
             </p>
           </div>
 
@@ -101,7 +107,7 @@ export default function RedeemModal({
             <Button
               className="flex-[2] gap-2"
               size="lg"
-              disabled={winningShares === 0n || state.stage !== 'idle'}
+              disabled={hasRedeemed || winningShares === 0n || state.stage !== 'idle'}
               onClick={handleRedeem}
             >
               <CheckCircle2 className="h-4 w-4" />

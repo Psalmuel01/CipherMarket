@@ -9,26 +9,33 @@ export interface OutcomeSelectorProps {
   outcomes: MarketOutcome[];
   selectedOutcomeId: string;
   onSelect: (outcomeId: string) => void;
+  disabled?: boolean;
 }
 
 export default function OutcomeSelector({
   onSelect,
   outcomes,
   selectedOutcomeId,
+  disabled = false,
 }: OutcomeSelectorProps): JSX.Element {
   return (
     <div className="grid gap-4">
       {outcomes.map((outcome) => {
-        const isSelected = selectedOutcomeId === outcome.id;
+        const isSelected = !disabled && selectedOutcomeId === outcome.id;
         const color = getOutcomeColor(outcome.outcomeIndex);
 
         return (
           <button
             key={outcome.id}
-            onClick={() => onSelect(outcome.id)}
+            onClick={() => !disabled && onSelect(outcome.id)}
+            disabled={disabled}
             className={clsx(
-              'rounded-2xl border-2 px-6 py-5 text-left transition-all duration-300 hover:bg-white/[0.04]',
-              isSelected ? 'bg-white/[0.035]' : 'border-white/5 bg-white/[0.02] hover:border-white/20',
+              'rounded-2xl border-2 px-6 py-5 text-left transition-all duration-300',
+              disabled
+                ? 'cursor-not-allowed opacity-50 border-white/5 bg-white/[0.02]'
+                : isSelected
+                  ? 'bg-white/[0.035]'
+                  : 'border-white/5 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]',
             )}
             style={
               isSelected

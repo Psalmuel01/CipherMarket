@@ -13,7 +13,7 @@ export interface ChainContractAddresses {
 export const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
 export const NATIVE_ETH_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 export const DEFAULT_ORACLE_STAKE = 10n ** 18n;
-export const DEFAULT_DISPUTE_WINDOW_SECONDS = 24n * 60n * 60n;
+export const DEFAULT_DISPUTE_WINDOW_SECONDS = 5n * 60n;
 
 export const CONTRACT_ADDRESSES: Record<number, ChainContractAddresses> = {
   // [SEPOLIA_CHAIN_ID]: {
@@ -31,6 +31,16 @@ export const CONTRACT_ADDRESSES: Record<number, ChainContractAddresses> = {
 export const ORACLE_REGISTRY_ABI = OracleRegistryArtifact.abi as Abi;
 export const PREDICTION_MARKET_ABI = PredictionMarketArtifact.abi as Abi;
 export const ERC20_ABI = erc20Abi as Abi;
+export const COFHE_TASK_MANAGER_ADDRESS = '0xeA30c4B8b44078Bbf8a6ef5b9f1eC1626C7848D9' as const;
+export const COFHE_TASK_MANAGER_ABI = [
+  {
+    type: 'function',
+    name: 'allowForDecryption',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'ctHash', type: 'uint256' }],
+    outputs: [],
+  },
+] as const satisfies Abi;
 
 export const MARKET_TYPE_LABELS = ['BINARY', 'CATEGORICAL'] as const;
 export const MARKET_STATE_LABELS = [

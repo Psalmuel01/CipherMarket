@@ -5,11 +5,24 @@ export interface LifecycleBadgeProps {
   status: MarketLifecycle;
 }
 
+export function getLifecycleLabel(status: MarketLifecycle): string {
+  const labels: Record<MarketLifecycle, string> = {
+    ACTIVE: 'Live',
+    EXPIRED: 'Awaiting Resolution',
+    RESOLUTION_OPEN: 'In Resolution',
+    ESCALATED: 'Admin Review',
+    FINALIZED: 'Resolved',
+    CANCELLED: 'Cancelled',
+  };
+
+  return labels[status] ?? status;
+}
+
 export default function LifecycleBadge({ status }: LifecycleBadgeProps): JSX.Element {
   return (
     <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
       <StatusDot status={status} />
-      {status}
+      {getLifecycleLabel(status)}
     </span>
   );
 }

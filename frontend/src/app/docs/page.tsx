@@ -26,7 +26,7 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Overview',
         title: 'What CipherMarket is',
-        body: 'CipherMarket is a share-based prediction market. You buy or sell outcome shares that settle at 1 unit of collateral if correct, and 0 if wrong. The market runs on Ethereum Sepolia using Fully Homomorphic Encryption to keep your positions private.',
+        body: 'CipherMarket is a share-based prediction market on Arbitrum Sepolia. You buy or sell outcome shares that settle at 1 unit of the market collateral if correct, and 0 if wrong. Fully Homomorphic Encryption keeps individual positions private while pool odds remain public.',
       },
       {
         tag: 'Pricing',
@@ -52,7 +52,7 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Selling',
         title: 'How to sell shares',
-        body: 'Selling requires a two-step flow. First, a decrypt request verifies your private balance with the FHE coprocessor. Once confirmed, you submit the sell transaction against the current pool state. The interface will show a verification step between these two actions — that is expected, not a freeze.',
+        body: 'Selling requires a secure balance check. Reveal your position locally first, then the app authorizes the encrypted handle for decryption, requests a CoFHE decrypt task, waits for the coprocessor result, and finally submits the sell transaction against the current pool state.',
         note: 'If a market expires between your decrypt request and your sell transaction, the sell will be rejected. Your shares are not lost — they go through the normal redemption path after resolution.',
       },
       {
@@ -73,7 +73,7 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Lifecycle',
         title: 'Market states',
-        body: 'Every market passes through explicit states. ACTIVE means trading is open. EXPIRED means the expiry time has passed and trading is closed. RESOLUTION_OPEN means an oracle has proposed an outcome and committee voting is underway. ESCALATED means the committee did not resolve the market and admin fallback is required. FINALIZED means the outcome is locked and redemptions are open.',
+        body: 'Every market passes through explicit states. ACTIVE means trading is open. EXPIRED now appears in the interface as Awaiting Resolution: trading is closed and an oracle can propose an outcome. RESOLUTION_OPEN appears as In Resolution: committee voting and disputes are open. ESCALATED appears as Admin Review: quorum failed or votes tied. FINALIZED appears as Resolved: the winning outcome is locked and claims are open.',
       },
       {
         tag: 'Expiry',
@@ -89,7 +89,7 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Oracle',
         title: 'How a market resolves',
-        body: 'A registered oracle reviews the oracle source listed on the market and submits an initial outcome. This opens the resolution window, during which other registered oracles can vote and a challenger can open a counter-outcome dispute with stake.',
+        body: 'A registered oracle reviews the oracle source listed on the market and submits an initial outcome after expiry. This opens the resolution window. For testnet deployments the window is intentionally short, currently 5 minutes, so you can propose, vote, finalize, or escalate quickly.',
       },
       {
         tag: 'Disputes',
@@ -100,7 +100,12 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Finalization',
         title: 'After a market finalizes',
-        body: 'Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral. Losing shares are worth zero. LPs claim the remaining market surplus pro rata after winner and protocol obligations are covered.',
+        body: 'Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral. Losing shares are worth zero. LPs claim the remaining market surplus pro rata after winning-share obligations and protocol fees are reserved.',
+      },
+      {
+        tag: 'Escalation',
+        title: 'When committee voting cannot decide',
+        body: 'If the resolution window ends without quorum, or if vote weight is tied or fragmented, anyone can escalate the market. On the current test configuration the escalation timeout is 10 minutes. After escalation, the contract owner can resolve through the fallback path.',
       },
     ],
   },
@@ -110,12 +115,18 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Registration',
         title: 'Becoming an oracle',
-        body: 'Go to the Oracle page and register by locking the minimum ETH stake. Once registered, you can propose outcomes on expired markets. Your stake is at risk if a disputed proposal is overturned by the protocol.',
+        body: 'Go to the Oracle page and register by locking the minimum ETH stake. The current minimum is 1 ETH. Once registered, you can propose outcomes on expired markets and vote during resolution windows. Your stake is reused across markets; you do not spend 1 ETH per proposal.',
+      },
+      {
+        tag: 'Voting',
+        title: 'How oracle voting weight works',
+        body: 'Oracle voting is weighted in staked ETH, not in the market collateral. If you have 1 ETH staked, your vote contributes 1 ETH of vote weight on each market you vote on. If another oracle has 3 ETH staked, their vote contributes 3 ETH. The vote weight is snapshotted when the vote is cast.',
+        note: 'Market collateral can be ETH or USDC, but oracle voting power is always based on oracle registry stake in ETH.',
       },
       {
         tag: 'Slashing',
         title: 'Oracle accountability',
-        body: 'If you propose an outcome that is disputed and overturned, a portion of your staked ETH can be slashed and sent to the protocol. You cannot deregister as an oracle while a proposal you made is still under dispute. Registration unlocks after the market finalizes.',
+        body: 'If you propose an outcome that is disputed and overturned, a portion of your staked ETH can be slashed and sent to the protocol. You cannot deregister while any proposal you made is still unresolved. Each proposal adds a lock, and each finalized market removes that lock.',
       },
     ],
   },
@@ -125,7 +136,8 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Claiming',
         title: 'Redeeming winning shares',
-        body: 'After finalization, go to the market page and start the redemption flow. Like selling, redemption requires a decrypt step to verify your private winning balance. Once verified, submit the claim transaction to receive your collateral.',
+        body: 'After finalization, reveal your values on the market page, then start the redemption flow. Like selling, redemption authorizes the encrypted winning-position handle, requests a CoFHE decrypt task, waits for the verified result, and submits the claim transaction.',
+        note: 'If values are hidden, the redeem button stays disabled because the app cannot safely confirm that this wallet has winning shares.',
       },
       {
         tag: 'Timing',

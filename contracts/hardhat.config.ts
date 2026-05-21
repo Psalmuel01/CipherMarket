@@ -25,6 +25,7 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       chainId: 420105,
+      allowUnlimitedContractSize: true,
     },
     'arbitrum-sepolia': {
       url: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://arbitrum-sepolia.infura.io/v3/d8bc683c0b7841b18d5976c3dedf25c6',

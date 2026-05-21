@@ -16,20 +16,27 @@ import {
   Gavel,
   Lock,
   Vote,
+  Shield,
   ShieldCheck,
+  RefreshCcw,
   Sparkles,
   TimerReset,
   Trophy,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import clsx from 'clsx';
 import CofheBetProvider from '@/components/betting/CofheBetProvider';
 import OutcomeSelector from '@/components/betting/OutcomeSelector';
 import PoolDisplay from '@/components/betting/PoolDisplay';
 import Button from '@/components/ui/Button';
 import Skeleton from '@/components/ui/Skeleton';
+import SecureComputeCard from '@/components/ui/SecureComputeCard';
 import useAddLiquidity from '@/hooks/useAddLiquidity';
 import useClaimLpPayout from '@/hooks/useClaimLpPayout';
 import useDisputeOutcome from '@/hooks/useDisputeOutcome';
+import useDisputeEscrow from '@/hooks/useDisputeEscrow';
+import useEscalateMarket from '@/hooks/useEscalateMarket';
+import useSettleEscrow from '@/hooks/useSettleEscrow';
 import useFinalizeMarket from '@/hooks/useFinalizeMarket';
 import useMarketDetails from '@/hooks/useMarketDetails';
 import usePrivatePositions from '@/hooks/usePrivatePositions';
@@ -113,6 +120,23 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const addLiquidityMutation = useAddLiquidity();
   const claimLpPayoutMutation = useClaimLpPayout();
   const disputeOutcomeMutation = useDisputeOutcome();
+  const disputeEscrowMutation = useDisputeEscrow();
+  const escalateMarketMutation = useEscalateMarket();
+  const settleEscrowMutation = useSettleEscrow();
+  const [disputeEscrowMode, setDisputeEscrowMode] = useState<boolean>(false);
+
+  const { data: disputeEscrowId } = useReadContract({
+    address: addresses?.predictionMarket ?? undefined,
+    abi: PREDICTION_MARKET_ABI,
+    functionName: 'marketDisputeEscrowId',
+    args: data ? [BigInt(data.marketId)] : undefined,
+    query: {
+      enabled: Boolean(addresses?.predictionMarket && data),
+    },
+  });
+
+  const disputeEscrowIdVal = disputeEscrowId ? BigInt(disputeEscrowId as any) : 0n;
+
   const finalizeMarketMutation = useFinalizeMarket();
   const redeemMutation = useRedeemShares();
   const removeLiquidityMutation = useRemoveLiquidity();
@@ -155,6 +179,27 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const disputeDeadlineMs = data?.resolutionWindowEndsAt ? Date.parse(data.resolutionWindowEndsAt) : Number.NaN;
   const isFinalizeWindowOpen =
     Number.isFinite(disputeDeadlineMs) && Date.now() >= disputeDeadlineMs;
+  const resolutionVoteState = useMemo(() => {
+    if (!data) {
+      return { hasQuorum: false, hasResolvableWinner: false };
+    }
+
+    const hasQuorum = data.totalOracleVoteWeight >= data.resolutionQuorumStake;
+    if (!hasQuorum || data.voteWeights.length === 0) {
+      return { hasQuorum, hasResolvableWinner: false };
+    }
+
+    const sortedVoteWeights = [...data.voteWeights].sort((left, right) =>
+      left === right ? 0 : left > right ? -1 : 1,
+    );
+    const highest = sortedVoteWeights[0] ?? 0n;
+    const secondHighest = sortedVoteWeights[1] ?? 0n;
+
+    return {
+      hasQuorum,
+      hasResolvableWinner: highest > 0n && highest > secondHighest,
+    };
+  }, [data]);
   const contractOwner =
     typeof ownerQuery.data === 'string' ? ownerQuery.data.toLowerCase() : null;
   const isContractOwner = Boolean(address && contractOwner && address.toLowerCase() === contractOwner);
@@ -279,7 +324,14 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
           </div>
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>Oracle source</p>
-            <p className="break-all text-foreground">{data.oracleSource}</p>
+            <a
+              href={data.oracleSource}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all text-primary hover:underline"
+            >
+              {data.oracleSource}
+            </a>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button
@@ -329,94 +381,173 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               {formatTokenAmount(data.resolutionQuorumStake, 18, 'ETH')}
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-">
-            {data.disputeOpened && (
-              <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">Committee voting</p>
-                  <p className="text-xs text-muted-foreground">
-                    Registered oracles can cast one open, stake-weighted vote during this window.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  {voteLeaderboard.map((outcome) => (
-                    <div
-                      key={outcome.id}
-                      className="flex items-center justify-between rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2"
-                    >
-                      <div>
-                        <p className="text-sm text-foreground">{outcome.label}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {formatTokenAmount(
-                            data.voteWeights[outcome.outcomeIndex] ?? 0n,
-                            18,
-                            'ETH vote weight',
-                          )}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="gap-2"
-                        disabled={voteOnResolutionMutation.isLoading || data.hasVotedOnResolution}
-                        onClick={async () => {
-                          setVotingOutcomeIndex(outcome.outcomeIndex);
-                          try {
-                            await voteOnResolutionMutation.voteOnResolution(
-                              data.marketId,
-                              outcome.outcomeIndex,
-                            );
-                          } finally {
-                            setVotingOutcomeIndex(null);
-                          }
-                        }}
-                        type="button"
-                      >
-                        <Vote className="h-4 w-4" />
-                        {voteOnResolutionMutation.isLoading &&
-                          votingOutcomeIndex === outcome.outcomeIndex
-                          ? 'Voting...'
-                          : data.hasVotedOnResolution &&
-                            data.myVoteOutcomeIndex === outcome.outcomeIndex
-                            ? 'Voted'
-                            : 'Vote'}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                {data.hasVotedOnResolution ? (
-                  <p className="text-xs text-muted-foreground">
-                    Your vote weight snapshot:{' '}
-                    {formatTokenAmount(data.myVoteWeightSnapshot, 18, 'ETH')}
-                  </p>
-                ) : null}
+          <div className="grid gap-4">
+            <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">Committee voting</p>
+                <p className="text-xs text-muted-foreground">
+                  Registered oracles can cast one open, stake-weighted vote during this window.
+                </p>
               </div>
-            )}
+              <div className="space-y-2">
+                {voteLeaderboard.map((outcome) => (
+                  <div
+                    key={outcome.id}
+                    className="flex items-center justify-between rounded-xl border border-white/6 bg-white/[0.02] px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm text-foreground">{outcome.label}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {formatTokenAmount(
+                          data.voteWeights[outcome.outcomeIndex] ?? 0n,
+                          18,
+                          'ETH vote weight',
+                        )}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      disabled={
+                        voteOnResolutionMutation.isLoading ||
+                        data.hasVotedOnResolution ||
+                        !isOracle
+                      }
+                      onClick={async () => {
+                        setVotingOutcomeIndex(outcome.outcomeIndex);
+                        try {
+                          await voteOnResolutionMutation.voteOnResolution(
+                            data.marketId,
+                            outcome.outcomeIndex,
+                          );
+                        } finally {
+                          setVotingOutcomeIndex(null);
+                        }
+                      }}
+                      type="button"
+                    >
+                      <Vote className="h-4 w-4" />
+                      {voteOnResolutionMutation.isLoading &&
+                        votingOutcomeIndex === outcome.outcomeIndex
+                        ? 'Voting...'
+                        : data.hasVotedOnResolution &&
+                          data.myVoteOutcomeIndex === outcome.outcomeIndex
+                          ? 'Voted'
+                          : 'Vote'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {data.hasVotedOnResolution ? (
+                <p className="text-xs text-muted-foreground">
+                  Your vote weight snapshot:{' '}
+                  {formatTokenAmount(data.myVoteWeightSnapshot, 18, 'ETH')}
+                </p>
+              ) : !isOracle ? (
+                <p className="text-xs text-muted-foreground">
+                  Connect a registered oracle wallet to vote on this resolution.
+                </p>
+              ) : null}
+            </div>
             {!data.disputeOpened ? (
-              <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
+              <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-5">
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">Open dispute</p>
                   <p className="text-xs text-muted-foreground">
                     Challenge the proposal by selecting a counter-outcome and posting dispute stake.
                   </p>
                 </div>
-                <select
-                  className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
-                  onChange={(event) => setDisputeOutcomeId(event.target.value)}
-                  value={selectedDisputeOutcome?.id ?? ''}
-                >
-                  {enrichedOutcomes
-                    .filter((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex)
-                    .map((outcome) => (
-                      <option key={outcome.id} value={outcome.id}>
-                        {outcome.label}
-                      </option>
-                    ))}
-                </select>
-                <input
-                  className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
-                  onChange={(event) => setDisputeAmount(event.target.value)}
-                  value={disputeAmount}
-                />
+
+                {/* Dual-Mode Escrow Tabs */}
+                <div className="grid grid-cols-2 rounded-xl bg-white/[0.02] p-1 border border-white/5">
+                  <button
+                    type="button"
+                    disabled
+                    title="Privara escrow is contract-ready but needs live SDK/relay validation before browser use."
+                    onClick={() => setDisputeEscrowMode(true)}
+                    className={clsx(
+                      "py-1.5 text-xs font-medium rounded-lg transition-all",
+                      disputeEscrowMode
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "text-muted-foreground opacity-50"
+                    )}
+                  >
+                    Privara Escrow
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisputeEscrowMode(false)}
+                    className={clsx(
+                      "py-1.5 text-xs font-medium rounded-lg transition-all",
+                      !disputeEscrowMode
+                        ? "bg-white/5 text-foreground border border-white/10"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Direct Custody
+                  </button>
+                </div>
+
+                <div className="space-y-1 text-[11px] text-muted-foreground bg-white/[0.01] rounded-lg p-2 border border-white/[0.02]">
+                  {disputeEscrowMode ? (
+                    <p className="flex items-center gap-1.5">
+                      <Shield className="h-3.5 w-3.5 text-primary" />
+                      External escrow is contract-ready, but browser use stays disabled until live Privara validation is complete.
+                    </p>
+                  ) : (
+                    <p className="flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-300" />
+                      Direct ERC20 custody inside CipherMarket prediction contract.
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Counter Outcome</label>
+                    <select
+                      className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                      onChange={(event) => setDisputeOutcomeId(event.target.value)}
+                      value={selectedDisputeOutcome?.id ?? ''}
+                    >
+                      {enrichedOutcomes
+                        .filter((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex)
+                        .map((outcome) => (
+                          <option key={outcome.id} value={outcome.id} className="bg-neutral-900">
+                            {outcome.label}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Dispute Stake ({data.collateralSymbol})</label>
+                    <input
+                      className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                      onChange={(event) => setDisputeAmount(event.target.value)}
+                      value={disputeAmount}
+                    />
+                  </div>
+                </div>
+
+                {disputeEscrowMutation.isLoading && (
+                  <SecureComputeCard
+                    operation={disputeEscrowMutation.state.info.computeOperation}
+                    estimatedSeconds={disputeEscrowMutation.state.info.estimatedSeconds}
+                    errorMessage={disputeEscrowMutation.state.error?.message}
+                    onRetry={() => {
+                      disputeEscrowMutation.disputeWithEscrow(
+                        data.marketId,
+                        selectedDisputeOutcome?.outcomeIndex ?? 0,
+                        disputeAmount,
+                        collateralDecimals,
+                        data.title,
+                        selectedDisputeOutcome?.label ?? '',
+                        data.collateralToken,
+                        !disputeEscrowMode
+                      );
+                    }}
+                  />
+                )}
               </div>
             ) : null}
           </div>
@@ -426,19 +557,22 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 variant="outline"
                 className="gap-2"
                 onClick={() =>
-                  disputeOutcomeMutation.disputeOutcome(
+                  disputeEscrowMutation.disputeWithEscrow(
                     data.marketId,
                     selectedDisputeOutcome?.outcomeIndex ?? 0,
                     disputeAmount,
                     collateralDecimals,
-                    data.collateralToken === '0x0000000000000000000000000000000000000000',
+                    data.title,
+                    selectedDisputeOutcome?.label ?? '',
+                    data.collateralToken,
+                    !disputeEscrowMode
                   )
                 }
-                disabled={disputeOutcomeMutation.isLoading || !selectedDisputeOutcome}
+                disabled={disputeEscrowMutation.isLoading || !selectedDisputeOutcome}
                 type="button"
               >
                 <AlertTriangle className="h-4 w-4" />
-                {disputeOutcomeMutation.isLoading ? 'Staking...' : 'Open Dispute'}
+                {disputeEscrowMutation.isLoading ? 'Processing FHE...' : 'Open Dispute'}
               </Button>
             ) : null}
             <Button
@@ -447,28 +581,46 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               disabled={
                 finalizeMarketMutation.isLoading ||
                 !isFinalizeWindowOpen ||
-                data.disputeOpened ||
-                data.totalOracleVoteWeight < data.resolutionQuorumStake
+                !resolutionVoteState.hasResolvableWinner
               }
               type="button"
             >
               <CheckCircle2 className="h-4 w-4" />
-              {finalizeMarketMutation.isLoading ? 'Finalizing...' : 'Finalize if Undisputed'}
+              {finalizeMarketMutation.isLoading ? 'Finalizing...' : 'Finalize by Quorum'}
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => escalateMarketMutation.escalateMarket(data.marketId)}
+              disabled={
+                escalateMarketMutation.isLoading ||
+                !isFinalizeWindowOpen ||
+                resolutionVoteState.hasResolvableWinner
+              }
+              type="button"
+            >
+              <Gavel className="h-4 w-4" />
+              {escalateMarketMutation.isLoading ? 'Escalating...' : 'Escalate Unresolved'}
             </Button>
           </div>
           {!isFinalizeWindowOpen ? (
             <p className="text-xs text-muted-foreground">
               Quorum finalization becomes available after the resolution window has passed.
             </p>
-          ) : data.disputeOpened ? (
+          ) : !resolutionVoteState.hasQuorum ? (
             <p className="text-xs text-muted-foreground">
-              This market has an open dispute. It will resolve by committee result or move into
-              escalation if no decisive outcome is reached.
+              Quorum was not reached. Escalate the market so the admin fallback can resolve it.
             </p>
-          ) : data.totalOracleVoteWeight < data.resolutionQuorumStake ? (
+          ) : !resolutionVoteState.hasResolvableWinner ? (
             <p className="text-xs text-muted-foreground">
-              Finalization stays disabled until participating oracle stake reaches quorum.
+              The committee vote is tied or fragmented. Escalation is required.
             </p>
+          ) : null}
+          {finalizeMarketMutation.isError && finalizeMarketMutation.error ? (
+            <p className="text-xs text-destructive">{finalizeMarketMutation.error.message}</p>
+          ) : null}
+          {escalateMarketMutation.isError && escalateMarketMutation.error ? (
+            <p className="text-xs text-destructive">{escalateMarketMutation.error.message}</p>
           ) : null}
         </div>
       );
@@ -489,7 +641,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
           </div>
           <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
             <p>Dispute stake locked: {formatTokenAmount(data.disputeStakeTotal, collateralDecimals, data.collateralSymbol)}</p>
-            <p>Oracle source: {data.oracleSource}</p>
+            <p>Oracle source: <a href={data.oracleSource} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{data.oracleSource}</a></p>
             <p>
               Escalation deadline:{' '}
               {data.escalationDeadline ? formatDateTime(data.escalationDeadline) : 'Unavailable'}
@@ -651,7 +803,15 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                   Oracle Source
                 </p>
-                <p className="mt-2 truncate text-sm text-foreground">{data.oracleSource}</p>
+                <a
+                  href={data.oracleSource}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 block truncate text-sm text-primary hover:underline"
+                  title={data.oracleSource}
+                >
+                  {data.oracleSource}
+                </a>
               </div>
             </div>
           </section>
@@ -896,7 +1056,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 <OutcomeSelector
                   onSelect={setSelectedOutcomeId}
                   outcomes={enrichedOutcomes}
-                  selectedOutcomeId={selectedOutcome?.id ?? '0'}
+                  selectedOutcomeId={selectedOutcome?.id ?? ''}
+                  // disabled={data.status !== 'ACTIVE'}
                 />
               </div>
 
@@ -930,8 +1091,14 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
                 <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-xs text-muted-foreground">
                   {tradeSide === 'BUY'
-                    ? 'Estimate the quote, confirm in wallet, and the pool updates immediately while your resulting position stays private.'
-                    : 'Selling requires a verified private balance. Reveal locally first, then CipherMarket verifies that balance before execution.'}
+                    ? selectedOutcome
+                      ? 'Estimate the quote, confirm in wallet, and the pool updates immediately while your resulting position stays private.'
+                      : 'Choose an outcome above to start a buy quote.'
+                    : !isPortfolioVisible
+                      ? 'Reveal your private position first so CipherMarket knows which shares are available to sell.'
+                      : selectedOutcome
+                        ? 'Selling requires a verified private balance. CipherMarket verifies that balance before execution.'
+                        : 'Choose an outcome above to prepare a sell.'}
                 </div>
 
                 <Button
@@ -942,7 +1109,9 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   type="button"
                 >
                   {tradeSide === 'BUY'
-                    ? 'Buy Shares'
+                    ? selectedOutcome
+                      ? 'Buy Shares'
+                      : 'Select Outcome to Buy'
                     : sellDisabled
                       ? 'Reveal Position to Sell'
                       : 'Sell Shares'}
@@ -1001,12 +1170,53 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
                   <Button
                     className="w-full gap-2"
-                    disabled={!isPortfolioVisible || revealedWinningShares === 0n}
+                    disabled={!isPortfolioVisible || revealedWinningShares === 0n || data.hasRedeemed}
                     onClick={handleRedeem}
                     type="button"
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    Redeem Winning Shares
+                    {data.hasRedeemed ? 'Already Redeemed' : 'Redeem Winning Shares'}
+                  </Button>
+                  {!isPortfolioVisible ? (
+                    <p className="text-xs text-muted-foreground">
+                      Reveal values in the Private Position panel first so the app can confirm your
+                      winning balance.
+                    </p>
+                  ) : revealedWinningShares === 0n && !data.hasRedeemed ? (
+                    <p className="text-xs text-muted-foreground">
+                      No winning shares are visible for this wallet.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {data.status === 'FINALIZED' && disputeEscrowIdVal > 0n ? (
+                <div className="glass-card space-y-5 rounded-3xl p-8 mt-6">
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
+                      Escrow Settlement
+                    </h3>
+                  </div>
+
+                  <div className="rounded-2xl bg-white/[0.03] p-4 space-y-1">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Dispute Escrow ID
+                    </p>
+                    <p className="font-mono text-base text-foreground">#{disputeEscrowIdVal.toString()}</p>
+                    <p className="text-xs text-muted-foreground pt-1">
+                      This market resolved via dispute. Settle the external escrow to release and route the dispute bond.
+                    </p>
+                  </div>
+
+                  <Button
+                    className="w-full gap-2 border border-primary/30 hover:border-primary/60 bg-primary/10"
+                    onClick={() => void settleEscrowMutation.settleEscrow(data.marketId)}
+                    disabled={settleEscrowMutation.isLoading}
+                    type="button"
+                  >
+                    <RefreshCcw className={clsx("h-4 w-4", settleEscrowMutation.isLoading && "animate-spin")} />
+                    {settleEscrowMutation.isLoading ? 'Settling Escrow...' : 'Settle Escrow'}
                   </Button>
                 </div>
               ) : null}
@@ -1035,6 +1245,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               winningShares={revealedWinningShares}
               collateralSymbol={data.collateralSymbol}
               collateralDecimals={collateralDecimals}
+              finalOutcomeIndex={data.finalOutcomeIndex}
+              hasRedeemed={data.hasRedeemed}
               open={isRedeemModalOpen}
               onClose={() => setRedeemModalOpen(false)}
             />
