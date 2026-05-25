@@ -111,6 +111,23 @@ function mapMarketSummary(
     minimumTrade: view.minimumTrade,
     collateralToken: view.collateralToken,
     collateralSymbol: collateral.symbol,
+    proposedBy:
+      view.proposedBy.toLowerCase() === '0x0000000000000000000000000000000000000000'
+        ? null
+        : view.proposedBy,
+    disputeOpenedBy:
+      view.disputeOpenedBy.toLowerCase() === '0x0000000000000000000000000000000000000000'
+        ? null
+        : view.disputeOpenedBy,
+    proposedOutcomeIndex: view.proposedOutcome === 255 ? null : Number(view.proposedOutcome),
+    disputeCounterOutcomeIndex:
+      view.disputeCounterOutcome === 255 ? null : Number(view.disputeCounterOutcome),
+    finalOutcomeIndex: view.finalOutcome === 255 ? null : Number(view.finalOutcome),
+    disputeOpened: view.disputeOpened,
+    disputeRefundsEnabled: view.disputeRefundsEnabled,
+    committeeResolved: view.committeeResolved,
+    committeeRewardPool: view.committeeRewardPool,
+    disputeStakeTotal: view.disputeStakeTotal,
   };
 }
 

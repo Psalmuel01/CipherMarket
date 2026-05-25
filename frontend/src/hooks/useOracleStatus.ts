@@ -86,6 +86,7 @@ export default function useOracleStatus(): UseOracleStatusResult {
       stakeFormatted: `${formatEther(profile.stakedAmount)} ETH`,
       disputeExposure: `${markets.filter((market) => market.status === 'ESCALATED').length} escalated`,
       activeAssignments,
+      minimumStakeAmount: (minimumStakeQuery.data as bigint | undefined) ?? 0n,
       minimumStakeFormatted: `${formatEther((minimumStakeQuery.data as bigint | undefined) ?? 0n)} ETH`,
       proposalLocks: Number((proposalLocksQuery.data as bigint | undefined) ?? 0n),
     } satisfies OracleProfile;

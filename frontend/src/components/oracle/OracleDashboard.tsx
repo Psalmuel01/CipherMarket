@@ -11,9 +11,11 @@ import clsx from 'clsx';
 import useRegisterOracle from '@/hooks/useRegisterOracle';
 import useMarkets from '@/hooks/useMarkets';
 import Link from 'next/link';
-import { formatEther } from 'viem';
+import { formatEther, parseEther } from 'viem';
+import { useAccount } from 'wagmi';
 import { DEFAULT_ORACLE_STAKE } from '@/lib/contracts';
 import { getOutcomeColor } from '@/lib/outcomeColors';
+import { formatTokenAmount, truncateAddress } from '@/lib/formatters';
 
 const heroSwatches = [0, 1, 2, 3].map((index) => getOutcomeColor(index));
 
@@ -22,9 +24,11 @@ export interface OracleDashboardProps {
 }
 
 export default function OracleDashboard({ className }: OracleDashboardProps): JSX.Element {
+    const { address } = useAccount();
     const { data, error, isError, isLoading } = useOracleStatus();
     const {
         registerOracle,
+        increaseStake,
         deregisterOracle,
         error: registerError,
         isError: isRegisterError,
@@ -40,19 +44,115 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
 
     const [showRegisterModal, setShowRegisterModal] = useState(false);
     const [showDeregisterModal, setShowDeregisterModal] = useState(false);
+    const minimumStakeAmount = data?.minimumStakeAmount ?? DEFAULT_ORACLE_STAKE;
+    const amountNeeded = data
+        ? data.stakeAmount >= minimumStakeAmount
+            ? 0n
+            : minimumStakeAmount - data.stakeAmount
+        : DEFAULT_ORACLE_STAKE;
+    const [stakeAmount, setStakeAmount] = useState<string>(formatEther(amountNeeded > 0n ? amountNeeded : DEFAULT_ORACLE_STAKE));
 
     const stakeDisplay = formatEther(DEFAULT_ORACLE_STAKE);
     const minimumStakeDisplay = data?.minimumStakeFormatted ?? `${stakeDisplay} ETH`;
+    const parsedStakeAmount = (() => {
+        try {
+            return parseEther(stakeAmount || '0');
+        } catch {
+            return 0n;
+        }
+    })();
+    const isStakeTooLow = data?.isRegistered
+        ? parsedStakeAmount <= 0n
+        : data
+            ? data.stakeAmount + parsedStakeAmount < minimumStakeAmount
+            : parsedStakeAmount < minimumStakeAmount;
 
     const handleConfirmRegister = async (): Promise<void> => {
         setShowRegisterModal(false);
-        await registerOracle();
+        if (data?.isRegistered) {
+            await increaseStake(parsedStakeAmount);
+            return;
+        }
+
+        await registerOracle(parsedStakeAmount);
     };
 
     const handleConfirmDeregister = async (): Promise<void> => {
         setShowDeregisterModal(false);
         await deregisterOracle();
     };
+
+    const oracleActivity = markets
+        .filter((market) => address && market.proposedBy?.toLowerCase() === address.toLowerCase())
+        .map((market) => {
+            const proposedOutcome = market.proposedOutcomeIndex !== null
+                ? market.outcomes[market.proposedOutcomeIndex]?.label ?? `Outcome ${market.proposedOutcomeIndex}`
+                : 'Unknown';
+            const finalOutcome = market.finalOutcomeIndex !== null
+                ? market.outcomes[market.finalOutcomeIndex]?.label ?? `Outcome ${market.finalOutcomeIndex}`
+                : null;
+            const wasSlashed =
+                market.status === 'FINALIZED' &&
+                market.committeeResolved &&
+                market.finalOutcomeIndex !== null &&
+                market.proposedOutcomeIndex !== null &&
+                market.finalOutcomeIndex !== market.proposedOutcomeIndex;
+            const wasRewarded =
+                market.status === 'FINALIZED' &&
+                market.disputeOpened &&
+                market.finalOutcomeIndex === market.proposedOutcomeIndex;
+
+            return {
+                market,
+                proposedOutcome,
+                finalOutcome,
+                label: wasSlashed
+                    ? 'Proposal slashed'
+                    : wasRewarded
+                        ? 'Proposal defended'
+                        : market.status === 'FINALIZED'
+                            ? 'Proposal accepted'
+                            : 'Proposal pending',
+                description: wasSlashed
+                    ? `Final outcome was ${finalOutcome}. Your proposal for ${proposedOutcome} was overturned.`
+                    : wasRewarded
+                        ? `Final outcome matched ${proposedOutcome}. Winning voters can claim from the committee reward pool.`
+                        : market.status === 'FINALIZED'
+                            ? `Final outcome: ${finalOutcome ?? proposedOutcome}.`
+                            : `Proposed outcome: ${proposedOutcome}.`,
+                tone: wasSlashed ? 'danger' : wasRewarded ? 'success' : 'neutral',
+            };
+        });
+
+    const disputeActivity = markets
+        .filter((market) => address && market.disputeOpenedBy?.toLowerCase() === address.toLowerCase())
+        .map((market) => {
+            const counterOutcome = market.disputeCounterOutcomeIndex !== null
+                ? market.outcomes[market.disputeCounterOutcomeIndex]?.label ?? `Outcome ${market.disputeCounterOutcomeIndex}`
+                : 'Unknown';
+            const finalOutcome = market.finalOutcomeIndex !== null
+                ? market.outcomes[market.finalOutcomeIndex]?.label ?? `Outcome ${market.finalOutcomeIndex}`
+                : null;
+            const succeeded =
+                market.status === 'FINALIZED' &&
+                market.disputeRefundsEnabled &&
+                market.finalOutcomeIndex !== market.proposedOutcomeIndex;
+            const failed =
+                market.status === 'FINALIZED' &&
+                market.disputeOpened &&
+                !market.disputeRefundsEnabled;
+
+            return {
+                market,
+                label: succeeded ? 'Dispute refunded' : failed ? 'Dispute stake lost' : 'Dispute pending',
+                description: succeeded
+                    ? `Your counter-outcome ${counterOutcome} beat the proposal. Dispute stake is refundable.`
+                    : failed
+                        ? `Final outcome was ${finalOutcome}. The dispute stake funded rewards/protocol fees.`
+                        : `Counter-outcome: ${counterOutcome}.`,
+                tone: succeeded ? 'success' : failed ? 'danger' : 'neutral',
+            };
+        });
 
     return (
         <section className={clsx("space-y-8 mt-20", className)}>
@@ -88,12 +188,21 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                                 <Button
                                     variant="primary"
                                     className="gap-2"
-                                    disabled={isRegisterLoading || data?.isRegistered}
-                                    onClick={() => setShowRegisterModal(true)}
+                                    disabled={isRegisterLoading}
+                                    onClick={() => {
+                                        setStakeAmount(formatEther(amountNeeded > 0n ? amountNeeded : DEFAULT_ORACLE_STAKE));
+                                        setShowRegisterModal(true);
+                                    }}
                                     type="button"
                                 >
                                     <Zap className="h-4 w-4" />
-                                    {data?.isRegistered ? 'Registered' : isRegisterLoading ? 'Registering...' : 'Register Oracle'}
+                                    {isRegisterLoading
+                                        ? 'Staking...'
+                                        : data?.isRegistered
+                                            ? 'Increase Stake'
+                                            : data && data.stakeAmount > 0n
+                                                ? 'Restore Oracle'
+                                                : 'Register Oracle'}
                                 </Button>
                             </div>
                         </div>
@@ -142,6 +251,81 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                                 {registerError.message}
                             </div>
                         ) : null}
+                    </div>
+
+                    <div className="glass-card rounded-3xl p-8 space-y-6">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                            <div className="flex items-center gap-3">
+                                <ShieldCheck className="h-5 w-5 text-primary" />
+                                <h3 className="text-sm font-black uppercase tracking-widest">Oracle Activity</h3>
+                            </div>
+                            <span className="text-[10px] font-bold text-muted-foreground tracking-widest">
+                                {oracleActivity.length + disputeActivity.length} Records
+                            </span>
+                        </div>
+
+                        <div className="space-y-3">
+                            {oracleActivity.map((item) => (
+                                <Link
+                                    key={`proposal-${item.market.marketId}`}
+                                    className={clsx(
+                                        'block rounded-2xl border p-4 transition-colors hover:bg-white/[0.03]',
+                                        item.tone === 'danger' && 'border-red-500/20 bg-red-500/5',
+                                        item.tone === 'success' && 'border-emerald-500/20 bg-emerald-500/5',
+                                        item.tone === 'neutral' && 'border-white/5 bg-white/[0.01]',
+                                    )}
+                                    href={`/markets/${item.market.marketId}`}
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-foreground">
+                                                Market #{item.market.marketId} · {item.label}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">{item.market.title}</p>
+                                            <p className="text-[11px] leading-relaxed text-muted-foreground/80">
+                                                {item.description}
+                                            </p>
+                                        </div>
+                                        {item.market.committeeRewardPool > 0n ? (
+                                            <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                                Reward pool {formatTokenAmount(
+                                                    item.market.committeeRewardPool,
+                                                    item.market.collateralSymbol === 'USDC' ? 6 : 18,
+                                                    item.market.collateralSymbol,
+                                                )}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                </Link>
+                            ))}
+
+                            {disputeActivity.map((item) => (
+                                <Link
+                                    key={`dispute-${item.market.marketId}`}
+                                    className={clsx(
+                                        'block rounded-2xl border p-4 transition-colors hover:bg-white/[0.03]',
+                                        item.tone === 'danger' && 'border-red-500/20 bg-red-500/5',
+                                        item.tone === 'success' && 'border-emerald-500/20 bg-emerald-500/5',
+                                        item.tone === 'neutral' && 'border-white/5 bg-white/[0.01]',
+                                    )}
+                                    href={`/markets/${item.market.marketId}`}
+                                >
+                                    <p className="text-sm font-bold text-foreground">
+                                        Market #{item.market.marketId} · {item.label}
+                                    </p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{item.market.title}</p>
+                                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/80">
+                                        {item.description}
+                                    </p>
+                                </Link>
+                            ))}
+
+                            {oracleActivity.length + disputeActivity.length === 0 ? (
+                                <div className="rounded-2xl border border-white/5 bg-white/[0.01] p-4 text-xs font-bold text-muted-foreground">
+                                    No proposal or dispute history for {address ? truncateAddress(address) : 'this wallet'} yet.
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
 
                     {/* Pending Resolutions Section Mock */}
@@ -222,11 +406,42 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                         <div className="divide-y divide-white/5">
                             <div className="flex items-center justify-between py-3">
                                 <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Stake amount</span>
-                                <span className="font-mono text-lg font-bold text-foreground">{stakeDisplay} ETH</span>
+                                <span className="font-mono text-lg font-bold text-foreground">{stakeAmount || '0'} ETH</span>
                             </div>
                             <div className="flex items-center justify-between py-3">
                                 <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Registry minimum</span>
                                 <span className="font-mono text-sm text-muted-foreground">{minimumStakeDisplay}</span>
+                            </div>
+                            <div className="space-y-2 py-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                                        Amount to stake now
+                                    </span>
+                                    {amountNeeded > 0n ? (
+                                        <button
+                                            className="text-xs text-primary hover:underline"
+                                            onClick={() => setStakeAmount(formatEther(amountNeeded))}
+                                            type="button"
+                                        >
+                                            Needed: {formatEther(amountNeeded)} ETH
+                                        </button>
+                                    ) : null}
+                                </div>
+                                <input
+                                    className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+                                    min={data?.isRegistered ? '0' : formatEther(amountNeeded)}
+                                    onChange={(event) => setStakeAmount(event.target.value)}
+                                    placeholder={formatEther(amountNeeded > 0n ? amountNeeded : DEFAULT_ORACLE_STAKE)}
+                                    type="number"
+                                    value={stakeAmount}
+                                />
+                                {isStakeTooLow ? (
+                                    <p className="text-xs text-amber-400">
+                                        {data?.isRegistered
+                                            ? 'Enter an amount greater than zero to increase your stake.'
+                                            : `Stake must bring this oracle to at least ${minimumStakeDisplay}.`}
+                                    </p>
+                                ) : null}
                             </div>
                             <div className="flex items-center justify-between py-3">
                                 <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Role</span>
@@ -258,11 +473,12 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                         <Button
                             className="flex-1 gap-2"
                             size="lg"
+                            disabled={isStakeTooLow}
                             onClick={() => void handleConfirmRegister()}
                             type="button"
                         >
                             <Zap className="h-4 w-4" />
-                            Confirm & Stake {stakeDisplay} ETH
+                            {data?.isRegistered ? 'Add Stake' : `Confirm & Stake ${stakeAmount || '0'} ETH`}
                         </Button>
                     </div>
                 </div>

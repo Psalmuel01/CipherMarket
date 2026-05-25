@@ -57,6 +57,16 @@ export interface MarketSummary {
   minimumTrade: bigint;
   collateralToken: Address;
   collateralSymbol: string;
+  proposedBy: Address | null;
+  disputeOpenedBy: Address | null;
+  proposedOutcomeIndex: number | null;
+  disputeCounterOutcomeIndex: number | null;
+  finalOutcomeIndex: number | null;
+  disputeOpened: boolean;
+  disputeRefundsEnabled: boolean;
+  committeeResolved: boolean;
+  committeeRewardPool: bigint;
+  disputeStakeTotal: bigint;
 }
 
 export interface MarketDetail extends MarketSummary {
@@ -132,6 +142,7 @@ export interface OracleProfile {
   stakeFormatted: string;
   disputeExposure: string;
   activeAssignments: number;
+  minimumStakeAmount: bigint;
   minimumStakeFormatted: string;
   proposalLocks: number;
 }

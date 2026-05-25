@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { zeroAddress } from 'viem';
 import {
   ArrowUpDown,
   Sparkles,
@@ -54,6 +55,7 @@ export default function BetModal({
 
   const activeHook = side === 'BUY' ? buyHook : sellHook;
   const { state, buyShares, sellShares, reset } = (side === 'BUY' ? buyHook : sellHook) as any;
+  const isNativeCollateral = collateralToken.toLowerCase() === zeroAddress;
 
   const quote = useMarketQuote({
     marketId,
@@ -125,7 +127,9 @@ export default function BetModal({
   const steps = [
     { id: 'input', label: 'Draft', description: 'Enter trade details' },
     { id: 'prepare', label: 'Prepare', description: 'Encrypting inputs' },
-    { id: 'approval', label: 'Approve', description: 'Token allowance' },
+    ...(side === 'BUY' && !isNativeCollateral
+      ? [{ id: 'approval', label: 'Approve', description: 'Token allowance' }]
+      : []),
     { id: 'confirm', label: 'Execute', description: 'Confirm in wallet' },
     { id: 'success', label: 'Complete', description: 'Trade settled' },
   ];
@@ -136,7 +140,7 @@ export default function BetModal({
       open={open}
       title={side === 'BUY' ? 'Buy Shares' : 'Sell Shares'}
       description={state.stage === 'idle' ? "Secure computation ensures your resulting position remains private." : ""}
-      size="md"
+      size="lg"
     >
       <TransactionFlow
         state={state}

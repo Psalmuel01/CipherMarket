@@ -93,7 +93,7 @@ export default function LandingPage(): JSX.Element {
     <div className="relative max-w-[1400px] px-8 lg:px-16 mx-auto space-y-56 py-28 bg-black">
       {/* ── HERO SECTION ── */}
       <section className="relative min-h-[90vh] flex flex-col justify-center overflow-hidden">
-        <div className="pointer-events-none absolute inset-x-0 top-8 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+        {/* <div className="pointer-events-none absolute inset-x-0 top-8 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" /> */}
         <div className="pointer-events-none absolute -right-24 top-24 h-72 w-72 rounded-full border border-primary/15" />
         <div className="pointer-events-none absolute -left-16 bottom-20 h-56 w-56 rounded-full border border-sky-300/10" />
         <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-24 items-center">
@@ -173,7 +173,7 @@ export default function LandingPage(): JSX.Element {
           >
             <TerminalMockup />
 
-            <div className="absolute -left-8 -top-10 w-64 rounded-2xl border border-white/10 bg-black/90 p-4 shadow-2xl">
+            <div className="absolute right-3 -top-10 w-64 rounded-2xl border border-white/10 bg-black/90 p-4 shadow-2xl">
               <p className="mb-4 text-[9px] font-mono uppercase tracking-[0.28em] text-white/25">Live odds</p>
               <div className="space-y-3">
                 {HERO_MARKETS.map((market) => (

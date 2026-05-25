@@ -27,6 +27,7 @@ import clsx from 'clsx';
 import CofheBetProvider from '@/components/betting/CofheBetProvider';
 import OutcomeSelector from '@/components/betting/OutcomeSelector';
 import PoolDisplay from '@/components/betting/PoolDisplay';
+import PrivateDiscussion from '@/components/markets/PrivateDiscussion';
 import Button from '@/components/ui/Button';
 import Skeleton from '@/components/ui/Skeleton';
 import SecureComputeCard from '@/components/ui/SecureComputeCard';
@@ -353,7 +354,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">Resolution window live</p>
               <p className="text-sm text-muted-foreground">
-                Proposed outcome: {enrichedOutcomes[data.proposedOutcomeIndex ?? 0]?.label ?? 'Unknown'}.
+                Proposed outcome: <span className="text-primary font-semibold">{enrichedOutcomes[data.proposedOutcomeIndex ?? 0]?.label ?? 'Unknown'}</span>
               </p>
             </div>
           </div>
@@ -492,19 +493,24 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Counter Outcome</label>
-                    <select
-                      className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
-                      onChange={(event) => setDisputeOutcomeId(event.target.value)}
-                      value={selectedDisputeOutcome?.id ?? ''}
-                    >
-                      {enrichedOutcomes
-                        .filter((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex)
-                        .map((outcome) => (
-                          <option key={outcome.id} value={outcome.id} className="bg-neutral-900">
-                            {outcome.label}
-                          </option>
-                        ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
+                        onChange={(event) => setDisputeOutcomeId(event.target.value)}
+                        value={selectedDisputeOutcome?.id ?? ''}
+                      >
+                        {enrichedOutcomes
+                          .filter((outcome) => outcome.outcomeIndex !== data.proposedOutcomeIndex)
+                          .map((outcome) => (
+                            <option key={outcome.id} className="bg-background" value={outcome.id}>
+                              {outcome.label}
+                            </option>
+                          ))}
+                      </select>
+                      <div className="pointer-events-none text-xs absolute inset-y-0 right-3 flex items-center text-white/40">
+                        ▼
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Dispute Stake ({data.collateralSymbol})</label>
@@ -666,17 +672,17 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   <span className="block">Final outcome</span>
                   <div className="relative">
                     <select
-                      className="appearance-none h-11 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground outline-none focus:border-primary/50"
+                      className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
                       onChange={(event) => setResolutionOutcomeId(event.target.value)}
                       value={selectedResolutionOutcome?.id ?? resolutionOutcomeId}
                     >
                       {enrichedOutcomes.map((outcome) => (
-                        <option key={outcome.id} value={outcome.id}>
+                        <option key={outcome.id} className="bg-background" value={outcome.id}>
                           {outcome.label}
                         </option>
                       ))}
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/40">
+                    <div className="pointer-events-none text-xs absolute inset-y-0 right-3 flex items-center text-white/40">
                       ▼
                     </div>
                   </div>
@@ -754,14 +760,14 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
       {data ? (
         <>
-          <section className="max-w-5xl space-y-6">
-            <Link
+          <section className="max-w-5xl space-y-6 mt-20">
+            {/* <Link
               href="/dashboard"
               className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to markets
-            </Link>
+            </Link> */}
 
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
@@ -907,7 +913,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 </div>
               </div>
 
-              <div className="glass-card space-y-3 rounded-3xl p-8">
+              {/* <div className="glass-card space-y-3 rounded-3xl p-8">
                 <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
                   Market Mechanics
                 </h3>
@@ -922,7 +928,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                     from contract storage.
                   </p>
                 </div>
-              </div>
+              </div> */}
 
               <div className="glass-card space-y-6 rounded-3xl p-8">
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
@@ -1211,6 +1217,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               ) : null}
             </aside>
           </div>
+
+          <PrivateDiscussion marketId={data.marketId} />
 
           {selectedOutcome ? (
             <BetModal
