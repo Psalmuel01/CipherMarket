@@ -131,11 +131,11 @@ export default function useDisputeEscrow(): UseDisputeEscrowResult {
       }
 
       if (collateralToken.toLowerCase() === zeroAddress) {
-        throw new Error('Privara escrow disputes currently require USDC collateral. Use Direct Custody for ETH markets.');
+        throw new Error('Privara escrow disputes will require USDC collateral. Use Direct Custody until the adapter is deployed.');
       }
 
       throw new Error(
-        'Privara escrow is contract-ready but not enabled in the browser yet. Use Direct Custody until the live Privara SDK/relay path is validated.',
+        'Privara escrow is moving into a separate adapter contract. Use Direct Custody until that adapter is deployed and live validated.',
       );
     } catch (caughtError) {
       const nextError =

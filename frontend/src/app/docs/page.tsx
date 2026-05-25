@@ -89,18 +89,18 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Oracle',
         title: 'How a market resolves',
-        body: 'A registered oracle reviews the oracle source listed on the market and submits an initial outcome after expiry. This opens the resolution window. For testnet deployments the window is intentionally short, currently 5 minutes, so you can propose, vote, finalize, or escalate quickly.',
+        body: 'A registered oracle reviews the oracle source listed on the market and submits an initial outcome after expiry. This opens the resolution window. For testnet deployments the window is intentionally short, currently 5 minutes, so you can propose and then finalize quickly if nobody disputes.',
       },
       {
         tag: 'Disputes',
         title: 'Disputing a result',
-        body: 'Anyone can dispute a proposed outcome by staking collateral against an explicit counter-outcome during the resolution window. If the committee resolves against the original proposal, the disputer can reclaim their stake. If the committee upholds the proposal, the dispute stake is forfeited and split across protocol-defined reward paths.',
+        body: 'Anyone can dispute a proposed outcome by staking collateral against an explicit counter-outcome during the resolution window. A dispute activates committee voting. If the committee resolves against the original proposal, the disputer can reclaim their stake. If the committee upholds the proposal, the dispute stake is forfeited and split across protocol-defined reward paths.',
         note: 'Disputing has a real cost if you are wrong. Review the oracle source carefully before challenging.',
       },
       {
         tag: 'Finalization',
         title: 'After a market finalizes',
-        body: 'Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral. Losing shares are worth zero. LPs claim the remaining market surplus pro rata after winning-share obligations and protocol fees are reserved.',
+        body: 'If no dispute is opened, the proposed outcome can be finalized directly after the resolution window. If a dispute is opened, registered oracles vote with stake-weighted ETH power and the market finalizes by quorum. Once finalized, the winning outcome is locked permanently. Winning shares redeem 1:1 against the market collateral.',
       },
       {
         tag: 'Escalation',

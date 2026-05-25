@@ -4,15 +4,27 @@ import { CheckCircle2 } from 'lucide-react';
 import type { MarketOutcome } from '@/types/market';
 import clsx from 'clsx';
 import { getOutcomeColor } from '@/lib/outcomeColors';
+import { formatTokenAmount } from '@/lib/formatters';
 
 export interface OutcomeSelectorProps {
   outcomes: MarketOutcome[];
   selectedOutcomeId: string;
   onSelect: (outcomeId: string) => void;
   disabled?: boolean;
+  collateralDecimals?: number;
+  collateralSymbol?: string;
+}
+
+function formatOutcomePercent(value: bigint): string {
+  const percent = Number(value) / 1e16;
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 2,
+  }).format(percent);
 }
 
 export default function OutcomeSelector({
+  collateralDecimals = 18,
+  collateralSymbol = 'reserve',
   onSelect,
   outcomes,
   selectedOutcomeId,
@@ -76,16 +88,16 @@ export default function OutcomeSelector({
                     {outcome.label}
                   </span>
                   <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                    Price {Number(outcome.price) / 1e16}%
+                    Price {formatOutcomePercent(outcome.price)}%
                   </span>
                 </div>
               </div>
               <div className="text-right">
                 <p className="font-mono text-sm" style={{ color: isSelected ? color.text : undefined }}>
-                  {outcome.impliedShare}%
+                  {formatOutcomePercent(outcome.probability)}%
                 </p>
                 <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-                  Reserve {outcome.reserve.toString()}
+                  Reserve {formatTokenAmount(outcome.reserve, collateralDecimals, collateralSymbol)}
                 </p>
               </div>
             </div>

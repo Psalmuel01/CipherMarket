@@ -16,7 +16,7 @@ export interface UseFinalizeMarketResult {
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
-  finalizeMarket: (marketId: number) => Promise<void>;
+  finalizeMarket: (marketId: number, mode?: 'undisputed' | 'quorum') => Promise<void>;
 }
 
 export default function useFinalizeMarket(): UseFinalizeMarketResult {
@@ -28,7 +28,10 @@ export default function useFinalizeMarket(): UseFinalizeMarketResult {
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const finalizeMarket = async (marketId: number): Promise<void> => {
+  const finalizeMarket = async (
+    marketId: number,
+    mode: 'undisputed' | 'quorum' = 'quorum',
+  ): Promise<void> => {
     try {
       const addresses = getContractAddresses(chainId);
       const predictionMarketAddress = addresses?.predictionMarket;
@@ -48,7 +51,7 @@ export default function useFinalizeMarket(): UseFinalizeMarketResult {
       const hash = await writeContractAsync({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'finalizeByQuorum',
+        functionName: mode === 'undisputed' ? 'finalizeUndisputed' : 'finalizeByQuorum',
         args: [BigInt(marketId)],
         ...gasFees,
       });
@@ -56,12 +59,16 @@ export default function useFinalizeMarket(): UseFinalizeMarketResult {
       await publicClient.waitForTransactionReceipt({ hash });
       setData({ txHash: hash });
       await refreshProtocolData();
-      toast.success('Market finalized by oracle quorum.');
+      toast.success(
+        mode === 'undisputed'
+          ? 'Undisputed market finalized.'
+          : 'Market finalized by oracle quorum.',
+      );
     } catch (caughtError) {
       const nextError =
         caughtError instanceof Error
           ? new Error(formatContractError(caughtError))
-          : new Error('Unable to finalize this market by quorum.');
+          : new Error('Unable to finalize this market.');
 
       setError(nextError);
       toast.error(nextError.message);

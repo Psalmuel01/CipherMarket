@@ -5,6 +5,7 @@
  *   1. OracleRegistry        – manages oracle stake/registration
  *   2. PredictionMarketMath  – linked FPMM math library
  *   3. PredictionMarket      – singleton FPMM market manager with encrypted user balances
+ *   4. PrivaraDisputeEscrowAdapter – optional external dispute-bond escrow adapter
  *
  * Post-deploy wiring:
  *   - OracleRegistry.setPredictionMarket(PredictionMarket)
@@ -27,6 +28,9 @@ interface Deployed {
   address: string;
   txHash: string;
 }
+
+const DEFAULT_ARBITRUM_SEPOLIA_PRIVARA_ESCROW =
+  '0xC4333F84F5034D8691CB95f068def2e3B6DC60Fa';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -180,6 +184,23 @@ async function main(): Promise<void> {
 
   const market = await hre.ethers.getContractAt('PredictionMarket', predictionMarket.address);
   const sepoliaUsdcAddress = process.env.ARBITRUM_SEPOLIA_USDC_ADDRESS;
+  const privaraEscrowAddress =
+    process.env.PRIVARA_ESCROW_ADDRESS ||
+    (!isLocal && network === 'arbitrum-sepolia' ? DEFAULT_ARBITRUM_SEPOLIA_PRIVARA_ESCROW : '');
+  let privaraAdapter: Deployed | null = null;
+
+  if (privaraEscrowAddress) {
+    privaraAdapter = await deploy(hre, provider, 'PrivaraDisputeEscrowAdapter', [
+      predictionMarket.address,
+      privaraEscrowAddress,
+    ]);
+
+    console.log(`\n  PredictionMarket.setDisputeAdapter(${privaraAdapter.address}, true)`);
+    const setAdapterTx = await market.setDisputeAdapter(privaraAdapter.address, true);
+    await sendConfig(provider, 'setDisputeAdapter', setAdapterTx);
+  } else {
+    console.log('\n  No PRIVARA_ESCROW_ADDRESS configured. Skipping Privara adapter deployment.');
+  }
 
   if (sepoliaUsdcAddress) {
     console.log(`\n  PredictionMarket.setAcceptedCollateral(${sepoliaUsdcAddress}, true)`);
@@ -196,7 +217,12 @@ async function main(): Promise<void> {
   console.log('══════════════════════════════════════');
   console.log('');
 
-  const rows: Deployed[] = [oracleRegistry, predictionMarketMath, predictionMarket];
+  const rows: Deployed[] = [
+    oracleRegistry,
+    predictionMarketMath,
+    predictionMarket,
+    ...(privaraAdapter ? [privaraAdapter] : []),
+  ];
 
   for (const c of rows) {
     console.log(`  ${c.name}`);
@@ -219,7 +245,8 @@ async function main(): Promise<void> {
   console.log('  Next steps:');
   console.log('  1. Copy the addresses above into your frontend .env');
   console.log('  2. Set NEXT_PUBLIC_ARBITRUM_SEPOLIA_USDC_ADDRESS in frontend/.env.local');
-  console.log('  3. Register an oracle via OracleRegistry.register()');
+  console.log('  3. If deployed, set NEXT_PUBLIC_ARBITRUM_SEPOLIA_PRIVARA_DISPUTE_ESCROW_ADAPTER');
+  console.log('  4. Register an oracle via OracleRegistry.register()');
   console.log('══════════════════════════════════════');
 }
 

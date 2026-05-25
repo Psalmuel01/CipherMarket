@@ -48,7 +48,7 @@ export default function BetModal({
   side,
   userShares,
 }: BetModalProps): JSX.Element {
-  const [amount, setAmount] = useState<string>('0.1');
+  const [amount, setAmount] = useState<string>('1');
   const buyHook = useBuyShares();
   const sellHook = useSellShares();
 
@@ -88,7 +88,7 @@ export default function BetModal({
 
   const handleClose = (): void => {
     reset();
-    setAmount('0.1');
+    setAmount('1');
     onClose();
   };
 

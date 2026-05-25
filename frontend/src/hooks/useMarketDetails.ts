@@ -241,6 +241,11 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
 
     const collateral = getCollateralMetadata(marketView.collateralToken, chainId);
     const outcomes = buildOutcomes(marketView.outcomes, probabilities, reserves);
+    const reservedProtocolFees = marketView.protocolFeesClaimed ? 0n : marketView.accruedProtocolFees;
+    const finalLpPayoutBase =
+      marketView.totalCollateralCollected > marketView.remainingWinningShares + reservedProtocolFees
+        ? marketView.totalCollateralCollected - marketView.remainingWinningShares - reservedProtocolFees
+        : 0n;
 
     return {
       marketId: Number(marketView.marketId),
@@ -311,6 +316,8 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
         totalLpShares === 0n
           ? 0n
           : (reserves.reduce((sum, reserve) => sum + reserve, 0n) * myLpShares) / totalLpShares,
+      estimatedFinalLpPayout:
+        totalLpShares === 0n ? 0n : (finalLpPayoutBase * myLpShares) / totalLpShares,
       revealedWinningShares: null,
       canRevealPositions: Boolean(address),
     } satisfies MarketDetail;

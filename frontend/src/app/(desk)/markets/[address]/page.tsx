@@ -18,7 +18,6 @@ import {
   Vote,
   Shield,
   ShieldCheck,
-  RefreshCcw,
   Sparkles,
   TimerReset,
   Trophy,
@@ -36,7 +35,6 @@ import useClaimLpPayout from '@/hooks/useClaimLpPayout';
 import useDisputeOutcome from '@/hooks/useDisputeOutcome';
 import useDisputeEscrow from '@/hooks/useDisputeEscrow';
 import useEscalateMarket from '@/hooks/useEscalateMarket';
-import useSettleEscrow from '@/hooks/useSettleEscrow';
 import useFinalizeMarket from '@/hooks/useFinalizeMarket';
 import useMarketDetails from '@/hooks/useMarketDetails';
 import usePrivatePositions from '@/hooks/usePrivatePositions';
@@ -66,6 +64,8 @@ const RedeemModal = dynamic(() => import('@/components/betting/RedeemModal'), {
 const MarketAnalytics = dynamic(() => import('@/components/betting/MarketAnalytics'), {
   ssr: false,
 });
+
+const PRICE_SCALE = 1_000_000_000_000_000_000n;
 
 function DecryptingLoader(): JSX.Element {
   const [text, setText] = useState('DECRYPTING...');
@@ -122,20 +122,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const disputeOutcomeMutation = useDisputeOutcome();
   const disputeEscrowMutation = useDisputeEscrow();
   const escalateMarketMutation = useEscalateMarket();
-  const settleEscrowMutation = useSettleEscrow();
   const [disputeEscrowMode, setDisputeEscrowMode] = useState<boolean>(false);
-
-  const { data: disputeEscrowId } = useReadContract({
-    address: addresses?.predictionMarket ?? undefined,
-    abi: PREDICTION_MARKET_ABI,
-    functionName: 'marketDisputeEscrowId',
-    args: data ? [BigInt(data.marketId)] : undefined,
-    query: {
-      enabled: Boolean(addresses?.predictionMarket && data),
-    },
-  });
-
-  const disputeEscrowIdVal = disputeEscrowId ? BigInt(disputeEscrowId as any) : 0n;
 
   const finalizeMarketMutation = useFinalizeMarket();
   const redeemMutation = useRedeemShares();
@@ -382,7 +369,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             </p>
           </div>
           <div className="grid gap-4">
-            <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
+            {data.disputeOpened && <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-4">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">Committee voting</p>
                 <p className="text-xs text-muted-foreground">
@@ -448,8 +435,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   Connect a registered oracle wallet to vote on this resolution.
                 </p>
               ) : null}
-            </div>
-            {!data.disputeOpened ? (
+            </div>}
+            {!data.disputeOpened && data.status === 'RESOLUTION_OPEN' ? (
               <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-5">
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">Open dispute</p>
@@ -463,7 +450,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   <button
                     type="button"
                     disabled
-                    title="Privara escrow is contract-ready but needs live SDK/relay validation before browser use."
+                    title="Privara escrow is moving into a separate adapter contract so the core market can deploy under the chain code-size limit."
                     onClick={() => setDisputeEscrowMode(true)}
                     className={clsx(
                       "py-1.5 text-xs font-medium rounded-lg transition-all",
@@ -492,7 +479,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   {disputeEscrowMode ? (
                     <p className="flex items-center gap-1.5">
                       <Shield className="h-3.5 w-3.5 text-primary" />
-                      External escrow is contract-ready, but browser use stays disabled until live Privara validation is complete.
+                      Privara escrow is being split into a separate adapter so the core market stays deployable.
                     </p>
                   ) : (
                     <p className="flex items-center gap-1.5">
@@ -575,37 +562,55 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 {disputeEscrowMutation.isLoading ? 'Processing FHE...' : 'Open Dispute'}
               </Button>
             ) : null}
-            <Button
-              className="gap-2"
-              onClick={() => finalizeMarketMutation.finalizeMarket(data.marketId)}
-              disabled={
-                finalizeMarketMutation.isLoading ||
-                !isFinalizeWindowOpen ||
-                !resolutionVoteState.hasResolvableWinner
-              }
-              type="button"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              {finalizeMarketMutation.isLoading ? 'Finalizing...' : 'Finalize by Quorum'}
-            </Button>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => escalateMarketMutation.escalateMarket(data.marketId)}
-              disabled={
-                escalateMarketMutation.isLoading ||
-                !isFinalizeWindowOpen ||
-                resolutionVoteState.hasResolvableWinner
-              }
-              type="button"
-            >
-              <Gavel className="h-4 w-4" />
-              {escalateMarketMutation.isLoading ? 'Escalating...' : 'Escalate Unresolved'}
-            </Button>
+            {!data.disputeOpened ? (
+              <Button
+                className="gap-2"
+                onClick={() => finalizeMarketMutation.finalizeMarket(data.marketId, 'undisputed')}
+                disabled={finalizeMarketMutation.isLoading || !isFinalizeWindowOpen}
+                type="button"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {finalizeMarketMutation.isLoading ? 'Finalizing...' : 'Finalize Undisputed'}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  className="gap-2"
+                  onClick={() => finalizeMarketMutation.finalizeMarket(data.marketId, 'quorum')}
+                  disabled={
+                    finalizeMarketMutation.isLoading ||
+                    !isFinalizeWindowOpen ||
+                    !resolutionVoteState.hasResolvableWinner
+                  }
+                  type="button"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {finalizeMarketMutation.isLoading ? 'Finalizing...' : 'Finalize by Quorum'}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => escalateMarketMutation.escalateMarket(data.marketId)}
+                  disabled={
+                    escalateMarketMutation.isLoading ||
+                    !isFinalizeWindowOpen ||
+                    resolutionVoteState.hasResolvableWinner
+                  }
+                  type="button"
+                >
+                  <Gavel className="h-4 w-4" />
+                  {escalateMarketMutation.isLoading ? 'Escalating...' : 'Escalate Unresolved'}
+                </Button>
+              </>
+            )}
           </div>
           {!isFinalizeWindowOpen ? (
             <p className="text-xs text-muted-foreground">
-              Quorum finalization becomes available after the resolution window has passed.
+              Finalization becomes available after the resolution window has passed.
+            </p>
+          ) : !data.disputeOpened ? (
+            <p className="text-xs text-muted-foreground">
+              No dispute was opened. The proposed outcome can now be finalized directly.
             </p>
           ) : !resolutionVoteState.hasQuorum ? (
             <p className="text-xs text-muted-foreground">
@@ -885,11 +890,17 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                                 'shares',
                               )}
                         </p>
-                        {/* <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="mt-2 text-xs text-muted-foreground">
                           {!isPortfolioVisible
                             ? 'Hidden until you reveal locally.'
-                            : 'Local decrypt only, nothing is added onchain.'}
-                        </p> */}
+                            : privatePositions.isLoading
+                              ? 'Estimating value after decrypt...'
+                              : `Est. active value ${formatTokenAmount(
+                                ((outcome.revealedShares ?? 0n) * outcome.probability) / PRICE_SCALE,
+                                collateralDecimals,
+                                data.collateralSymbol,
+                              )}`}
+                        </p>
                       </div>
                     );
                   })}
@@ -945,14 +956,21 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   </div>
                   <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
                     <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                      Active Exit Estimate
+                      {data.status === 'FINALIZED' ? 'LP Claim Estimate' : 'Active Exit Estimate'}
                     </p>
                     <p className="mt-2 font-mono text-xl text-foreground">
                       {formatTokenAmount(
-                        data.estimatedLpCollateralOut,
+                        data.status === 'FINALIZED'
+                          ? data.estimatedFinalLpPayout
+                          : data.estimatedLpCollateralOut,
                         collateralDecimals,
                         data.collateralSymbol,
                       )}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {data.status === 'FINALIZED'
+                        ? 'Estimated final claim after winner reserves and protocol fees.'
+                        : 'Current removable value from live pool reserves.'}
                     </p>
                   </div>
                 </div>
@@ -1054,6 +1072,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   </span>
                 </div>
                 <OutcomeSelector
+                  collateralDecimals={collateralDecimals}
+                  collateralSymbol={data.collateralSymbol}
                   onSelect={setSelectedOutcomeId}
                   outcomes={enrichedOutcomes}
                   selectedOutcomeId={selectedOutcome?.id ?? ''}
@@ -1187,37 +1207,6 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                       No winning shares are visible for this wallet.
                     </p>
                   ) : null}
-                </div>
-              ) : null}
-
-              {data.status === 'FINALIZED' && disputeEscrowIdVal > 0n ? (
-                <div className="glass-card space-y-5 rounded-3xl p-8 mt-6">
-                  <div className="flex items-center gap-3">
-                    <Shield className="h-5 w-5 text-primary" />
-                    <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
-                      Escrow Settlement
-                    </h3>
-                  </div>
-
-                  <div className="rounded-2xl bg-white/[0.03] p-4 space-y-1">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                      Dispute Escrow ID
-                    </p>
-                    <p className="font-mono text-base text-foreground">#{disputeEscrowIdVal.toString()}</p>
-                    <p className="text-xs text-muted-foreground pt-1">
-                      This market resolved via dispute. Settle the external escrow to release and route the dispute bond.
-                    </p>
-                  </div>
-
-                  <Button
-                    className="w-full gap-2 border border-primary/30 hover:border-primary/60 bg-primary/10"
-                    onClick={() => void settleEscrowMutation.settleEscrow(data.marketId)}
-                    disabled={settleEscrowMutation.isLoading}
-                    type="button"
-                  >
-                    <RefreshCcw className={clsx("h-4 w-4", settleEscrowMutation.isLoading && "animate-spin")} />
-                    {settleEscrowMutation.isLoading ? 'Settling Escrow...' : 'Settle Escrow'}
-                  </Button>
                 </div>
               ) : null}
             </aside>

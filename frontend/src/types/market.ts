@@ -96,6 +96,7 @@ export interface MarketDetail extends MarketSummary {
   myLpShares: bigint;
   totalLpShares: bigint;
   estimatedLpCollateralOut: bigint;
+  estimatedFinalLpPayout: bigint;
   revealedWinningShares: bigint | null;
   canRevealPositions: boolean;
 }
