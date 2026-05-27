@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { toast } from 'sonner';
 import { formatUnits } from 'viem';
 import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
@@ -39,7 +38,6 @@ export interface UseRedeemSharesResult {
 }
 
 export default function useRedeemShares(): UseRedeemSharesResult {
-  const DECRYPT_ALLOW_GAS = 300_000n;
   const DECRYPT_REQUEST_GAS = 1_000_000n;
   const REDEEM_SHARES_GAS = 1_400_000n;
   const chainId = useChainId();
@@ -117,62 +115,88 @@ export default function useRedeemShares(): UseRedeemSharesResult {
       }
 
       const requestGasFees = await getBufferedGasFees(publicClient);
-      const allowGas = await getBufferedContractGas(
-        publicClient,
-        {
-          account: address,
-          address: COFHE_TASK_MANAGER_ADDRESS,
-          abi: COFHE_TASK_MANAGER_ABI,
-          functionName: 'allowForDecryption',
-          args: [encryptedWinningHandle],
-        },
-        DECRYPT_ALLOW_GAS,
-      );
-      const allowHash = await writeContractAsync({
+
+      // Check if decryption is already done (e.g. from a previous attempt)
+      // by calling getDecryptResultSafe directly on the TaskManager — the
+      // canonical Fhenix view call for coprocessor readiness.
+      const [, alreadyDecrypted] = (await publicClient.readContract({
         address: COFHE_TASK_MANAGER_ADDRESS,
         abi: COFHE_TASK_MANAGER_ABI,
-        functionName: 'allowForDecryption',
+        functionName: 'getDecryptResultSafe',
         args: [encryptedWinningHandle],
-        gas: allowGas,
-        ...requestGasFees,
-      });
-      const allowReceipt = await publicClient.waitForTransactionReceipt({ hash: allowHash });
-      if (allowReceipt.status !== 'success') {
-        throw new Error('The decrypt permission transaction reverted before completion.');
+      })) as [bigint, boolean];
+
+      if (!alreadyDecrypted) {
+        // 1. Request Decrypt — the contract calls _allowForFheDecryption internally,
+        //    so we do NOT need a separate allowForDecryption transaction.
+        lifecycle.setStage('awaiting_wallet');
+        updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
+
+        const requestGas = await getBufferedContractGas(
+          publicClient,
+          {
+            account: address,
+            address: predictionMarketAddress,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'requestRedeemPositionDecrypt',
+            args: [BigInt(marketId)],
+          },
+          DECRYPT_REQUEST_GAS,
+        );
+        try {
+          const requestHash = await writeContractAsync({
+            address: predictionMarketAddress,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'requestRedeemPositionDecrypt',
+            args: [BigInt(marketId)],
+            gas: requestGas,
+            ...requestGasFees,
+          });
+
+          lifecycle.setTxHash(requestHash);
+          lifecycle.setStage('encrypting');
+          updateTransaction(pendingTxId, { stage: 'confirming', txHash: requestHash });
+
+          const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
+          if (requestReceipt.status !== 'success') {
+            console.warn('Decrypt request reverted — assuming already requested in a prior attempt.');
+          }
+        } catch (e) {
+          // If this fails it likely means the decrypt was already requested in
+          // a previous attempt that failed at the redeemShares step.
+          console.warn('requestRedeemPositionDecrypt failed — assuming already requested.', e);
+        }
+
+        // 2. Poll for Coprocessor Completion.
+        // Use getDecryptResultSafe — a cheap view call — to check readiness.
+        // Poll up to 60 × 5s = 5 minutes before giving up.
+        lifecycle.setStage('confirming');
+        let isReady = false;
+        const MAX_POLL_ATTEMPTS = 60;
+        for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+          await new Promise((resolve) => window.setTimeout(resolve, 5_000));
+          try {
+            const [, decrypted] = (await publicClient.readContract({
+              address: COFHE_TASK_MANAGER_ADDRESS,
+              abi: COFHE_TASK_MANAGER_ABI,
+              functionName: 'getDecryptResultSafe',
+              args: [encryptedWinningHandle],
+            })) as [bigint, boolean];
+            if (decrypted) {
+              isReady = true;
+              break;
+            }
+          } catch (e) {
+            // View call failed — keep polling
+          }
+        }
+
+        if (!isReady) {
+          throw new Error(
+            'The coprocessor took too long to decrypt. Please try claiming again — the decrypt request has already been submitted on-chain.',
+          );
+        }
       }
-
-      const requestGas = await getBufferedContractGas(
-        publicClient,
-        {
-          account: address,
-          address: predictionMarketAddress,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'requestRedeemPositionDecrypt',
-          args: [BigInt(marketId)],
-        },
-        DECRYPT_REQUEST_GAS,
-      );
-      const requestHash = await writeContractAsync({
-        address: predictionMarketAddress,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'requestRedeemPositionDecrypt',
-        args: [BigInt(marketId)],
-        gas: requestGas,
-        ...requestGasFees,
-      });
-
-      lifecycle.setTxHash(requestHash);
-      lifecycle.setStage('encrypting');
-      updateTransaction(pendingTxId, { stage: 'confirming', txHash: requestHash });
-
-      const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
-      if (requestReceipt.status !== 'success') {
-        throw new Error('The redeem-position decrypt request reverted after submission.');
-      }
-
-      // 2. Wait for Coprocessor (12s)
-      lifecycle.setStage('confirming');
-      await new Promise((resolve) => window.setTimeout(resolve, 12_000));
 
       // 3. Redeem Transaction
       lifecycle.setStage('awaiting_wallet');

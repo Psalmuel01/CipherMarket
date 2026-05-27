@@ -2,12 +2,12 @@ import type { Abi, Address } from 'viem';
 import { erc20Abi } from 'viem';
 import OracleRegistryArtifact from './abi/OracleRegistry.json';
 import PredictionMarketArtifact from './abi/PredictionMarket.json';
-import PrivaraDisputeEscrowAdapterArtifact from './abi/PrivaraDisputeEscrowAdapter.json';
+import ReineiraDisputeEscrowAdapterArtifact from './abi/ReineiraDisputeEscrowAdapter.json';
 
 export interface ChainContractAddresses {
   oracleRegistry: Address | null;
   predictionMarket: Address | null;
-  privaraDisputeEscrowAdapter: Address | null;
+  reineiraDisputeEscrowAdapter: Address | null;
   usdc: Address | null;
 }
 
@@ -26,15 +26,15 @@ export const CONTRACT_ADDRESSES: Record<number, ChainContractAddresses> = {
   [ARBITRUM_SEPOLIA_CHAIN_ID]: {
     oracleRegistry: (process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_ORACLE_REGISTRY as Address) ?? null,
     predictionMarket: (process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_PREDICTION_MARKET as Address) ?? null,
-    privaraDisputeEscrowAdapter:
-      (process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_PRIVARA_DISPUTE_ESCROW_ADAPTER as Address) ?? null,
+    reineiraDisputeEscrowAdapter:
+      (process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_REINEIRA_DISPUTE_ESCROW_ADAPTER as Address) ?? null,
     usdc: (process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_USDC_ADDRESS as Address) ?? null,
   },
 };
 
 export const ORACLE_REGISTRY_ABI = OracleRegistryArtifact.abi as Abi;
 export const PREDICTION_MARKET_ABI = PredictionMarketArtifact.abi as Abi;
-export const PRIVARA_DISPUTE_ESCROW_ADAPTER_ABI = PrivaraDisputeEscrowAdapterArtifact.abi as Abi;
+export const REINEIRA_DISPUTE_ESCROW_ADAPTER_ABI = ReineiraDisputeEscrowAdapterArtifact.abi as Abi;
 export const ERC20_ABI = erc20Abi as Abi;
 export const COFHE_TASK_MANAGER_ADDRESS = '0xeA30c4B8b44078Bbf8a6ef5b9f1eC1626C7848D9' as const;
 export const COFHE_TASK_MANAGER_ABI = [
@@ -44,6 +44,16 @@ export const COFHE_TASK_MANAGER_ABI = [
     stateMutability: 'nonpayable',
     inputs: [{ name: 'ctHash', type: 'uint256' }],
     outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'getDecryptResultSafe',
+    stateMutability: 'view',
+    inputs: [{ name: 'ctHash', type: 'uint256' }],
+    outputs: [
+      { name: 'result', type: 'uint256' },
+      { name: 'decrypted', type: 'bool' },
+    ],
   },
 ] as const satisfies Abi;
 

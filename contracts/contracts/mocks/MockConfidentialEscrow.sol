@@ -6,6 +6,7 @@ import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 interface IMockConditionResolver {
   function isConditionMet(uint256 escrowId) external view returns (bool);
+  function onConditionSet(uint256 escrowId, bytes calldata data) external;
 }
 
 contract MockConfidentialEscrow {
@@ -38,6 +39,9 @@ contract MockConfidentialEscrow {
     require(resolver != address(0), 'Resolver required');
 
     IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+
+    // Invoke the resolver callback on the condition resolver standard
+    IMockConditionResolver(resolver).onConditionSet(escrowId, resolverData);
 
     escrows[escrowId] = Escrow({
       exists: true,

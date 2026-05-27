@@ -411,12 +411,12 @@ describe('PredictionMarket Wave 3A', () => {
     ).to.be.reverted;
   });
 
-  it('opens and settles a successful USDC dispute through the Privara adapter', async () => {
+  it('opens and settles a successful USDC dispute through the Reineira adapter', async () => {
     const { creator, proposerOracle, committeeOracle, disputer, registry, predictionMarket, usdc } =
       await deployFixture();
     const escrow = await ethers.deployContract('MockConfidentialEscrow');
     await escrow.waitForDeployment();
-    const adapter = await ethers.deployContract('PrivaraDisputeEscrowAdapter', [
+    const adapter = await ethers.deployContract('ReineiraDisputeEscrowAdapter', [
       await predictionMarket.getAddress(),
       await escrow.getAddress(),
     ]);
@@ -456,7 +456,7 @@ describe('PredictionMarket Wave 3A', () => {
       encodeEscrowResolverData(0, disputer.address, 1, stakeAmount, await usdc.getAddress()),
     );
 
-    await adapter.connect(disputer).openDisputeWithEscrow(escrowId);
+    // onConditionSet is called automatically by createEscrow, registering the dispute
     expect(await predictionMarket.marketDisputeAdapter(0)).to.equal(await adapter.getAddress());
 
     await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
@@ -475,12 +475,12 @@ describe('PredictionMarket Wave 3A', () => {
     expect(await predictionMarket.marketDisputeAdapter(0)).to.equal(ethers.ZeroAddress);
   });
 
-  it('routes a failed Privara adapter dispute into oracle rewards and protocol fees', async () => {
+  it('routes a failed Reineira adapter dispute into oracle rewards and protocol fees', async () => {
     const { creator, proposerOracle, committeeOracle, disputer, registry, predictionMarket, usdc } =
       await deployFixture();
     const escrow = await ethers.deployContract('MockConfidentialEscrow');
     await escrow.waitForDeployment();
-    const adapter = await ethers.deployContract('PrivaraDisputeEscrowAdapter', [
+    const adapter = await ethers.deployContract('ReineiraDisputeEscrowAdapter', [
       await predictionMarket.getAddress(),
       await escrow.getAddress(),
     ]);
@@ -520,7 +520,7 @@ describe('PredictionMarket Wave 3A', () => {
       encodeEscrowResolverData(0, disputer.address, 1, stakeAmount, await usdc.getAddress()),
     );
 
-    await adapter.connect(disputer).openDisputeWithEscrow(escrowId);
+    // onConditionSet is called automatically by createEscrow, registering the dispute
     await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
     await predictionMarket.connect(committeeOracle).voteOnResolution(0, 0);
     await moveTime(3601);

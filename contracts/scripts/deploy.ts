@@ -5,7 +5,7 @@
  *   1. OracleRegistry        – manages oracle stake/registration
  *   2. PredictionMarketMath  – linked FPMM math library
  *   3. PredictionMarket      – singleton FPMM market manager with encrypted user balances
- *   4. PrivaraDisputeEscrowAdapter – optional external dispute-bond escrow adapter
+ *   4. ReineiraDisputeEscrowAdapter – optional external dispute-bond escrow adapter
  *
  * Post-deploy wiring:
  *   - OracleRegistry.setPredictionMarket(PredictionMarket)
@@ -29,7 +29,7 @@ interface Deployed {
   txHash: string;
 }
 
-const DEFAULT_ARBITRUM_SEPOLIA_PRIVARA_ESCROW =
+const DEFAULT_ARBITRUM_SEPOLIA_REINEIRA_ESCROW =
   '0xC4333F84F5034D8691CB95f068def2e3B6DC60Fa';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -184,22 +184,22 @@ async function main(): Promise<void> {
 
   const market = await hre.ethers.getContractAt('PredictionMarket', predictionMarket.address);
   const sepoliaUsdcAddress = process.env.ARBITRUM_SEPOLIA_USDC_ADDRESS;
-  const privaraEscrowAddress =
-    process.env.PRIVARA_ESCROW_ADDRESS ||
-    (!isLocal && network === 'arbitrum-sepolia' ? DEFAULT_ARBITRUM_SEPOLIA_PRIVARA_ESCROW : '');
-  let privaraAdapter: Deployed | null = null;
+  const reineiraEscrowAddress =
+    process.env.REINEIRA_ESCROW_ADDRESS ||
+    (!isLocal && network === 'arbitrum-sepolia' ? DEFAULT_ARBITRUM_SEPOLIA_REINEIRA_ESCROW : '');
+  let reineiraAdapter: Deployed | null = null;
 
-  if (privaraEscrowAddress) {
-    privaraAdapter = await deploy(hre, provider, 'PrivaraDisputeEscrowAdapter', [
+  if (reineiraEscrowAddress) {
+    reineiraAdapter = await deploy(hre, provider, 'ReineiraDisputeEscrowAdapter', [
       predictionMarket.address,
-      privaraEscrowAddress,
+      reineiraEscrowAddress,
     ]);
 
-    console.log(`\n  PredictionMarket.setDisputeAdapter(${privaraAdapter.address}, true)`);
-    const setAdapterTx = await market.setDisputeAdapter(privaraAdapter.address, true);
+    console.log(`\n  PredictionMarket.setDisputeAdapter(${reineiraAdapter.address}, true)`);
+    const setAdapterTx = await market.setDisputeAdapter(reineiraAdapter.address, true);
     await sendConfig(provider, 'setDisputeAdapter', setAdapterTx);
   } else {
-    console.log('\n  No PRIVARA_ESCROW_ADDRESS configured. Skipping Privara adapter deployment.');
+    console.log('\n  No REINEIRA_ESCROW_ADDRESS configured. Skipping Reineira adapter deployment.');
   }
 
   if (sepoliaUsdcAddress) {
@@ -221,7 +221,7 @@ async function main(): Promise<void> {
     oracleRegistry,
     predictionMarketMath,
     predictionMarket,
-    ...(privaraAdapter ? [privaraAdapter] : []),
+    ...(reineiraAdapter ? [reineiraAdapter] : []),
   ];
 
   for (const c of rows) {
@@ -242,11 +242,30 @@ async function main(): Promise<void> {
 
   console.log('  ✅ Deployment complete!');
   console.log('');
+
+  // Write to a local JSON file for easy reference/verification
+  const fs = require('fs');
+  const path = require('path');
+  const addressesPath = path.join(__dirname, '../deployed-addresses.json');
+  const addressesData = {
+    network,
+    oracleRegistry: oracleRegistry.address,
+    predictionMarketMath: predictionMarketMath.address,
+    predictionMarket: predictionMarket.address,
+    reineiraAdapter: reineiraAdapter ? reineiraAdapter.address : null,
+    reineiraEscrow: reineiraEscrowAddress || null,
+    usdc: sepoliaUsdcAddress || null,
+  };
+  fs.writeFileSync(addressesPath, JSON.stringify(addressesData, null, 2));
+  console.log(`  💾 Saved deployed addresses to contracts/deployed-addresses.json`);
+  console.log('');
+
   console.log('  Next steps:');
   console.log('  1. Copy the addresses above into your frontend .env');
   console.log('  2. Set NEXT_PUBLIC_ARBITRUM_SEPOLIA_USDC_ADDRESS in frontend/.env.local');
-  console.log('  3. If deployed, set NEXT_PUBLIC_ARBITRUM_SEPOLIA_PRIVARA_DISPUTE_ESCROW_ADAPTER');
+  console.log('  3. If deployed, set NEXT_PUBLIC_ARBITRUM_SEPOLIA_REINEIRA_DISPUTE_ESCROW_ADAPTER');
   console.log('  4. Register an oracle via OracleRegistry.register()');
+  console.log('  5. Verify contracts: npx hardhat run scripts/verify.ts --network <network>');
   console.log('══════════════════════════════════════');
 }
 

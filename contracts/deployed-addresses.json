@@ -1,0 +1,9 @@
+{
+  "network": "arbitrum-sepolia",
+  "oracleRegistry": "0xBbcCa725a57055cCd48a3Ac77cC334c936fAA545",
+  "predictionMarketMath": "0xaC2c21b28576aB3750D1f0dA920d1B8DE4f40AB3",
+  "predictionMarket": "0x33c26576C873cf7ce507a411eeD71AE7f593c4D2",
+  "reineiraAdapter": "0xE13d233098d493d386D58d872Af655c764600F0d",
+  "reineiraEscrow": "0xC4333F84F5034D8691CB95f068def2e3B6DC60Fa",
+  "usdc": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+}

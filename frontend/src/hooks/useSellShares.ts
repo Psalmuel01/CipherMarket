@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { toast } from 'sonner';
 import { parseUnits } from 'viem';
 import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
@@ -29,7 +28,6 @@ export interface UseSellSharesResult {
 }
 
 export default function useSellShares(): UseSellSharesResult {
-  const DECRYPT_ALLOW_GAS = 300_000n;
   const DECRYPT_REQUEST_GAS = 1_000_000n;
   const SELL_SHARES_GAS = 1_800_000n;
   const chainId = useChainId();
@@ -94,62 +92,79 @@ export default function useSellShares(): UseSellSharesResult {
         throw new Error('This wallet has no encrypted position to sell for this outcome.');
       }
 
-      const allowGas = await getBufferedContractGas(
-        publicClient,
-        {
-          account: address,
-          address: COFHE_TASK_MANAGER_ADDRESS,
-          abi: COFHE_TASK_MANAGER_ABI,
-          functionName: 'allowForDecryption',
-          args: [encryptedPositionHandle],
-        },
-        DECRYPT_ALLOW_GAS,
-      );
-      const allowHash = await writeContractAsync({
+      // Check if decryption is already done (e.g. from a previous attempt)
+      // by calling getDecryptResultSafe directly on the TaskManager —
+      // the canonical Fhenix view call for coprocessor readiness.
+      const [, alreadyDecrypted] = (await publicClient.readContract({
         address: COFHE_TASK_MANAGER_ADDRESS,
         abi: COFHE_TASK_MANAGER_ABI,
-        functionName: 'allowForDecryption',
+        functionName: 'getDecryptResultSafe',
         args: [encryptedPositionHandle],
-        gas: allowGas,
-        ...requestGasFees,
-      });
-      const allowReceipt = await publicClient.waitForTransactionReceipt({ hash: allowHash });
-      if (allowReceipt.status !== 'success') {
-        throw new Error('The decrypt permission transaction reverted before completion.');
+      })) as [bigint, boolean];
+
+      if (!alreadyDecrypted) {
+        const requestGas = await getBufferedContractGas(
+          publicClient,
+          {
+            account: address,
+            address: predictionMarketAddress,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'requestSellPositionDecrypt',
+            args: [BigInt(draft.marketId), outcomeIndex],
+          },
+          DECRYPT_REQUEST_GAS,
+        );
+        try {
+          const requestHash = await writeContractAsync({
+            address: predictionMarketAddress,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'requestSellPositionDecrypt',
+            args: [BigInt(draft.marketId), outcomeIndex],
+            gas: requestGas,
+            ...requestGasFees,
+          });
+
+          lifecycle.setTxHash(requestHash);
+          lifecycle.setStage('encrypting');
+          updateTransaction(pendingTxId, { stage: 'confirming', txHash: requestHash });
+
+          const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
+          if (requestReceipt.status !== 'success') {
+            console.warn('Sell decrypt request reverted — assuming already requested in a prior attempt.');
+          }
+        } catch (e) {
+          console.warn('requestSellPositionDecrypt failed — assuming already requested.', e);
+        }
+
+        // Poll for Coprocessor Completion using getDecryptResultSafe.
+        // Poll up to 60 × 5s = 5 minutes before giving up.
+        lifecycle.setStage('confirming');
+        let isReady = false;
+        const MAX_POLL_ATTEMPTS = 60;
+        for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+          await new Promise((resolve) => window.setTimeout(resolve, 5_000));
+          try {
+            const [, decrypted] = (await publicClient.readContract({
+              address: COFHE_TASK_MANAGER_ADDRESS,
+              abi: COFHE_TASK_MANAGER_ABI,
+              functionName: 'getDecryptResultSafe',
+              args: [encryptedPositionHandle],
+            })) as [bigint, boolean];
+            if (decrypted) {
+              isReady = true;
+              break;
+            }
+          } catch (e) {
+            // View call failed — keep polling
+          }
+        }
+
+        if (!isReady) {
+          throw new Error(
+            'The coprocessor took too long to decrypt. Please try selling again — the decrypt request has already been submitted on-chain.',
+          );
+        }
       }
-
-      const requestGas = await getBufferedContractGas(
-        publicClient,
-        {
-          account: address,
-          address: predictionMarketAddress,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'requestSellPositionDecrypt',
-          args: [BigInt(draft.marketId), outcomeIndex],
-        },
-        DECRYPT_REQUEST_GAS,
-      );
-      const requestHash = await writeContractAsync({
-        address: predictionMarketAddress,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'requestSellPositionDecrypt',
-        args: [BigInt(draft.marketId), outcomeIndex],
-        gas: requestGas,
-        ...requestGasFees,
-      });
-
-      lifecycle.setTxHash(requestHash);
-      lifecycle.setStage('encrypting'); // We'll use encrypting/confirming for the compute wait
-      updateTransaction(pendingTxId, { stage: 'confirming', txHash: requestHash });
-
-      const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
-      if (requestReceipt.status !== 'success') {
-        throw new Error('The sell-position decrypt request reverted after submission.');
-      }
-
-      // 2. Wait for Coprocessor (12s)
-      lifecycle.setStage('confirming');
-      await new Promise((resolve) => window.setTimeout(resolve, 12_000));
 
       // 3. Sell Transaction
       lifecycle.setStage('awaiting_wallet');

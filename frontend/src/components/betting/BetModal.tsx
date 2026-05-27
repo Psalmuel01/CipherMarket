@@ -49,7 +49,11 @@ export default function BetModal({
   side,
   userShares,
 }: BetModalProps): JSX.Element {
-  const [amount, setAmount] = useState<string>('1');
+  // Set default value dynamically based on collateral type
+  const defaultAmount = collateralSymbol === 'USDC' ? '1' : '0.01';
+  const minimumAmount = collateralSymbol === 'USDC' ? 1 : 0.01;
+
+  const [amount, setAmount] = useState<string>(defaultAmount);
   const buyHook = useBuyShares();
   const sellHook = useSellShares();
 
@@ -81,6 +85,15 @@ export default function BetModal({
     }
   })();
 
+  const isBelowMinimum = (() => {
+    try {
+      const parsed = parseFloat(amount || '0');
+      return parsed > 0 && parsed < minimumAmount;
+    } catch {
+      return false;
+    }
+  })();
+
   const handleSetMax = (): void => {
     if (side === 'SELL' && userShares != null) {
       const formatted = formatAmount(userShares, collateralDecimals);
@@ -90,7 +103,7 @@ export default function BetModal({
 
   const handleClose = (): void => {
     reset();
-    setAmount('1');
+    setAmount(defaultAmount);
     onClose();
   };
 
@@ -212,7 +225,7 @@ export default function BetModal({
                 )}
                 onChange={(e) => setAmount(e.target.value)}
                 value={amount}
-                placeholder="0.00"
+                placeholder={defaultAmount}
                 autoFocus
               />
               <div className="absolute right-8 top-1/2 -translate-y-1/2 font-mono text-lg text-white/10 select-none">
@@ -229,6 +242,16 @@ export default function BetModal({
                   className="text-[11px] text-red-400 px-4 font-bold uppercase tracking-widest"
                 >
                   Insufficient Balance
+                </motion.p>
+              )}
+              {isBelowMinimum && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="text-[11px] text-amber-400 px-4 font-medium tracking-wide"
+                >
+                  Value is less than minimum value required ({minimumAmount} {collateralSymbol})
                 </motion.p>
               )}
             </AnimatePresence>
@@ -313,7 +336,7 @@ export default function BetModal({
             </Button>
             <Button
               className="flex-[2] gap-3"
-              disabled={!quote.data || exceedsMax || state.stage !== 'idle'}
+              disabled={!quote.data || exceedsMax || isBelowMinimum || state.stage !== 'idle'}
               onClick={handleSubmit}
             >
               <Sparkles className="h-4 w-4" />

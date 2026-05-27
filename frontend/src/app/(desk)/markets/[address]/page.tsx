@@ -125,6 +125,14 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const escalateMarketMutation = useEscalateMarket();
   const [disputeEscrowMode, setDisputeEscrowMode] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (data?.collateralSymbol === 'USDC') {
+      setDisputeEscrowMode(true);
+    } else {
+      setDisputeEscrowMode(false);
+    }
+  }, [data?.collateralSymbol]);
+
   const finalizeMarketMutation = useFinalizeMarket();
   const redeemMutation = useRedeemShares();
   const removeLiquidityMutation = useRemoveLiquidity();
@@ -437,7 +445,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 </p>
               ) : null}
             </div>}
-            {!data.disputeOpened && data.status === 'RESOLUTION_OPEN' ? (
+            {!data.disputeOpened && data.status === 'RESOLUTION_OPEN' && !isFinalizeWindowOpen ? (
               <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-5">
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">Open dispute</p>
@@ -447,45 +455,45 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 </div>
 
                 {/* Dual-Mode Escrow Tabs */}
-                <div className="grid grid-cols-2 rounded-xl bg-white/[0.02] p-1 border border-white/5">
-                  <button
-                    type="button"
-                    disabled
-                    title="Privara escrow is moving into a separate adapter contract so the core market can deploy under the chain code-size limit."
-                    onClick={() => setDisputeEscrowMode(true)}
-                    className={clsx(
-                      "py-1.5 text-xs font-medium rounded-lg transition-all",
-                      disputeEscrowMode
-                        ? "bg-primary/10 text-primary border border-primary/20"
-                        : "text-muted-foreground opacity-50"
-                    )}
-                  >
-                    Privara Escrow
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDisputeEscrowMode(false)}
-                    className={clsx(
-                      "py-1.5 text-xs font-medium rounded-lg transition-all",
-                      !disputeEscrowMode
-                        ? "bg-white/5 text-foreground border border-white/10"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Direct Custody
-                  </button>
-                </div>
+                {data.collateralSymbol === 'USDC' && (
+                  <div className="grid grid-cols-2 rounded-xl bg-white/[0.02] p-1 border border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => setDisputeEscrowMode(true)}
+                      className={clsx(
+                        "py-1.5 text-xs font-medium rounded-lg transition-all",
+                        disputeEscrowMode
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Reineira Escrow
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDisputeEscrowMode(false)}
+                      className={clsx(
+                        "py-1.5 text-xs font-medium rounded-lg transition-all",
+                        !disputeEscrowMode
+                          ? "bg-white/5 text-foreground border border-white/10"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Direct Custody
+                    </button>
+                  </div>
+                )}
 
                 <div className="space-y-1 text-[11px] text-muted-foreground bg-white/[0.01] rounded-lg p-2 border border-white/[0.02]">
-                  {disputeEscrowMode ? (
+                  {data.collateralSymbol === 'USDC' && disputeEscrowMode ? (
                     <p className="flex items-center gap-1.5">
                       <Shield className="h-3.5 w-3.5 text-primary" />
-                      Privara escrow is being split into a separate adapter so the core market stays deployable.
+                      Reineira escrow holds dispute stakes in a secure, confidential FHE vault.
                     </p>
                   ) : (
                     <p className="flex items-center gap-1.5">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-300" />
-                      Direct ERC20 custody inside CipherMarket prediction contract.
+                      Direct ERC20/ETH custody inside CipherMarket prediction contract.
                     </p>
                   )}
                 </div>
@@ -545,7 +553,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {!data.disputeOpened ? (
+            {!data.disputeOpened && !isFinalizeWindowOpen ? (
               <Button
                 variant="outline"
                 className="gap-2"
@@ -724,7 +732,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
           <div className="space-y-1">
             <p className="text-sm font-semibold text-foreground">Market finalized</p>
             <p className="text-sm text-muted-foreground">
-              Winning outcome: {finalOutcome?.label ?? 'Unavailable'}.
+              Winning outcome: <span className="text-primary font-semibold">{finalOutcome?.label ?? 'Unavailable'}</span>
             </p>
           </div>
         </div>
@@ -899,14 +907,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                         <p className="mt-2 text-xs text-muted-foreground">
                           {!isPortfolioVisible
                             ? 'Hidden until you reveal locally.'
-                            : privatePositions.isLoading
-                              ? 'Estimating value after decrypt...'
-                              : `Est. active value ${formatTokenAmount(
-                                ((outcome.revealedShares ?? 0n) * outcome.probability) / PRICE_SCALE,
-                                collateralDecimals,
-                                data.collateralSymbol,
-                              )}`}
-                        </p>
+                            : ""}
+                            </p>
                       </div>
                     );
                   })}
@@ -964,15 +966,39 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                     <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                       {data.status === 'FINALIZED' ? 'LP Claim Estimate' : 'Active Exit Estimate'}
                     </p>
-                    <p className="mt-2 font-mono text-xl text-foreground">
-                      {formatTokenAmount(
-                        data.status === 'FINALIZED'
+                    <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                      <span className="font-mono text-xl text-foreground">
+                        {formatTokenAmount(
+                          data.status === 'FINALIZED'
+                            ? data.estimatedFinalLpPayout
+                            : data.estimatedLpCollateralOut,
+                          collateralDecimals,
+                          data.collateralSymbol,
+                        )}
+                      </span>
+                      {data.myLpShares > 0n && (() => {
+                        const estimatedValue = data.status === 'FINALIZED'
                           ? data.estimatedFinalLpPayout
-                          : data.estimatedLpCollateralOut,
-                        collateralDecimals,
-                        data.collateralSymbol,
-                      )}
-                    </p>
+                          : data.estimatedLpCollateralOut;
+                        const lpNetGain = estimatedValue - data.myLpShares;
+                        const percentage = (Number((lpNetGain * 10000n) / data.myLpShares) / 100).toFixed(2);
+                        
+                        return (
+                          <span className={clsx(
+                            "text-xs font-mono font-bold rounded px-2 py-0.5",
+                            lpNetGain > 0n 
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                              : lpNetGain < 0n 
+                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" 
+                                : "bg-white/5 text-muted-foreground border border-white/10"
+                          )}>
+                            {lpNetGain > 0n ? '+' : ''}
+                            {formatTokenAmount(lpNetGain, collateralDecimals, data.collateralSymbol)}
+                            {` (${lpNetGain > 0n ? '+' : ''}${percentage}%)`}
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <p className="mt-2 text-xs text-muted-foreground">
                       {data.status === 'FINALIZED'
                         ? 'Estimated final claim after winner reserves and protocol fees.'

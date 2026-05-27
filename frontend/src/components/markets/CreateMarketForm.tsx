@@ -222,7 +222,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
           </Button>
           <Link href="/dashboard">
             <Button className="gap-3 shadow-2xl">
-              Launch Application
+              View Markets
               <ChevronRight className="h-4 w-4" />
             </Button>
           </Link>

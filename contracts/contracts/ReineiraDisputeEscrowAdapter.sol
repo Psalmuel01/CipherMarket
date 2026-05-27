@@ -4,15 +4,16 @@ pragma solidity ^0.8.25;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 
-interface IPrivaraEscrow {
+interface IReineiraEscrow {
   function exists(uint256 escrowId) external view returns (bool);
   function getConditionResolver(uint256 escrowId) external view returns (address);
   function getResolverData(uint256 escrowId) external view returns (bytes memory);
   function redeem(uint256 escrowId) external;
 }
 
-interface IPredictionMarketForPrivara {
+interface IPredictionMarketForReineira {
   struct MarketView {
     uint256 marketId;
     address creator;
@@ -57,6 +58,7 @@ interface IPredictionMarketForPrivara {
 
   function getMarket(uint256 marketId) external view returns (MarketView memory);
 
+  // Note: PredictionMarket contract has the same function signature
   function openDisputeFromAdapter(
     uint256 marketId,
     address disputer,
@@ -67,10 +69,15 @@ interface IPredictionMarketForPrivara {
   function settleExternalDispute(uint256 marketId, uint128 amount) external;
 }
 
-/// @title PrivaraDisputeEscrowAdapter
-/// @notice Keeps dispute-bond custody in Privara while PredictionMarket remains the canonical
+interface IConditionResolver {
+  function isConditionMet(uint256 escrowId) external view returns (bool);
+  function onConditionSet(uint256 escrowId, bytes calldata data) external;
+}
+
+/// @title ReineiraDisputeEscrowAdapter
+/// @notice Keeps dispute-bond custody in Reineira while PredictionMarket remains the canonical
 /// market-state and resolution engine.
-contract PrivaraDisputeEscrowAdapter is Ownable {
+contract ReineiraDisputeEscrowAdapter is Ownable, ERC165, IConditionResolver {
   using SafeERC20 for IERC20;
 
   uint8 private constant MARKET_STATE_FINALIZED = 4;
@@ -100,18 +107,22 @@ contract PrivaraDisputeEscrowAdapter is Ownable {
     bool refunded
   );
 
-  IPrivaraEscrow public immutable privaraEscrow;
-  IPredictionMarketForPrivara public immutable predictionMarket;
+  IReineiraEscrow public immutable reineiraEscrow;
+  IPredictionMarketForReineira public immutable predictionMarket;
 
   mapping(uint256 => DisputeEscrow) public disputeEscrows;
   mapping(uint256 => uint256) public marketEscrowId;
 
-  constructor(address predictionMarket_, address privaraEscrow_) Ownable(msg.sender) {
+  constructor(address predictionMarket_, address reineiraEscrow_) Ownable(msg.sender) {
     require(predictionMarket_ != address(0), 'Bad market');
-    require(privaraEscrow_ != address(0), 'Bad escrow');
+    require(reineiraEscrow_ != address(0), 'Bad escrow');
 
-    predictionMarket = IPredictionMarketForPrivara(predictionMarket_);
-    privaraEscrow = IPrivaraEscrow(privaraEscrow_);
+    predictionMarket = IPredictionMarketForReineira(predictionMarket_);
+    reineiraEscrow = IReineiraEscrow(reineiraEscrow_);
+  }
+
+  function supportsInterface(bytes4 interfaceId) public view override(ERC165) returns (bool) {
+    return interfaceId == type(IConditionResolver).interfaceId || super.supportsInterface(interfaceId);
   }
 
   function encodeResolverData(
@@ -124,10 +135,9 @@ contract PrivaraDisputeEscrowAdapter is Ownable {
     return abi.encode(marketId, disputer, counterOutcome, stakeAmount, token);
   }
 
-  function openDisputeWithEscrow(uint256 escrowId) external {
+  function onConditionSet(uint256 escrowId, bytes calldata data) external override {
+    require(msg.sender == address(reineiraEscrow), 'Only escrow');
     require(disputeEscrows[escrowId].registered == false, 'Registered');
-    require(privaraEscrow.exists(escrowId), 'No escrow');
-    require(privaraEscrow.getConditionResolver(escrowId) == address(this), 'Bad resolver');
 
     (
       uint256 marketId,
@@ -135,17 +145,14 @@ contract PrivaraDisputeEscrowAdapter is Ownable {
       uint8 counterOutcome,
       uint128 stakeAmount,
       address token
-    ) = abi.decode(
-      privaraEscrow.getResolverData(escrowId),
-      (uint256, address, uint8, uint128, address)
-    );
+    ) = abi.decode(data, (uint256, address, uint8, uint128, address));
 
-    require(disputer == msg.sender, 'Bad disputer');
+    require(disputer != address(0), 'Bad disputer');
     require(token != address(0), 'Bad token');
     require(stakeAmount > 0, 'Bad stake');
     require(marketEscrowId[marketId] == 0, 'Market escrow');
 
-    IPredictionMarketForPrivara.MarketView memory market = predictionMarket.getMarket(marketId);
+    IPredictionMarketForReineira.MarketView memory market = predictionMarket.getMarket(marketId);
     require(market.collateralToken == token, 'Bad collateral');
 
     predictionMarket.openDisputeFromAdapter(marketId, disputer, counterOutcome, stakeAmount);
@@ -164,13 +171,13 @@ contract PrivaraDisputeEscrowAdapter is Ownable {
     emit EscrowRegistered(marketId, escrowId, disputer, counterOutcome, stakeAmount);
   }
 
-  function isConditionMet(uint256 escrowId) external view returns (bool) {
+  function isConditionMet(uint256 escrowId) external view override returns (bool) {
     DisputeEscrow memory escrow = disputeEscrows[escrowId];
     if (!escrow.registered || escrow.settled) {
       return false;
     }
 
-    IPredictionMarketForPrivara.MarketView memory market = predictionMarket.getMarket(escrow.marketId);
+    IPredictionMarketForReineira.MarketView memory market = predictionMarket.getMarket(escrow.marketId);
     return market.state == MARKET_STATE_FINALIZED;
   }
 
@@ -179,12 +186,12 @@ contract PrivaraDisputeEscrowAdapter is Ownable {
     require(escrow.registered, 'No dispute');
     require(!escrow.settled, 'Settled');
 
-    IPredictionMarketForPrivara.MarketView memory market = predictionMarket.getMarket(escrow.marketId);
+    IPredictionMarketForReineira.MarketView memory market = predictionMarket.getMarket(escrow.marketId);
     require(market.state == MARKET_STATE_FINALIZED, 'Not final');
 
     IERC20 token = IERC20(escrow.token);
     uint256 balanceBefore = token.balanceOf(address(this));
-    privaraEscrow.redeem(escrowId);
+    reineiraEscrow.redeem(escrowId);
     uint256 redeemedAmount = token.balanceOf(address(this)) - balanceBefore;
     require(redeemedAmount == escrow.stakeAmount, 'Bad amount');
 
