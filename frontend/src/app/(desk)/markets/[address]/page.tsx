@@ -105,7 +105,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const [isModalOpen, setModalOpen] = useState<boolean>(false);
   const [isRedeemModalOpen, setRedeemModalOpen] = useState<boolean>(false);
   const [isPortfolioVisible, setPortfolioVisible] = useState<boolean>(false);
-  const [disputeAmount, setDisputeAmount] = useState<string>('0.01');
+  const [disputeAmount, setDisputeAmount] = useState<string>('1');
   const [disputeOutcomeId, setDisputeOutcomeId] = useState<string>('0');
   const [resolutionOutcomeId, setResolutionOutcomeId] = useState<string>('0');
   const [votingOutcomeIndex, setVotingOutcomeIndex] = useState<number | null>(null);
@@ -750,6 +750,67 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     );
   })();
 
+  const finalResolutionBanner = (() => {
+    if (!data || data.status !== 'FINALIZED' || !finalOutcome) {
+      return null;
+    }
+
+    const hasRevealed = isPortfolioVisible;
+    const didWin = hasRevealed && revealedWinningShares > 0n;
+    const didLose = hasRevealed && revealedWinningShares === 0n;
+    const bannerClass = clsx(
+      'rounded-3xl border p-6',
+      hasRevealed
+        ? didWin
+          ? 'border-emerald-500/20 bg-emerald-500/10'
+          : didLose
+            ? 'border-rose-500/20 bg-rose-500/10'
+            : 'border-white/10 bg-white/[0.04]'
+        : 'border-white/8 bg-white/[0.03]'
+    );
+    const titleClass = clsx(
+      'text-2xl font-semibold tracking-tight',
+      hasRevealed ? (didWin ? 'text-emerald-200' : didLose ? 'text-rose-200' : 'text-foreground') : 'text-foreground'
+    );
+    const statusLabel = hasRevealed
+      ? didWin
+        ? 'You won this market'
+        : 'You lost this market'
+      : 'Reveal private values to confirm your result';
+    const statusText = hasRevealed
+      ? didWin
+        ? `You hold ${formatTokenAmount(revealedWinningShares, collateralDecimals, data.collateralSymbol)} in winning shares.`
+        : 'You do not hold any winning shares.'
+      : 'Reveal your position to see if your wallet had winning shares in the resolved outcome.';
+
+    return (
+      <div className={bannerClass}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Trophy className={clsx('h-5 w-5', didWin ? 'text-emerald-300' : didLose ? 'text-rose-300' : 'text-primary')} />
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Resolved outcome</p>
+              <p className={titleClass}>{finalOutcome.label}</p>
+            </div>
+          </div>
+
+          {hasRevealed ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-black/5 p-4">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Resolution status</p>
+                <p className="mt-2 text-sm font-medium text-foreground">{statusLabel}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/5 p-4">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Your result</p>
+                <p className="mt-2 text-sm font-medium text-foreground">{statusText}</p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  })();
+
   return (
     <main className="space-y-10 px-4 py-8 lg:px-10">
       {isLoading ? (
@@ -835,6 +896,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             </div>
           </section>
 
+          {finalResolutionBanner}
+
           <div className="grid gap-8 xl:grid-cols-[1fr,400px]">
             <div className="space-y-8">
               <MarketAnalytics
@@ -908,7 +971,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                           {!isPortfolioVisible
                             ? 'Hidden until you reveal locally.'
                             : ""}
-                            </p>
+                        </p>
                       </div>
                     );
                   })}
@@ -982,14 +1045,14 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                           : data.estimatedLpCollateralOut;
                         const lpNetGain = estimatedValue - data.myLpShares;
                         const percentage = (Number((lpNetGain * 10000n) / data.myLpShares) / 100).toFixed(2);
-                        
+
                         return (
                           <span className={clsx(
                             "text-xs font-mono font-bold rounded px-2 py-0.5",
-                            lpNetGain > 0n 
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                              : lpNetGain < 0n 
-                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" 
+                            lpNetGain > 0n
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                              : lpNetGain < 0n
+                                ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                                 : "bg-white/5 text-muted-foreground border border-white/10"
                           )}>
                             {lpNetGain > 0n ? '+' : ''}
@@ -1109,7 +1172,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   onSelect={setSelectedOutcomeId}
                   outcomes={enrichedOutcomes}
                   selectedOutcomeId={selectedOutcome?.id ?? ''}
-                  // disabled={data.status !== 'ACTIVE'}
+                // disabled={data.status !== 'ACTIVE'}
                 />
               </div>
 

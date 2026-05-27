@@ -200,7 +200,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="mt-20 rounded-[32px] p-20 text-center space-y-10 max-w-2xl mx-auto border border-primary/20 bg-[#050505] shadow-2xl"
+        className="mt-20 rounded-[32px] p-20 text-center space-y-20 max-w-2xl mx-auto border border-primary/20 bg-[#050505] shadow-2xl"
       >
         <div className="flex justify-center">
           <div className="relative">
