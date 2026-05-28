@@ -652,15 +652,15 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             <Gavel className="mt-0.5 h-4 w-4 text-destructive" />
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">Escalated resolution</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 The oracle committee did not produce a decisive result. Admin fallback is now
                 required to finalize the market.
               </p>
             </div>
           </div>
-          <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
+          <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-">
             <p>Dispute stake locked: {formatTokenAmount(data.disputeStakeTotal, collateralDecimals, data.collateralSymbol)}</p>
-            <p>Oracle source: <a href={data.oracleSource} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{data.oracleSource}</a></p>
+            <p>Oracle source: <a href={data.oracleSource} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{data.oracleSource}</a></p>
             <p>
               Escalation deadline:{' '}
               {data.escalationDeadline ? formatDateTime(data.escalationDeadline) : 'Unavailable'}
@@ -756,11 +756,12 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     }
 
     const hasRevealed = isPortfolioVisible;
+    const hasConnectedPosition = Boolean(address && privatePositions.hasPosition);
     const didWin = hasRevealed && revealedWinningShares > 0n;
     const didLose = hasRevealed && revealedWinningShares === 0n;
     const bannerClass = clsx(
       'rounded-3xl border p-6',
-      hasRevealed
+      hasConnectedPosition && hasRevealed
         ? didWin
           ? 'border-emerald-500/20 bg-emerald-500/10'
           : didLose
@@ -770,18 +771,18 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     );
     const titleClass = clsx(
       'text-2xl font-semibold tracking-tight',
-      hasRevealed ? (didWin ? 'text-emerald-200' : didLose ? 'text-rose-200' : 'text-foreground') : 'text-foreground'
+      hasConnectedPosition && hasRevealed
+        ? didWin
+          ? 'text-emerald-200'
+          : didLose
+            ? 'text-rose-200'
+            : 'text-foreground'
+        : 'text-foreground'
     );
-    const statusLabel = hasRevealed
-      ? didWin
-        ? 'You won this market'
-        : 'You lost this market'
-      : 'Reveal private values to confirm your result';
-    const statusText = hasRevealed
-      ? didWin
-        ? `You hold ${formatTokenAmount(revealedWinningShares, collateralDecimals, data.collateralSymbol)} in winning shares.`
-        : 'You do not hold any winning shares.'
-      : 'Reveal your position to see if your wallet had winning shares in the resolved outcome.';
+    const statusLabel = didWin ? 'You won this market' : 'You lost this market';
+    const statusText = didWin
+      ? `You hold ${formatTokenAmount(revealedWinningShares, collateralDecimals, data.collateralSymbol)} in winning shares.`
+      : 'You do not hold any winning shares.';
 
     return (
       <div className={bannerClass}>
@@ -794,7 +795,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             </div>
           </div>
 
-          {hasRevealed ? (
+          {hasConnectedPosition && hasRevealed ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-black/5 p-4">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Resolution status</p>
@@ -1062,11 +1063,11 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                         );
                       })()}
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
+                    {/* <p className="mt-2 text-xs text-muted-foreground">
                       {data.status === 'FINALIZED'
                         ? 'Estimated final claim after winner reserves and protocol fees.'
                         : 'Current removable value from live pool reserves.'}
-                    </p>
+                    </p> */}
                   </div>
                 </div>
 

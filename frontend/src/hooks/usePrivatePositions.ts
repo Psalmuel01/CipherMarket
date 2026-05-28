@@ -11,6 +11,7 @@ import { getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
 
 export interface UsePrivatePositionsResult {
   data: bigint[];
+  hasPosition: boolean;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
@@ -121,8 +122,19 @@ export default function usePrivatePositions(
     staleTime: 30_000,
   });
 
+  const hasPosition = useMemo(() => {
+    if (!handlesQuery.data || handlesQuery.data.length === 0) {
+      return false;
+    }
+
+    return handlesQuery.data.some(
+      (result) => result?.status === 'success' && typeof result.result === 'bigint' && result.result !== 0n,
+    );
+  }, [handlesQuery.data]);
+
   return {
     data: revealedQuery.data ?? outcomeIndexes.map(() => 0n),
+    hasPosition,
     isLoading: handlesQuery.isLoading || revealedQuery.isLoading,
     isError: Boolean(handlesQuery.error || revealedQuery.error),
     error: (handlesQuery.error || revealedQuery.error) as Error | null,
