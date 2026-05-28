@@ -82,6 +82,7 @@ function mapMarketOutcomes(
       probability,
       reserve,
       price: probability,
+      investedAmount: 0n,
       revealedShares: null,
     };
   });

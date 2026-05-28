@@ -66,8 +66,6 @@ const MarketAnalytics = dynamic(() => import('@/components/betting/MarketAnalyti
   ssr: false,
 });
 
-const PRICE_SCALE = 1_000_000_000_000_000_000n;
-
 function DecryptingLoader(): JSX.Element {
   const [text, setText] = useState('DECRYPTING...');
 
@@ -971,7 +969,13 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                         <p className="mt-2 text-xs text-muted-foreground">
                           {!isPortfolioVisible
                             ? 'Hidden until you reveal locally.'
-                            : ""}
+                            : privatePositions.isLoading
+                              ? 'Loading invested amount...'
+                              : `Total invested ${formatTokenAmount(
+                                outcome.investedAmount,
+                                collateralDecimals,
+                                data.collateralSymbol,
+                            )}`}
                         </p>
                       </div>
                     );

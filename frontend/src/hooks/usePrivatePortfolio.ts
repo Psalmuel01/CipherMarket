@@ -8,6 +8,7 @@ import { useAccount, useChainId, usePublicClient, useReadContracts, useWalletCli
 import { ensureCofheConnected } from '@/lib/cofheClient';
 import { withFreshSelfPermit } from '@/lib/cofhePermits';
 import { getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { isZeroCtHash, normalizeCtHash } from '@/lib/fheHandles';
 import type { MarketSummary } from '@/types/market';
 
 export interface RevealedPortfolioPosition {
@@ -100,11 +101,11 @@ export default function usePrivatePortfolio(
                 cursor += 1;
 
                 const handle =
-                  handleResult?.status === 'success' && typeof handleResult.result === 'bigint'
-                    ? handleResult.result
-                    : 0n;
+                  handleResult?.status === 'success'
+                    ? normalizeCtHash(handleResult.result)
+                    : normalizeCtHash(null);
 
-                if (handle === 0n) {
+                if (isZeroCtHash(handle)) {
                   continue;
                 }
 

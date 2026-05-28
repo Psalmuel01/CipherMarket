@@ -68,6 +68,7 @@ function buildOutcomes(
   labels: string[],
   probabilities: bigint[],
   reserves: bigint[],
+  investedAmounts: bigint[],
 ): MarketOutcome[] {
   return labels.map((label, outcomeIndex) => {
     const probability = probabilities[outcomeIndex] ?? 0n;
@@ -80,6 +81,7 @@ function buildOutcomes(
       probability,
       reserve: reserves[outcomeIndex] ?? 0n,
       price: probability,
+      investedAmount: investedAmounts[outcomeIndex] ?? 0n,
       revealedShares: null,
     };
   });
@@ -135,6 +137,14 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
               functionName: 'oracleVoteWeight',
               args: [validMarketId, outcomeIndex],
             })),
+            ...(address
+              ? Array.from({ length: outcomeCount }, (_, outcomeIndex) => ({
+                  address: predictionMarketAddress,
+                  abi: PREDICTION_MARKET_ABI,
+                  functionName: 'totalInvestedPerOutcome',
+                  args: [validMarketId, address, outcomeIndex],
+                }))
+              : []),
             {
               address: predictionMarketAddress,
               abi: PREDICTION_MARKET_ABI,
@@ -201,24 +211,36 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
         ? result.result
         : 0n;
     });
-    const totalLpSharesResult = readResults[outcomeCount * 2];
+    const investedReadOffset = outcomeCount * 2;
+    const investedAmounts = Array.from({ length: outcomeCount }, (_, outcomeIndex) => {
+      if (!address) {
+        return 0n;
+      }
+
+      const result = readResults[investedReadOffset + outcomeIndex];
+      return result?.status === 'success' && typeof result.result === 'bigint'
+        ? result.result
+        : 0n;
+    });
+    const sharedReadOffset = outcomeCount * 2 + (address ? outcomeCount : 0);
+    const totalLpSharesResult = readResults[sharedReadOffset];
     const totalLpShares =
       totalLpSharesResult?.status === 'success' && typeof totalLpSharesResult.result === 'bigint'
         ? totalLpSharesResult.result
         : 0n;
-    const myLpSharesResult = address ? readResults[outcomeCount * 2 + 1] : null;
+    const myLpSharesResult = address ? readResults[sharedReadOffset + 1] : null;
     const myLpShares =
       myLpSharesResult?.status === 'success' && typeof myLpSharesResult.result === 'bigint'
         ? myLpSharesResult.result
         : 0n;
     const probabilities = computeProbabilitiesFromReserves(reserves);
-    const accountReadOffset = outcomeCount * 2 + 1;
+    const accountReadOffset = sharedReadOffset + 1;
     const hasRedeemedResult = address ? readResults[accountReadOffset + 1] : null;
     const hasRedeemed =
       hasRedeemedResult?.status === 'success' && typeof hasRedeemedResult.result === 'boolean'
         ? hasRedeemedResult.result
         : false;
-    const oracleReadOffset = outcomeCount * 2 + 1 + (address ? 2 : 0);
+    const oracleReadOffset = sharedReadOffset + 1 + (address ? 2 : 0);
     const hasVotedResult = address ? readResults[oracleReadOffset] : null;
     const voteChoiceResult = address ? readResults[oracleReadOffset + 1] : null;
     const voteWeightSnapshotResult = address ? readResults[oracleReadOffset + 2] : null;
@@ -240,7 +262,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
         : 0n;
 
     const collateral = getCollateralMetadata(marketView.collateralToken, chainId);
-    const outcomes = buildOutcomes(marketView.outcomes, probabilities, reserves);
+    const outcomes = buildOutcomes(marketView.outcomes, probabilities, reserves, investedAmounts);
     const reservedProtocolFees = marketView.protocolFeesClaimed ? 0n : marketView.accruedProtocolFees;
     const finalLpPayoutBase =
       marketView.totalCollateralCollected > marketView.remainingWinningShares + reservedProtocolFees

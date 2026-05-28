@@ -9,9 +9,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './OracleRegistry.sol';
 import './PredictionMarketMath.sol';
 
-interface ICoFheTaskManager {
-  function allowForDecryption(uint256 ctHash) external;
-}
+
 
 /// @title PredictionMarket
 /// @notice Singleton share-based prediction market with public FPMM pool state and encrypted
@@ -23,7 +21,7 @@ contract PredictionMarket is Ownable {
   uint16 public constant DEFAULT_PROTOCOL_FEE_SHARE_BPS = 2_000;
   uint16 public constant BPS_DENOMINATOR = 10_000;
   uint8 public constant MAX_OUTCOMES = 8;
-  address private constant COFHE_TASK_MANAGER = 0xeA30c4B8b44078Bbf8a6ef5b9f1eC1626C7848D9;
+
   uint64 private constant DEFAULT_ESCALATION_TIMEOUT = 10 minutes;
   uint256 private constant PRICE_SCALE = 1e18;
 
@@ -190,6 +188,7 @@ contract PredictionMarket is Ownable {
   mapping(uint256 => string[]) public marketOutcomeLabels;
   mapping(uint256 => uint256[]) public poolBalances;
   mapping(uint256 => uint256[]) private totalUserShares;
+  mapping(uint256 => mapping(address => mapping(uint8 => uint256))) public totalInvestedPerOutcome;
   mapping(uint256 => uint256) public totalLpShares;
   mapping(uint256 => mapping(address => uint256)) public lpShares;
   mapping(uint256 => uint256) private accruedProtocolFees;
@@ -373,6 +372,7 @@ contract PredictionMarket is Ownable {
     _collectCollateral(market.collateralToken, collateralIn);
     _allocateFee(marketId, market, feeAmount);
     market.totalCollateralCollected += collateralIn;
+    totalInvestedPerOutcome[marketId][msg.sender][outcomeIndex] += collateralIn;
 
     uint256[] storage balances = poolBalances[marketId];
     for (uint256 balanceIndex = 0; balanceIndex < balances.length; balanceIndex += 1) {
@@ -455,23 +455,14 @@ contract PredictionMarket is Ownable {
     );
   }
 
-  /// @notice Starts an async decrypt for the caller's encrypted balance for a sell flow.
-  function requestSellPositionDecrypt(uint256 marketId, uint8 outcomeIndex) external {
-    Market storage market = _getMarketStorage(marketId);
-    _requireTradableState(market);
-    _requireValidOutcome(marketId, outcomeIndex);
-    euint128 encryptedBalance = encryptedUserShares[marketId][msg.sender][outcomeIndex];
-    require(euint128.unwrap(encryptedBalance) != 0);
-    _allowForFheDecryption(encryptedBalance);
-    FHE.decrypt(encryptedBalance);
-  }
-
   /// @notice Sells outcome shares back into the market maker.
   function sellShares(
     uint256 marketId,
     uint8 outcomeIndex,
     uint128 sharesIn,
-    uint128 minCollateralOut
+    uint128 minCollateralOut,
+    uint128 decryptedBalance,
+    bytes calldata signature
   ) external {
     Market storage market = _getMarketStorage(marketId);
     _syncExpiredState(marketId, market);
@@ -480,9 +471,8 @@ contract PredictionMarket is Ownable {
     require(sharesIn > 0);
 
     euint128 encryptedBalance = _getStoredEncryptedPosition(marketId, msg.sender, outcomeIndex);
-    (uint128 decryptedBalance, bool decrypted) = FHE.getDecryptResultSafe(encryptedBalance);
-    require(decrypted);
-    require(decryptedBalance >= sharesIn);
+    require(FHE.verifyDecryptResult(encryptedBalance, decryptedBalance, signature), "invalid decrypt signature");
+    require(decryptedBalance >= sharesIn, "insufficient shares");
 
     uint256[] memory balancesBeforeSell = poolBalances[marketId];
     uint256 grossCollateralOut = PredictionMarketMath.quoteSellGrossFromBalances(
@@ -738,20 +728,8 @@ contract PredictionMarket is Ownable {
     _finalizeResolvedMarket(marketId, market, finalOutcome, false);
   }
 
-  /// @notice Starts an async decrypt for the caller's encrypted winning balance after finalization.
-  function requestRedeemPositionDecrypt(uint256 marketId) external {
-    Market storage market = _getMarketStorage(marketId);
-    require(market.state == MarketState.FINALIZED);
-    require(!hasRedeemed[marketId][msg.sender]);
-
-    euint128 encryptedBalance = encryptedUserShares[marketId][msg.sender][market.finalOutcome];
-    require(euint128.unwrap(encryptedBalance) != 0);
-    _allowForFheDecryption(encryptedBalance);
-    FHE.decrypt(encryptedBalance);
-  }
-
   /// @notice Redeems winning shares 1:1 for collateral after finalization.
-  function redeemShares(uint256 marketId) external {
+  function redeemShares(uint256 marketId, uint128 sharesOwned, bytes calldata signature) external {
     Market storage market = _getMarketStorage(marketId);
 
     require(market.state == MarketState.FINALIZED);
@@ -759,9 +737,8 @@ contract PredictionMarket is Ownable {
 
     uint8 finalOutcome = market.finalOutcome;
     euint128 encryptedBalance = _getStoredEncryptedPosition(marketId, msg.sender, finalOutcome);
-    (uint128 sharesOwned, bool decrypted) = FHE.getDecryptResultSafe(encryptedBalance);
-    require(decrypted);
-    require(sharesOwned > 0);
+    require(FHE.verifyDecryptResult(encryptedBalance, sharesOwned, signature), "invalid decrypt signature");
+    require(sharesOwned > 0, "no shares to redeem");
 
     hasRedeemed[marketId][msg.sender] = true;
     totalUserShares[marketId][finalOutcome] -= sharesOwned;
@@ -922,7 +899,7 @@ contract PredictionMarket is Ownable {
     uint256 marketId,
     address account,
     uint8 outcomeIndex
-  ) external view returns (uint256) {
+  ) external view returns (bytes32) {
     _requireValidOutcome(marketId, outcomeIndex);
     return euint128.unwrap(encryptedUserShares[marketId][account][outcomeIndex]);
   }
@@ -997,9 +974,7 @@ contract PredictionMarket is Ownable {
     encryptedUserShares[marketId][account][outcomeIndex] = encryptedBalance;
   }
 
-  function _allowForFheDecryption(euint128 encryptedBalance) internal {
-    ICoFheTaskManager(COFHE_TASK_MANAGER).allowForDecryption(euint128.unwrap(encryptedBalance));
-  }
+
 
   function _increaseEncryptedPosition(
     uint256 marketId,

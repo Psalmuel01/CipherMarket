@@ -19,6 +19,7 @@ export interface MarketOutcome {
   reserve: bigint;
   price: bigint;
   encryptedHandle?: bigint;
+  investedAmount: bigint;
   revealedShares: bigint | null;
 }
 

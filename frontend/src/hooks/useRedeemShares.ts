@@ -2,14 +2,16 @@
 
 import { toast } from 'sonner';
 import { formatUnits } from 'viem';
-import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
+import { useAccount, useChainId, usePublicClient, useWriteContract, useWalletClient } from 'wagmi';
+import { useCofheContext } from '@cofhe/react';
+import { ensureCofheConnected } from '@/lib/cofheClient';
+import { getFreshSelfPermit } from '@/lib/cofhePermits';
 import {
-  COFHE_TASK_MANAGER_ABI,
-  COFHE_TASK_MANAGER_ADDRESS,
   formatContractError,
   getContractAddresses,
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
+import { isZeroCtHash, normalizeCtHash } from '@/lib/fheHandles';
 import { getBufferedContractGas, getBufferedGasFees } from '@/lib/gas';
 
 export interface RedeemSharesReceipt {
@@ -38,11 +40,12 @@ export interface UseRedeemSharesResult {
 }
 
 export default function useRedeemShares(): UseRedeemSharesResult {
-  const DECRYPT_REQUEST_GAS = 1_000_000n;
   const REDEEM_SHARES_GAS = 1_400_000n;
   const chainId = useChainId();
   const { address } = useAccount();
   const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const { client } = useCofheContext();
   const { writeContractAsync } = useWriteContract();
   const lifecycle = useTransactionLifecycle();
   const { addTransaction, updateTransaction } = usePendingTransactions();
@@ -103,102 +106,49 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         throw new Error('The finalized winning outcome is not available yet.');
       }
 
-      const encryptedWinningHandle = (await publicClient.readContract({
+      const encryptedWinningHandle = normalizeCtHash(await publicClient.readContract({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'getEncryptedUserPositionHandle',
         args: [BigInt(marketId), address, finalOutcomeIndex],
-      })) as bigint;
+      }));
 
-      if (encryptedWinningHandle === 0n) {
+      if (isZeroCtHash(encryptedWinningHandle)) {
         throw new Error('This wallet has no encrypted winning position to redeem.');
       }
 
-      const requestGasFees = await getBufferedGasFees(publicClient);
+      await ensureCofheConnected(client, publicClient, walletClient);
 
-      // Check if decryption is already done (e.g. from a previous attempt)
-      // by calling getDecryptResultSafe directly on the TaskManager — the
-      // canonical Fhenix view call for coprocessor readiness.
-      const [, alreadyDecrypted] = (await publicClient.readContract({
-        address: COFHE_TASK_MANAGER_ADDRESS,
-        abi: COFHE_TASK_MANAGER_ABI,
-        functionName: 'getDecryptResultSafe',
-        args: [encryptedWinningHandle],
-      })) as [bigint, boolean];
+      // 1. Get permit
+      lifecycle.setStage('awaiting_wallet');
+      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
-      if (!alreadyDecrypted) {
-        // 1. Request Decrypt — the contract calls _allowForFheDecryption internally,
-        //    so we do NOT need a separate allowForDecryption transaction.
-        lifecycle.setStage('awaiting_wallet');
-        updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
+      const permit = await getFreshSelfPermit(
+        client,
+        chainId,
+        address,
+        'CipherMarket redeem shares',
+      );
 
-        const requestGas = await getBufferedContractGas(
-          publicClient,
-          {
-            account: address,
-            address: predictionMarketAddress,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'requestRedeemPositionDecrypt',
-            args: [BigInt(marketId)],
-          },
-          DECRYPT_REQUEST_GAS,
-        );
-        try {
-          const requestHash = await writeContractAsync({
-            address: predictionMarketAddress,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'requestRedeemPositionDecrypt',
-            args: [BigInt(marketId)],
-            gas: requestGas,
-            ...requestGasFees,
-          });
+      // 2. Perform FHE Decrypt via Coprocessor
+      lifecycle.setStage('confirming');
+      updateTransaction(pendingTxId, { stage: 'confirming' });
 
-          lifecycle.setTxHash(requestHash);
-          lifecycle.setStage('encrypting');
-          updateTransaction(pendingTxId, { stage: 'confirming', txHash: requestHash });
+      const decryptionResult = await client
+        .decryptForTx(encryptedWinningHandle)
+        .setAccount(address)
+        .setChainId(chainId)
+        .withPermit(permit)
+        .execute();
 
-          const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
-          if (requestReceipt.status !== 'success') {
-            console.warn('Decrypt request reverted — assuming already requested in a prior attempt.');
-          }
-        } catch (e) {
-          // If this fails it likely means the decrypt was already requested in
-          // a previous attempt that failed at the redeemShares step.
-          console.warn('requestRedeemPositionDecrypt failed — assuming already requested.', e);
-        }
+      const decryptedBalance = BigInt(decryptionResult.decryptedValue);
+      const signature = decryptionResult.signature;
 
-        // 2. Poll for Coprocessor Completion.
-        // Use getDecryptResultSafe — a cheap view call — to check readiness.
-        // Poll up to 60 × 5s = 5 minutes before giving up.
-        lifecycle.setStage('confirming');
-        let isReady = false;
-        const MAX_POLL_ATTEMPTS = 60;
-        for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-          await new Promise((resolve) => window.setTimeout(resolve, 5_000));
-          try {
-            const [, decrypted] = (await publicClient.readContract({
-              address: COFHE_TASK_MANAGER_ADDRESS,
-              abi: COFHE_TASK_MANAGER_ABI,
-              functionName: 'getDecryptResultSafe',
-              args: [encryptedWinningHandle],
-            })) as [bigint, boolean];
-            if (decrypted) {
-              isReady = true;
-              break;
-            }
-          } catch (e) {
-            // View call failed — keep polling
-          }
-        }
-
-        if (!isReady) {
-          throw new Error(
-            'The coprocessor took too long to decrypt. Please try claiming again — the decrypt request has already been submitted on-chain.',
-          );
-        }
+      if (decryptedBalance === 0n) {
+        throw new Error('This wallet has no winning shares to redeem.');
       }
 
-      // 3. Redeem Transaction
+      // 3. Submit Redeem Transaction
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
@@ -210,7 +160,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
           address: predictionMarketAddress,
           abi: PREDICTION_MARKET_ABI,
           functionName: 'redeemShares',
-          args: [BigInt(marketId)],
+          args: [BigInt(marketId), decryptedBalance, signature],
         },
         REDEEM_SHARES_GAS,
       );
@@ -218,7 +168,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'redeemShares',
-        args: [BigInt(marketId)],
+        args: [BigInt(marketId), decryptedBalance, signature],
         gas: redeemGas,
         ...redeemGasFees,
       });
