@@ -28,6 +28,7 @@ interface PredictionMarketView {
   minimumTrade: bigint;
   seedLiquidity: bigint;
   totalCollateralCollected: bigint;
+  tradeVolume: bigint;
   disputeStakeTotal: bigint;
   remainingWinningShares: bigint;
   resolutionQuorumStake: bigint;
@@ -105,6 +106,7 @@ function mapMarketSummary(
     type: MARKET_TYPE_LABELS[view.marketType] ?? 'BINARY',
     totalLiquidity: view.totalCollateralCollected,
     totalCollateralCollected: view.totalCollateralCollected,
+    tradeVolume: view.tradeVolume,
     outcomeCount: Number(view.outcomeCount),
     expiryTime: new Date(Number(view.expiryTime) * 1000).toISOString(),
     status: MARKET_STATE_LABELS[view.state] ?? 'ACTIVE',

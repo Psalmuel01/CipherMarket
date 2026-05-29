@@ -14,6 +14,7 @@ import useMarkets from '@/hooks/useMarkets';
 import usePrivatePortfolio from '@/hooks/usePrivatePortfolio';
 import usePortfolioAnalytics from '@/hooks/usePortfolioAnalytics';
 import useAppStore from '@/store/useAppStore';
+import { formatTokenAmount } from '@/lib/formatters';
 import { getOutcomeColor } from '@/lib/outcomeColors';
 import type { PrivacyState } from '@/components/ui/PrivacyBadge';
 
@@ -40,6 +41,7 @@ function PortfolioDesk(): JSX.Element {
   // Build enriched position list
   const openPositions = useMemo(() => {
     return privatePortfolio.data
+      .filter((position) => position.shares > 0n)
       .map((position) => {
         const market = markets.find((m) => m.marketId === position.marketId);
         const outcome = market?.outcomes.find((o) => o.outcomeIndex === position.outcomeIndex);
@@ -67,6 +69,46 @@ function PortfolioDesk(): JSX.Element {
   }, [openPositions]);
 
   const isRevealed = isPortfolioVisible && !privatePortfolio.isLoading;
+
+  const settledHistory = useMemo(() => {
+    return markets
+      .filter((market) => market.status === 'FINALIZED' && market.finalOutcomeIndex !== null)
+      .map((market) => {
+        const marketPositions = privatePortfolio.data.filter((position) => position.marketId === market.marketId);
+        const winningShares = marketPositions
+          .filter((position) => position.outcomeIndex === market.finalOutcomeIndex)
+          .reduce((sum, position) => sum + position.shares, 0n);
+        const nonWinningShares = marketPositions
+          .filter((position) => position.outcomeIndex !== market.finalOutcomeIndex)
+          .reduce((sum, position) => sum + position.shares, 0n);
+        const investedAmount = marketPositions.reduce((sum, position) => sum + position.investedAmount, 0n);
+        const realization = privatePortfolio.realized.find((item) => item.marketId === market.marketId);
+        const redeemedPayout = realization?.redeemedPayout ?? 0n;
+        const realizedInvestmentBasis = realization?.realizedInvestmentBasis ?? 0n;
+
+        if (
+          winningShares === 0n &&
+          nonWinningShares === 0n &&
+          investedAmount === 0n &&
+          redeemedPayout === 0n &&
+          realizedInvestmentBasis === 0n
+        ) {
+          return null;
+        }
+
+        const winningOutcome = market.outcomes.find((outcome) => outcome.outcomeIndex === market.finalOutcomeIndex);
+        return {
+          market,
+          winningOutcomeLabel: winningOutcome?.label ?? 'Final outcome',
+          winningShares,
+          nonWinningShares,
+          investedAmount,
+          redeemedPayout,
+          realizedInvestmentBasis,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [markets, privatePortfolio.data, privatePortfolio.realized]);
 
   return (
     <div className="pt-8 pb-16 mt-20">
@@ -119,6 +161,88 @@ function PortfolioDesk(): JSX.Element {
           isRevealed={isRevealed}
           isLoading={privatePortfolio.isLoading}
         />
+
+        {isRevealed && settledHistory.length > 0 ? (
+          <section className="space-y-5">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-500 hover:scale-105"
+                style={{
+                  backgroundColor: heroSwatches[3].softBackground,
+                  borderColor: heroSwatches[3].border,
+                  color: heroSwatches[3].text,
+                  boxShadow: `0 0 24px ${heroSwatches[3].shadow}`,
+                }}
+              >
+                <Trophy className="h-5 w-5" />
+              </div>
+              <h2 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
+                Settled History
+              </h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {settledHistory.map((item) => {
+                const decimals = item.market.collateralSymbol === 'USDC' ? 6 : 18;
+                const totalPayout = item.winningShares + item.redeemedPayout;
+                const totalBasis = item.investedAmount + item.realizedInvestmentBasis;
+                const isNetPositive = totalPayout >= totalBasis;
+                const netValue = isNetPositive ? totalPayout - totalBasis : totalBasis - totalPayout;
+                const netLabel = `${isNetPositive ? '+' : '-'}${formatTokenAmount(
+                  netValue,
+                  decimals,
+                  item.market.collateralSymbol,
+                )}`;
+
+                return (
+                  <div
+                    key={item.market.marketId}
+                    className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.34)]"
+                  >
+                    <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/30">
+                      Resolved to {item.winningOutcomeLabel}
+                    </p>
+                    <h3 className="mt-2 line-clamp-2 text-sm font-semibold text-[#e8e4df]">
+                      {item.market.title}
+                    </h3>
+                    <div className="mt-4 grid gap-3 text-xs text-white/40 sm:grid-cols-2">
+                      <p>
+                        Claimable shares:{' '}
+                        <span className="text-white/70">
+                          {formatTokenAmount(item.winningShares, decimals, item.market.collateralSymbol)}
+                        </span>
+                      </p>
+                      <p>
+                        Redeemed payout:{' '}
+                        <span className="text-white/70">
+                          {formatTokenAmount(item.redeemedPayout, decimals, item.market.collateralSymbol)}
+                        </span>
+                      </p>
+                      <p>
+                        Non-winning shares:{' '}
+                        <span className="text-white/70">
+                          {formatTokenAmount(item.nonWinningShares, decimals, 'shares')}
+                        </span>
+                      </p>
+                      <p>
+                        Remaining invested:{' '}
+                        <span className="text-white/70">
+                          {formatTokenAmount(item.investedAmount, decimals, item.market.collateralSymbol)}
+                        </span>
+                      </p>
+                      <p>
+                        Net after cost:{' '}
+                        <span className={isNetPositive ? 'text-emerald-200' : 'text-rose-200'}>
+                          {netLabel}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         {/* Positions Table */}
         <section className="space-y-5">

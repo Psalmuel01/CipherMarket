@@ -1,6 +1,5 @@
 import type { HardhatUserConfig } from 'hardhat/config';
 import '@nomicfoundation/hardhat-toolbox';
-import './cofhe-lite';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -18,10 +17,6 @@ const config: HardhatUserConfig = {
     },
   },
   defaultNetwork: 'hardhat',
-  cofhe: {
-    logMocks: false,
-    gasWarning: true,
-  },
   networks: {
     hardhat: {
       chainId: 420105,

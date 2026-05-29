@@ -50,10 +50,12 @@ export default function usePortfolioAnalytics(
     let totalValue = 0;
     let activeCount = 0;
     let finalizedCount = 0;
-    let redeemableCount = 0;
     const uniqueMarkets = new Set<number>();
+    const redeemableMarkets = new Set<number>();
 
     for (const position of positions) {
+      if (position.shares === 0n) continue;
+
       const market = markets.find((m) => m.marketId === position.marketId);
       if (!market) continue;
 
@@ -83,9 +85,13 @@ export default function usePortfolioAnalytics(
       if (market.status === 'ACTIVE') activeCount++;
       if (market.status === 'FINALIZED') {
         finalizedCount++;
-        // Check if this position is on the winning outcome
-        // (We don't have finalOutcomeIndex on MarketSummary, so count all finalized positions)
-        redeemableCount++;
+        if (
+          market.finalOutcomeIndex !== null &&
+          position.outcomeIndex === market.finalOutcomeIndex &&
+          position.shares > 0n
+        ) {
+          redeemableMarkets.add(market.marketId);
+        }
       }
     }
 
@@ -98,7 +104,7 @@ export default function usePortfolioAnalytics(
       marketsParticipated: uniqueMarkets.size,
       activePositions: activeCount,
       finalizedPositions: finalizedCount,
-      redeemableCount,
+      redeemableCount: redeemableMarkets.size,
       allocationItems,
     };
   }, [positions, markets, isRevealed]);

@@ -50,6 +50,7 @@ contract PredictionMarket is Ownable {
     uint128 minimumTrade;
     uint128 seedLiquidity;
     uint128 totalCollateralCollected;
+    uint128 tradeVolume;
     uint128 disputeStakeTotal;
     uint128 remainingWinningShares;
     uint128 resolutionQuorumStake;
@@ -88,6 +89,7 @@ contract PredictionMarket is Ownable {
     uint128 minimumTrade;
     uint128 seedLiquidity;
     uint128 totalCollateralCollected;
+    uint128 tradeVolume;
     uint128 disputeStakeTotal;
     uint128 remainingWinningShares;
     uint128 resolutionQuorumStake;
@@ -189,6 +191,8 @@ contract PredictionMarket is Ownable {
   mapping(uint256 => uint256[]) public poolBalances;
   mapping(uint256 => uint256[]) private totalUserShares;
   mapping(uint256 => mapping(address => mapping(uint8 => uint256))) public totalInvestedPerOutcome;
+  mapping(uint256 => mapping(address => uint256)) public realizedRedeemedPayout;
+  mapping(uint256 => mapping(address => uint256)) public realizedInvestmentBasis;
   mapping(uint256 => uint256) public totalLpShares;
   mapping(uint256 => mapping(address => uint256)) public lpShares;
   mapping(uint256 => uint256) private accruedProtocolFees;
@@ -372,6 +376,7 @@ contract PredictionMarket is Ownable {
     _collectCollateral(market.collateralToken, collateralIn);
     _allocateFee(marketId, market, feeAmount);
     market.totalCollateralCollected += collateralIn;
+    market.tradeVolume += collateralIn;
     totalInvestedPerOutcome[marketId][msg.sender][outcomeIndex] += collateralIn;
 
     uint256[] storage balances = poolBalances[marketId];
@@ -496,8 +501,17 @@ contract PredictionMarket is Ownable {
     totalUserShares[marketId][outcomeIndex] -= sharesIn;
     _decreaseEncryptedPosition(marketId, msg.sender, outcomeIndex, sharesIn);
 
+    uint256 investedAmount = totalInvestedPerOutcome[marketId][msg.sender][outcomeIndex];
+    if (investedAmount > 0) {
+      uint256 basisReduction = sharesIn == decryptedBalance
+        ? investedAmount
+        : Math.mulDiv(investedAmount, sharesIn, decryptedBalance);
+      totalInvestedPerOutcome[marketId][msg.sender][outcomeIndex] = investedAmount - basisReduction;
+    }
+
     _allocateFee(marketId, market, feeAmount);
     market.totalCollateralCollected -= uint128(collateralOut);
+    market.tradeVolume += uint128(collateralOut);
     _payCollateral(market.collateralToken, msg.sender, collateralOut);
 
     emit TradeExecuted(marketId, false);
@@ -744,6 +758,12 @@ contract PredictionMarket is Ownable {
     totalUserShares[marketId][finalOutcome] -= sharesOwned;
     market.remainingWinningShares -= sharesOwned;
     market.totalCollateralCollected -= sharesOwned;
+    uint256 winningBasis = totalInvestedPerOutcome[marketId][msg.sender][finalOutcome];
+    if (winningBasis > 0) {
+      realizedInvestmentBasis[marketId][msg.sender] += winningBasis;
+      totalInvestedPerOutcome[marketId][msg.sender][finalOutcome] = 0;
+    }
+    realizedRedeemedPayout[marketId][msg.sender] += sharesOwned;
     _setEncryptedPosition(marketId, msg.sender, finalOutcome, FHE.asEuint128(uint128(0)));
 
     _payCollateral(market.collateralToken, msg.sender, sharesOwned);
@@ -865,6 +885,7 @@ contract PredictionMarket is Ownable {
         minimumTrade: market.minimumTrade,
         seedLiquidity: market.seedLiquidity,
         totalCollateralCollected: market.totalCollateralCollected,
+        tradeVolume: market.tradeVolume,
         disputeStakeTotal: market.disputeStakeTotal,
         remainingWinningShares: market.remainingWinningShares,
         resolutionQuorumStake: market.resolutionQuorumStake,

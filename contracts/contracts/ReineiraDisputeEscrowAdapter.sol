@@ -11,6 +11,7 @@ interface IReineiraEscrow {
   function getConditionResolver(uint256 escrowId) external view returns (address);
   function getResolverData(uint256 escrowId) external view returns (bytes memory);
   function redeem(uint256 escrowId) external;
+  function redeemAndUnwrap(uint256 escrowId, address recipient) external;
 }
 
 interface IPredictionMarketForReineira {
@@ -27,6 +28,7 @@ interface IPredictionMarketForReineira {
     uint128 minimumTrade;
     uint128 seedLiquidity;
     uint128 totalCollateralCollected;
+    uint128 tradeVolume;
     uint128 disputeStakeTotal;
     uint128 remainingWinningShares;
     uint128 resolutionQuorumStake;
@@ -72,6 +74,7 @@ interface IPredictionMarketForReineira {
 interface IConditionResolver {
   function isConditionMet(uint256 escrowId) external view returns (bool);
   function onConditionSet(uint256 escrowId, bytes calldata data) external;
+  function getConditionFee(uint256 escrowId) external view returns (uint16 bps, address recipient);
 }
 
 /// @title ReineiraDisputeEscrowAdapter
@@ -135,6 +138,10 @@ contract ReineiraDisputeEscrowAdapter is Ownable, ERC165, IConditionResolver {
     return abi.encode(marketId, disputer, counterOutcome, stakeAmount, token);
   }
 
+  function getConditionFee(uint256) external view override returns (uint16 bps, address recipient) {
+    return (0, address(this));
+  }
+
   function onConditionSet(uint256 escrowId, bytes calldata data) external override {
     require(msg.sender == address(reineiraEscrow), 'Only escrow');
     require(disputeEscrows[escrowId].registered == false, 'Registered');
@@ -191,7 +198,12 @@ contract ReineiraDisputeEscrowAdapter is Ownable, ERC165, IConditionResolver {
 
     IERC20 token = IERC20(escrow.token);
     uint256 balanceBefore = token.balanceOf(address(this));
-    reineiraEscrow.redeem(escrowId);
+    try reineiraEscrow.redeemAndUnwrap(escrowId, address(this)) {
+      // Preferred path for Reineira cUSDC escrows: unwrap to plaintext USDC for the market.
+    } catch {
+      // Compatibility path for local/plain escrow deployments that redeem the underlying token directly.
+      reineiraEscrow.redeem(escrowId);
+    }
     uint256 redeemedAmount = token.balanceOf(address(this)) - balanceBefore;
     require(redeemedAmount == escrow.stakeAmount, 'Bad amount');
 

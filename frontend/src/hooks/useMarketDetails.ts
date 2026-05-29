@@ -28,6 +28,7 @@ interface PredictionMarketView {
   minimumTrade: bigint;
   seedLiquidity: bigint;
   totalCollateralCollected: bigint;
+  tradeVolume: bigint;
   disputeStakeTotal: bigint;
   remainingWinningShares: bigint;
   resolutionQuorumStake: bigint;
@@ -278,6 +279,7 @@ export default function useMarketDetails(marketIdParam: string): UseMarketDetail
       type: MARKET_TYPE_LABELS[marketView.marketType] ?? 'BINARY',
       totalLiquidity: marketView.totalCollateralCollected,
       totalCollateralCollected: marketView.totalCollateralCollected,
+      tradeVolume: marketView.tradeVolume,
       outcomeCount: Number(marketView.outcomeCount),
       expiryTime: new Date(Number(marketView.expiryTime) * 1000).toISOString(),
       status: MARKET_STATE_LABELS[marketView.state] ?? 'ACTIVE',

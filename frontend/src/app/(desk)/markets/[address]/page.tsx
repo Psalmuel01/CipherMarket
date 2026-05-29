@@ -755,38 +755,36 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
     const hasRevealed = isPortfolioVisible;
     const hasConnectedPosition = Boolean(address && privatePositions.hasPosition);
-    const didWin = hasRevealed && revealedWinningShares > 0n;
-    const didLose = hasRevealed && revealedWinningShares === 0n;
+    const hasClaimableWinningShares = hasRevealed && revealedWinningShares > 0n;
     const bannerClass = clsx(
       'rounded-3xl border p-6',
-      hasConnectedPosition && hasRevealed
-        ? didWin
-          ? 'border-emerald-500/20 bg-emerald-500/10'
-          : didLose
-            ? 'border-rose-500/20 bg-rose-500/10'
-            : 'border-white/10 bg-white/[0.04]'
+      hasConnectedPosition && hasClaimableWinningShares
+        ? 'border-emerald-500/20 bg-emerald-500/10'
         : 'border-white/8 bg-white/[0.03]'
     );
     const titleClass = clsx(
       'text-2xl font-semibold tracking-tight',
-      hasConnectedPosition && hasRevealed
-        ? didWin
-          ? 'text-emerald-200'
-          : didLose
-            ? 'text-rose-200'
-            : 'text-foreground'
+      hasConnectedPosition && hasClaimableWinningShares
+        ? 'text-emerald-200'
         : 'text-foreground'
     );
-    const statusLabel = didWin ? 'You won this market' : 'You lost this market';
-    const statusText = didWin
-      ? `You hold ${formatTokenAmount(revealedWinningShares, collateralDecimals, data.collateralSymbol)} in winning shares.`
-      : 'You do not hold any winning shares.';
+    const winningShareText = hasClaimableWinningShares
+      ? `You currently have ${formatTokenAmount(revealedWinningShares, collateralDecimals, data.collateralSymbol)} claimable from the winning outcome.`
+      : data.hasRedeemed
+        ? 'Winning shares for this market have already been redeemed from this wallet.'
+        : 'No claimable winning shares are visible for this wallet right now.';
+    const nonWinningShares = enrichedOutcomes.reduce((sum, outcome) => {
+      if (outcome.outcomeIndex === data.finalOutcomeIndex) {
+        return sum;
+      }
+      return sum + (outcome.revealedShares ?? 0n);
+    }, 0n);
 
     return (
       <div className={bannerClass}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <Trophy className={clsx('h-5 w-5', didWin ? 'text-emerald-300' : didLose ? 'text-rose-300' : 'text-primary')} />
+            <Trophy className={clsx('h-5 w-5', hasClaimableWinningShares ? 'text-emerald-300' : 'text-primary')} />
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Resolved outcome</p>
               <p className={titleClass}>{finalOutcome.label}</p>
@@ -797,11 +795,18 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-black/5 p-4">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Resolution status</p>
-                <p className="mt-2 text-sm font-medium text-foreground">{statusLabel}</p>
+                <p className="mt-2 text-sm font-medium text-foreground">
+                  The market resolved to {finalOutcome.label}.
+                </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/5 p-4">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Your result</p>
-                <p className="mt-2 text-sm font-medium text-foreground">{statusText}</p>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Winning shares</p>
+                <p className="mt-2 text-sm font-medium text-foreground">{winningShareText}</p>
+                {nonWinningShares > 0n ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    You also hold {formatTokenAmount(nonWinningShares, collateralDecimals, 'shares')} in non-winning outcomes.
+                  </p>
+                ) : null}
               </div>
             </div>
           ) : null}

@@ -173,9 +173,6 @@ export default function useDisputeEscrow(): UseDisputeEscrowResult {
         throw new Error('Reineira escrow contract address could not be resolved from the adapter.');
       }
 
-      // Generate a globally unique escrowId (256-bit unsigned integer)
-      const escrowId = BigInt(Math.floor(Math.random() * 1_000_000_000)) + BigInt(Date.now());
-
       // Fetch the encoded resolver data from the adapter
       const resolverData = (await publicClient.readContract({
         address: reineiraDisputeEscrowAdapterAddress,
@@ -189,6 +186,9 @@ export default function useDisputeEscrow(): UseDisputeEscrowResult {
           collateralToken as `0x${string}`,
         ],
       })) as `0x${string}`;
+
+      // Generate a globally unique escrowId for legacy/mock escrow deployments.
+      const escrowId = BigInt(Math.floor(Math.random() * 1_000_000_000)) + BigInt(Date.now());
 
       // 1. Approve the Escrow contract to pull the tokens
       lifecycle.setStage('approving');

@@ -51,6 +51,7 @@ export interface MarketSummary {
   type: MarketType;
   totalLiquidity: bigint;
   totalCollateralCollected: bigint;
+  tradeVolume: bigint;
   outcomeCount: number;
   expiryTime: string;
   status: MarketLifecycle;
