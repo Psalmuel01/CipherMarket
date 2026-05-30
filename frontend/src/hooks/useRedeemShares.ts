@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { formatUnits } from 'viem';
 import { useAccount, useChainId, usePublicClient, useWriteContract, useWalletClient } from 'wagmi';
@@ -16,7 +17,8 @@ import { getBufferedContractGas, getBufferedGasFees } from '@/lib/gas';
 
 export interface RedeemSharesReceipt {
   txHash: string;
-  amount: string;
+  amount: bigint;
+  formattedAmount: string;
 }
 
 import useTransactionLifecycle from '@/hooks/useTransactionLifecycle';
@@ -25,6 +27,7 @@ import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 import type { TransactionLifecycleState } from '@/hooks/useTransactionLifecycle';
 
 export interface UseRedeemSharesResult {
+  data: RedeemSharesReceipt | null;
   state: TransactionLifecycleState;
   isLoading: boolean;
   isError: boolean;
@@ -50,6 +53,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
   const lifecycle = useTransactionLifecycle();
   const { addTransaction, updateTransaction } = usePendingTransactions();
   const refreshProtocolData = useProtocolRefresh();
+  const [data, setData] = useState<RedeemSharesReceipt | null>(null);
 
   const redeemShares = async (
     marketId: number,
@@ -75,6 +79,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         throw new Error('Connect your wallet before redeeming shares.');
       }
 
+      setData(null);
       lifecycle.reset();
       lifecycle.setStage('preparing');
 
@@ -148,6 +153,11 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         throw new Error('This wallet has no winning shares to redeem.');
       }
 
+      const redeemedAmount = formatUnits(decryptedBalance, decimals);
+      if (pendingTxId) {
+        updateTransaction(pendingTxId, { amount: redeemedAmount });
+      }
+
       // 3. Submit Redeem Transaction
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
@@ -186,9 +196,14 @@ export default function useRedeemShares(): UseRedeemSharesResult {
       updateTransaction(pendingTxId, { stage: 'settling' });
       await refreshProtocolData();
 
+      setData({
+        txHash: hash,
+        amount: decryptedBalance,
+        formattedAmount: redeemedAmount,
+      });
       lifecycle.setStage('success');
       updateTransaction(pendingTxId, { stage: 'success' });
-      toast.success(`Redeemed ${formatUnits(amount, decimals)} ${symbol}.`);
+      toast.success(`Redeemed ${redeemedAmount} ${symbol}.`);
     } catch (caughtError) {
       console.error('CipherMarket redeem shares failed:', caughtError);
       const nextError =
@@ -204,12 +219,18 @@ export default function useRedeemShares(): UseRedeemSharesResult {
     }
   };
 
+  const reset = (): void => {
+    setData(null);
+    lifecycle.reset();
+  };
+
   return {
+    data,
     state: lifecycle.state,
     isLoading: lifecycle.isLoading,
     isError: lifecycle.isError,
     error: lifecycle.state.error,
     redeemShares,
-    reset: lifecycle.reset,
+    reset,
   };
 }

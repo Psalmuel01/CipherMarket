@@ -30,7 +30,7 @@ export default function RedeemModal({
   open,
   onClose,
 }: RedeemModalProps): JSX.Element {
-  const { state, redeemShares, reset } = useRedeemShares();
+  const { data, state, redeemShares, reset } = useRedeemShares();
 
   const handleRedeem = async (): Promise<void> => {
     await redeemShares(marketId, winningShares, collateralSymbol, collateralDecimals, finalOutcomeIndex);
@@ -47,7 +47,10 @@ export default function RedeemModal({
     { id: 'success', label: 'Complete', description: 'Assets redeemed' },
   ];
 
-  const formattedAmount = formatAmount(winningShares, collateralDecimals);
+  const displayedAmount = data?.amount ?? winningShares;
+  const formattedAmount = formatAmount(displayedAmount, collateralDecimals);
+  const claimableAmountLabel =
+    winningShares > 0n ? `${formatAmount(winningShares, collateralDecimals)} ${collateralSymbol}` : 'Private until redeem';
 
   return (
     <Modal
@@ -72,7 +75,7 @@ export default function RedeemModal({
             </div>
             <div className="space-y-1">
               <p className="text-2xl font-bold text-[#e8e4df]">
-                {formattedAmount} <span className="text-white/30 text-lg font-normal">{collateralSymbol}</span>
+                {claimableAmountLabel}
               </p>
               <p className="text-xs text-white/40 uppercase tracking-widest font-mono">
                 Claimable Winnings
@@ -107,7 +110,7 @@ export default function RedeemModal({
             <Button
               className="flex-[2] gap-2"
               size="lg"
-              disabled={hasRedeemed || winningShares === 0n || state.stage !== 'idle'}
+              disabled={hasRedeemed || finalOutcomeIndex === null || state.stage !== 'idle'}
               onClick={handleRedeem}
             >
               <CheckCircle2 className="h-4 w-4" />

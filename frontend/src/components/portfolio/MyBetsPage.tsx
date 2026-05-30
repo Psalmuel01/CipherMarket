@@ -121,7 +121,7 @@ function PortfolioDesk(): JSX.Element {
         <h1 className="text-[32px] lg:text-[40px] leading-[1.1] tracking-[-0.04em]">
           <span className="font-serif italic text-[#e8e4df]">My</span>
           <span className="font-sans font-light text-white/35 ml-2">positions.</span>
-            </h1>
+        </h1>
       </header>
 
       <main className="space-y-8">
@@ -161,6 +161,89 @@ function PortfolioDesk(): JSX.Element {
           isRevealed={isRevealed}
           isLoading={privatePortfolio.isLoading}
         />
+
+
+
+        {/* Positions Table */}
+        <section className="space-y-5">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-500 hover:scale-105"
+              style={{
+                backgroundColor: heroSwatches[0].softBackground,
+                borderColor: heroSwatches[0].border,
+                color: heroSwatches[0].text,
+                boxShadow: `0 0 24px ${heroSwatches[0].shadow}`,
+              }}
+            >
+              <Ticket className="h-5 w-5" />
+            </div>
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
+              Open Positions
+            </h2>
+          </div>
+
+          {!isPortfolioVisible ? (
+            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-10 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
+              <p className="text-sm text-white/25 font-light">
+                Reveal your portfolio to see your encrypted positions.
+              </p>
+            </div>
+          ) : privatePortfolio.isLoading ? (
+            <div className="space-y-2">
+              <ContentSkeleton variant="position-row" />
+              <ContentSkeleton variant="position-row" />
+              <ContentSkeleton variant="position-row" />
+            </div>
+          ) : openPositions.length === 0 ? (
+            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-10 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)] space-y-3">
+              <p className="text-sm text-white/30 font-light">
+                No positions found for this wallet.
+              </p>
+              <Link
+                href="/dashboard"
+                className="inline-flex text-xs text-primary hover:text-primary/80 transition-colors"
+              >
+                Explore markets →
+              </Link>
+            </div>
+          ) : (
+            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
+              {/* Table header */}
+              <div className="hidden md:grid md:grid-cols-[2.5fr,1fr,1fr,0.8fr,0.8fr,auto] gap-4 px-6 lg:px-8 py-3 border-b border-white/5 bg-white/[0.02]">
+                {['Market', 'Outcome', 'Shares', 'Est. Value', 'Status', 'Action'].map((col) => (
+                  <p key={col} className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
+                    {col}
+                  </p>
+                ))}
+              </div>
+
+              {/* Rows */}
+              <div>
+                {groupedByMarket.flatMap((group) =>
+                  group.map((pos, idx) => (
+                    <PositionRow
+                      key={`${pos.market.marketId}-${pos.outcome.id}`}
+                      marketId={pos.market.marketId}
+                      marketTitle={pos.market.title}
+                      category={pos.market.category}
+                      outcomeLabel={pos.outcome.label}
+                      outcomeIndex={pos.outcome.outcomeIndex}
+                      shares={pos.shares}
+                      currentProbability={pos.outcome.impliedShare}
+                      marketStatus={pos.market.status}
+                      collateralDecimals={pos.market.collateralSymbol === 'USDC' ? 6 : 18}
+                      collateralSymbol={pos.market.collateralSymbol}
+                      isRevealed={isRevealed}
+                      isGroupHead={idx === 0}
+                      index={idx}
+                    />
+                  )),
+                )}
+              </div>
+            </div>
+          )}
+        </section>
 
         {isRevealed && settledHistory.length > 0 ? (
           <section className="space-y-5">
@@ -243,87 +326,6 @@ function PortfolioDesk(): JSX.Element {
             </div>
           </section>
         ) : null}
-
-        {/* Positions Table */}
-        <section className="space-y-5">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-500 hover:scale-105"
-              style={{
-                backgroundColor: heroSwatches[0].softBackground,
-                borderColor: heroSwatches[0].border,
-                color: heroSwatches[0].text,
-                boxShadow: `0 0 24px ${heroSwatches[0].shadow}`,
-              }}
-            >
-              <Ticket className="h-5 w-5" />
-            </div>
-            <h2 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
-              Open Positions
-            </h2>
-          </div>
-
-          {!isPortfolioVisible ? (
-            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-10 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
-              <p className="text-sm text-white/25 font-light">
-                Reveal your portfolio to see your encrypted positions.
-              </p>
-            </div>
-          ) : privatePortfolio.isLoading ? (
-            <div className="space-y-2">
-              <ContentSkeleton variant="position-row" />
-              <ContentSkeleton variant="position-row" />
-              <ContentSkeleton variant="position-row" />
-            </div>
-          ) : openPositions.length === 0 ? (
-            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-10 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)] space-y-3">
-              <p className="text-sm text-white/30 font-light">
-                No positions found for this wallet.
-              </p>
-              <Link
-                href="/dashboard"
-                className="inline-flex text-xs text-primary hover:text-primary/80 transition-colors"
-              >
-                Explore markets →
-              </Link>
-            </div>
-          ) : (
-            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
-              {/* Table header */}
-              <div className="hidden md:grid md:grid-cols-[2.5fr,1fr,1fr,0.8fr,0.8fr,auto] gap-4 px-6 lg:px-8 py-3 border-b border-white/5 bg-white/[0.02]">
-                {['Market', 'Outcome', 'Shares', 'Est. Value', 'Status', 'Action'].map((col) => (
-                  <p key={col} className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
-                    {col}
-                  </p>
-                ))}
-              </div>
-
-              {/* Rows */}
-              <div>
-                {groupedByMarket.flatMap((group) =>
-                  group.map((pos, idx) => (
-                    <PositionRow
-                      key={`${pos.market.marketId}-${pos.outcome.id}`}
-                      marketId={pos.market.marketId}
-                      marketTitle={pos.market.title}
-                      category={pos.market.category}
-                      outcomeLabel={pos.outcome.label}
-                      outcomeIndex={pos.outcome.outcomeIndex}
-                      shares={pos.shares}
-                      currentProbability={pos.outcome.impliedShare}
-                      marketStatus={pos.market.status}
-                      collateralDecimals={pos.market.collateralSymbol === 'USDC' ? 6 : 18}
-                      collateralSymbol={pos.market.collateralSymbol}
-                      isRevealed={isRevealed}
-                      isGroupHead={idx === 0}
-                      index={idx}
-                    />
-                  )),
-                )}
-              </div>
-            </div>
-          )}
-        </section>
 
         {/* Security Details */}
         <section className="space-y-5">

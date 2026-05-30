@@ -173,6 +173,13 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const disputeDeadlineMs = data?.resolutionWindowEndsAt ? Date.parse(data.resolutionWindowEndsAt) : Number.NaN;
   const isFinalizeWindowOpen =
     Number.isFinite(disputeDeadlineMs) && Date.now() >= disputeDeadlineMs;
+  const canOpenDispute =
+    Boolean(
+      data &&
+        data.status === 'RESOLUTION_OPEN' &&
+        !data.disputeOpened &&
+        !isFinalizeWindowOpen,
+    );
   const resolutionVoteState = useMemo(() => {
     if (!data) {
       return { hasQuorum: false, hasResolvableWinner: false };
@@ -443,7 +450,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 </p>
               ) : null}
             </div>}
-            {!data.disputeOpened && data.status === 'RESOLUTION_OPEN' && !isFinalizeWindowOpen ? (
+            {canOpenDispute ? (
               <div className="space-y-3 rounded-2xl border border-white/8 bg-black/10 p-5">
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">Open dispute</p>
@@ -528,7 +535,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   </div>
                 </div>
 
-                {disputeEscrowMutation.isLoading && (
+                {(disputeEscrowMutation.isLoading || disputeEscrowMutation.isError) && (
                   <SecureComputeCard
                     operation={disputeEscrowMutation.state.info.computeOperation}
                     estimatedSeconds={disputeEscrowMutation.state.info.estimatedSeconds}
@@ -551,7 +558,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {!data.disputeOpened && !isFinalizeWindowOpen ? (
+            {canOpenDispute ? (
               <Button
                 variant="outline"
                 className="gap-2"
@@ -792,13 +799,13 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
           </div>
 
           {hasConnectedPosition && hasRevealed ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-black/5 p-4">
+            <div className="gri gap-3 sm:grid-cols-2">
+              {/* <div className="rounded-2xl border border-white/10 bg-black/5 p-4">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Resolution status</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
                   The market resolved to {finalOutcome.label}.
                 </p>
-              </div>
+              </div> */}
               <div className="rounded-2xl border border-white/10 bg-black/5 p-4">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Winning shares</p>
                 <p className="mt-2 text-sm font-medium text-foreground">{winningShareText}</p>
