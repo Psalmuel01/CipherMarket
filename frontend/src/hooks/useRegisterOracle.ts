@@ -22,6 +22,8 @@ export interface UseRegisterOracleResult {
   isError: boolean;
   error: Error | null;
   registerOracle: (stakeAmount?: bigint) => Promise<void>;
+  increaseStake: (stakeAmount: bigint) => Promise<void>;
+  deregisterOracle: () => Promise<void>;
 }
 
 /**
@@ -80,11 +82,102 @@ export default function useRegisterOracle(): UseRegisterOracleResult {
     }
   };
 
+  const deregisterOracle = async (): Promise<void> => {
+    try {
+      const addresses = getContractAddresses(chainId);
+      const oracleRegistryAddress = addresses?.oracleRegistry;
+
+      if (!oracleRegistryAddress) {
+        throw new Error('OracleRegistry is not configured for the current chain.');
+      }
+
+      if (!publicClient) {
+        throw new Error('Public client is not available.');
+      }
+
+      setError(null);
+      setIsLoading(true);
+      const gasFees = await getBufferedGasFees(publicClient);
+
+      const hash = await writeContractAsync({
+        address: oracleRegistryAddress,
+        abi: ORACLE_REGISTRY_ABI,
+        functionName: 'deregister',
+        ...gasFees,
+      });
+
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      setData({ txHash: hash });
+      await refreshProtocolData();
+      toast.success('Oracle unregistration submitted.');
+    } catch (caughtError) {
+      const nextError =
+        caughtError instanceof Error
+          ? new Error(formatContractError(caughtError))
+          : new Error('Unable to deregister as an oracle.');
+
+      setError(nextError);
+      toast.error(nextError.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const increaseStake = async (stakeAmount: bigint): Promise<void> => {
+    try {
+      const addresses = getContractAddresses(chainId);
+      const oracleRegistryAddress = addresses?.oracleRegistry;
+
+      if (!oracleRegistryAddress) {
+        throw new Error('OracleRegistry is not configured for the current chain.');
+      }
+
+      if (!publicClient) {
+        throw new Error('Public client is not available.');
+      }
+
+      if (stakeAmount <= 0n) {
+        throw new Error('Enter a stake amount greater than zero.');
+      }
+
+      setError(null);
+      setIsLoading(true);
+      const gasFees = await getBufferedGasFees(publicClient);
+
+      const hash = await writeContractAsync({
+        address: oracleRegistryAddress,
+        abi: ORACLE_REGISTRY_ABI,
+        functionName: 'increaseStake',
+        value: stakeAmount,
+        ...gasFees,
+      });
+
+      await publicClient.waitForTransactionReceipt({ hash });
+
+      setData({ txHash: hash });
+      await refreshProtocolData();
+      toast.success('Oracle stake increased.');
+    } catch (caughtError) {
+      const nextError =
+        caughtError instanceof Error
+          ? new Error(formatContractError(caughtError))
+          : new Error('Unable to increase oracle stake.');
+
+      setError(nextError);
+      toast.error(nextError.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     data,
     isLoading,
     isError: error !== null,
     error,
     registerOracle,
+    increaseStake,
+    deregisterOracle,
   };
 }

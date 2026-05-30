@@ -47,6 +47,23 @@ describe('OracleRegistry', () => {
     expect(profile.active).to.equal(true);
   });
 
+  it('lets a slashed inactive oracle top back up to the minimum', async () => {
+    const { oracle, recipient, registry } = await deployFixture();
+
+    await registry.connect(oracle).register({ value: ethers.parseEther('1') });
+    await registry.slash(oracle.address, ethers.parseEther('0.25'), recipient.address);
+
+    const slashedProfile = await registry.getOracle(oracle.address);
+    expect(slashedProfile.stakedAmount).to.equal(ethers.parseEther('0.75'));
+    expect(slashedProfile.active).to.equal(false);
+
+    await registry.connect(oracle).register({ value: ethers.parseEther('0.25') });
+
+    const restoredProfile = await registry.getOracle(oracle.address);
+    expect(restoredProfile.stakedAmount).to.equal(ethers.parseEther('1'));
+    expect(restoredProfile.active).to.equal(true);
+  });
+
   it('prevents unauthorized slash calls', async () => {
     const { oracle, recipient, registry, stranger } = await deployFixture();
 

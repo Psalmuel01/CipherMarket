@@ -28,6 +28,7 @@ interface PredictionMarketView {
   minimumTrade: bigint;
   seedLiquidity: bigint;
   totalCollateralCollected: bigint;
+  tradeVolume: bigint;
   disputeStakeTotal: bigint;
   remainingWinningShares: bigint;
   resolutionQuorumStake: bigint;
@@ -82,6 +83,7 @@ function mapMarketOutcomes(
       probability,
       reserve,
       price: probability,
+      investedAmount: 0n,
       revealedShares: null,
     };
   });
@@ -104,6 +106,7 @@ function mapMarketSummary(
     type: MARKET_TYPE_LABELS[view.marketType] ?? 'BINARY',
     totalLiquidity: view.totalCollateralCollected,
     totalCollateralCollected: view.totalCollateralCollected,
+    tradeVolume: view.tradeVolume,
     outcomeCount: Number(view.outcomeCount),
     expiryTime: new Date(Number(view.expiryTime) * 1000).toISOString(),
     status: MARKET_STATE_LABELS[view.state] ?? 'ACTIVE',
@@ -111,6 +114,23 @@ function mapMarketSummary(
     minimumTrade: view.minimumTrade,
     collateralToken: view.collateralToken,
     collateralSymbol: collateral.symbol,
+    proposedBy:
+      view.proposedBy.toLowerCase() === '0x0000000000000000000000000000000000000000'
+        ? null
+        : view.proposedBy,
+    disputeOpenedBy:
+      view.disputeOpenedBy.toLowerCase() === '0x0000000000000000000000000000000000000000'
+        ? null
+        : view.disputeOpenedBy,
+    proposedOutcomeIndex: view.proposedOutcome === 255 ? null : Number(view.proposedOutcome),
+    disputeCounterOutcomeIndex:
+      view.disputeCounterOutcome === 255 ? null : Number(view.disputeCounterOutcome),
+    finalOutcomeIndex: view.finalOutcome === 255 ? null : Number(view.finalOutcome),
+    disputeOpened: view.disputeOpened,
+    disputeRefundsEnabled: view.disputeRefundsEnabled,
+    committeeResolved: view.committeeResolved,
+    committeeRewardPool: view.committeeRewardPool,
+    disputeStakeTotal: view.disputeStakeTotal,
   };
 }
 

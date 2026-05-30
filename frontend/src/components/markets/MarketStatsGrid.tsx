@@ -6,15 +6,34 @@ import useMarkets from '@/hooks/useMarkets';
 import { formatTokenAmount } from '@/lib/formatters';
 import { getOutcomeColor } from '@/lib/outcomeColors';
 
+function formatMixedCollateralTotals(values: Array<{ value?: bigint; symbol?: string }>): string {
+  const totals = values.reduce<Record<string, bigint>>((acc, item) => {
+    const symbol = item.symbol ?? 'USDC';
+    const value = typeof item.value === 'bigint' ? item.value : 0n;
+    acc[symbol] = (acc[symbol] ?? 0n) + value;
+    return acc;
+  }, {});
+
+  return Object.entries(totals)
+    .filter(([, value]) => value > 0n)
+    .sort(([leftSymbol], [rightSymbol]) => leftSymbol.localeCompare(rightSymbol))
+    .map(([symbol, value]) => formatTokenAmount(value, symbol === 'USDC' ? 6 : 18, symbol))
+    .join(' · ') || '0';
+}
+
 export default function MarketStatsGrid(): JSX.Element {
   const { data: markets, isLoading } = useMarkets();
 
   const stats = [
     {
       label: 'Sealed Liquidity',
-      value: markets.reduce((sum, m) => sum + m.totalLiquidity, 0n),
+      value: formatMixedCollateralTotals(
+        markets.map((market) => ({
+          value: market.totalLiquidity,
+          symbol: market.collateralSymbol,
+        })),
+      ),
       icon: Database,
-      isToken: true,
       description: 'Total value locked',
       color: getOutcomeColor(0),
     },
@@ -27,9 +46,13 @@ export default function MarketStatsGrid(): JSX.Element {
     },
     {
       label: 'Aggregate Volume',
-      value: markets.reduce((sum, m) => sum + m.totalCollateralCollected, 0n),
+      value: formatMixedCollateralTotals(
+        markets.map((market) => ({
+          value: market.tradeVolume,
+          symbol: market.collateralSymbol,
+        })),
+      ),
       icon: TrendingUp,
-      isToken: true,
       description: 'Protocol volume',
       color: getOutcomeColor(2),
     },
@@ -89,8 +112,8 @@ export default function MarketStatsGrid(): JSX.Element {
               <p className="text-2xl font-semibold tracking-tight text-white transition-all duration-500 group-hover:text-white">
                 {isLoading ? (
                   <span className="inline-block h-10 w-32 animate-pulse rounded-xl bg-white/5" />
-                ) : stat.isToken ? (
-                  formatTokenAmount(stat.value as bigint, 18, 'USDC')
+                ) : typeof stat.value === 'string' ? (
+                  <span className="block text-[15px] leading-6 sm:text-base">{stat.value}</span>
                 ) : (
                   stat.value.toLocaleString()
                 )}

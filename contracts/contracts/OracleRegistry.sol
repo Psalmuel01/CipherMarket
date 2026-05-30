@@ -54,9 +54,9 @@ contract OracleRegistry is Ownable {
     OracleProfile storage profile = oracleProfiles[msg.sender];
 
     require(!profile.active, 'Oracle is already active');
-    require(msg.value >= minimumStake, 'Stake below minimum');
+    require(profile.stakedAmount + msg.value >= minimumStake, 'Stake below minimum');
 
-    profile.stakedAmount = msg.value;
+    profile.stakedAmount += msg.value;
     profile.active = true;
 
     emit OracleRegistered(msg.sender, profile.stakedAmount);

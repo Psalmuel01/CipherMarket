@@ -21,10 +21,15 @@ export default function RedeemableSection({
   isRevealed,
   isLoading,
 }: RedeemableSectionProps): JSX.Element | null {
-  // Filter for markets that are finalized and where the user has a position
+  // Filter for finalized markets where the user has shares in the winning outcome.
   const redeemableMarkets = markets.filter((market) => {
-    if (market.status !== 'FINALIZED') return false;
-    return positions.some((p) => p.marketId === market.marketId && p.shares > 0n);
+    if (market.status !== 'FINALIZED' || market.finalOutcomeIndex === null) return false;
+    return positions.some(
+      (p) =>
+        p.marketId === market.marketId &&
+        p.outcomeIndex === market.finalOutcomeIndex &&
+        p.shares > 0n,
+    );
   });
 
   if (redeemableMarkets.length === 0) return null;
@@ -50,8 +55,13 @@ export default function RedeemableSection({
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {redeemableMarkets.map((market) => {
-          const userPositionsInMarket = positions.filter((p) => p.marketId === market.marketId);
-          const totalShares = userPositionsInMarket.reduce((sum, p) => sum + p.shares, 0n);
+          const totalShares = positions
+            .filter(
+              (p) =>
+                p.marketId === market.marketId &&
+                p.outcomeIndex === market.finalOutcomeIndex,
+            )
+            .reduce((sum, p) => sum + p.shares, 0n);
           const decimals = market.collateralSymbol === 'USDC' ? 6 : 18;
 
           return (

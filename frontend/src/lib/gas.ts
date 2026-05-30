@@ -11,7 +11,7 @@ interface FeeCapablePublicClient {
   }>;
 }
 
-const GAS_FEE_BUFFER_BPS = 2_500n;
+const GAS_FEE_BUFFER_BPS = 10_000n;
 const GAS_FEE_MIN_BUFFER_WEI = 1_000_000n;
 const GAS_LIMIT_BUFFER_BPS = 3_000n;
 const GAS_LIMIT_MIN_BUFFER = 50_000n;
@@ -38,6 +38,14 @@ export async function getBufferedGasFees(
         : {}),
     };
   } catch {
+    try {
+      const gasPrice = await (publicClient as any).getGasPrice?.();
+      if (gasPrice) {
+        return { maxFeePerGas: withGasBuffer(gasPrice) };
+      }
+    } catch {
+      // Ignore
+    }
     return {};
   }
 }

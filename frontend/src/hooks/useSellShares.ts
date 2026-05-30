@@ -1,16 +1,17 @@
 'use client';
 
-import { useState } from 'react';
 import { toast } from 'sonner';
 import { parseUnits } from 'viem';
-import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
+import { useAccount, useChainId, usePublicClient, useWriteContract, useWalletClient } from 'wagmi';
+import { useCofheContext } from '@cofhe/react';
+import { ensureCofheConnected } from '@/lib/cofheClient';
+import { getFreshSelfPermit } from '@/lib/cofhePermits';
 import {
-  COFHE_TASK_MANAGER_ABI,
-  COFHE_TASK_MANAGER_ADDRESS,
   formatContractError,
   getContractAddresses,
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
+import { isZeroCtHash, normalizeCtHash } from '@/lib/fheHandles';
 import { getBufferedContractGas, getBufferedGasFees } from '@/lib/gas';
 import type { TradeDraft } from '@/types/market';
 
@@ -29,12 +30,12 @@ export interface UseSellSharesResult {
 }
 
 export default function useSellShares(): UseSellSharesResult {
-  const DECRYPT_ALLOW_GAS = 300_000n;
-  const DECRYPT_REQUEST_GAS = 1_000_000n;
   const SELL_SHARES_GAS = 1_800_000n;
   const chainId = useChainId();
   const { address } = useAccount();
   const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const { client } = useCofheContext();
   const { writeContractAsync } = useWriteContract();
   const lifecycle = useTransactionLifecycle();
   const { addTransaction, updateTransaction } = usePendingTransactions();
@@ -77,81 +78,47 @@ export default function useSellShares(): UseSellSharesResult {
         collateralSymbol: 'shares',
       });
 
-      // 1. Request Decrypt
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
-      const requestGasFees = await getBufferedGasFees(publicClient);
       const outcomeIndex = Number.parseInt(draft.outcomeId, 10);
-      const encryptedPositionHandle = (await publicClient.readContract({
+      const encryptedPositionHandle = normalizeCtHash(await publicClient.readContract({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'getEncryptedUserPositionHandle',
         args: [BigInt(draft.marketId), address, outcomeIndex],
-      })) as bigint;
+      }));
 
-      if (encryptedPositionHandle === 0n) {
+      if (isZeroCtHash(encryptedPositionHandle)) {
         throw new Error('This wallet has no encrypted position to sell for this outcome.');
       }
 
-      const allowGas = await getBufferedContractGas(
-        publicClient,
-        {
-          account: address,
-          address: COFHE_TASK_MANAGER_ADDRESS,
-          abi: COFHE_TASK_MANAGER_ABI,
-          functionName: 'allowForDecryption',
-          args: [encryptedPositionHandle],
-        },
-        DECRYPT_ALLOW_GAS,
+      await ensureCofheConnected(client, publicClient, walletClient);
+
+      const permit = await getFreshSelfPermit(
+        client,
+        chainId,
+        address,
+        'CipherMarket sell shares',
       );
-      const allowHash = await writeContractAsync({
-        address: COFHE_TASK_MANAGER_ADDRESS,
-        abi: COFHE_TASK_MANAGER_ABI,
-        functionName: 'allowForDecryption',
-        args: [encryptedPositionHandle],
-        gas: allowGas,
-        ...requestGasFees,
-      });
-      const allowReceipt = await publicClient.waitForTransactionReceipt({ hash: allowHash });
-      if (allowReceipt.status !== 'success') {
-        throw new Error('The decrypt permission transaction reverted before completion.');
-      }
 
-      const requestGas = await getBufferedContractGas(
-        publicClient,
-        {
-          account: address,
-          address: predictionMarketAddress,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'requestSellPositionDecrypt',
-          args: [BigInt(draft.marketId), outcomeIndex],
-        },
-        DECRYPT_REQUEST_GAS,
-      );
-      const requestHash = await writeContractAsync({
-        address: predictionMarketAddress,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'requestSellPositionDecrypt',
-        args: [BigInt(draft.marketId), outcomeIndex],
-        gas: requestGas,
-        ...requestGasFees,
-      });
-
-      lifecycle.setTxHash(requestHash);
-      lifecycle.setStage('encrypting'); // We'll use encrypting/confirming for the compute wait
-      updateTransaction(pendingTxId, { stage: 'confirming', txHash: requestHash });
-
-      const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
-      if (requestReceipt.status !== 'success') {
-        throw new Error('The sell-position decrypt request reverted after submission.');
-      }
-
-      // 2. Wait for Coprocessor (12s)
       lifecycle.setStage('confirming');
-      await new Promise((resolve) => window.setTimeout(resolve, 12_000));
+      updateTransaction(pendingTxId, { stage: 'confirming' });
 
-      // 3. Sell Transaction
+      const decryptionResult = await client
+        .decryptForTx(encryptedPositionHandle)
+        .setAccount(address)
+        .setChainId(chainId)
+        .withPermit(permit)
+        .execute();
+
+      const decryptedBalance = BigInt(decryptionResult.decryptedValue);
+      const signature = decryptionResult.signature;
+
+      if (decryptedBalance < sharesIn) {
+        throw new Error('This wallet does not have enough decrypted shares to sell.');
+      }
+
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
@@ -168,6 +135,8 @@ export default function useSellShares(): UseSellSharesResult {
             outcomeIndex,
             sharesIn,
             draft.minAmountOut ?? 0n,
+            decryptedBalance,
+            signature,
           ],
         },
         SELL_SHARES_GAS,
@@ -181,6 +150,8 @@ export default function useSellShares(): UseSellSharesResult {
           outcomeIndex,
           sharesIn,
           draft.minAmountOut ?? 0n,
+          decryptedBalance,
+          signature,
         ],
         gas: sellGas,
         ...sellGasFees,

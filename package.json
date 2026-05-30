@@ -9,8 +9,7 @@
     "build": "pnpm -r build",
     "dev:frontend": "pnpm --filter frontend dev",
     "test:contracts": "pnpm --filter contracts test",
-    "lint:frontend": "pnpm --filter frontend lint",
-    "validate:privara": "node scripts/validate-privara.mjs"
+    "lint:frontend": "pnpm --filter frontend lint"
   },
   "dependencies": {
     "@reineira-os/sdk": "^0.2.0"

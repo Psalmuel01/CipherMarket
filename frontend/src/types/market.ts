@@ -19,6 +19,7 @@ export interface MarketOutcome {
   reserve: bigint;
   price: bigint;
   encryptedHandle?: bigint;
+  investedAmount: bigint;
   revealedShares: bigint | null;
 }
 
@@ -50,6 +51,7 @@ export interface MarketSummary {
   type: MarketType;
   totalLiquidity: bigint;
   totalCollateralCollected: bigint;
+  tradeVolume: bigint;
   outcomeCount: number;
   expiryTime: string;
   status: MarketLifecycle;
@@ -57,6 +59,16 @@ export interface MarketSummary {
   minimumTrade: bigint;
   collateralToken: Address;
   collateralSymbol: string;
+  proposedBy: Address | null;
+  disputeOpenedBy: Address | null;
+  proposedOutcomeIndex: number | null;
+  disputeCounterOutcomeIndex: number | null;
+  finalOutcomeIndex: number | null;
+  disputeOpened: boolean;
+  disputeRefundsEnabled: boolean;
+  committeeResolved: boolean;
+  committeeRewardPool: bigint;
+  disputeStakeTotal: bigint;
 }
 
 export interface MarketDetail extends MarketSummary {
@@ -96,6 +108,7 @@ export interface MarketDetail extends MarketSummary {
   myLpShares: bigint;
   totalLpShares: bigint;
   estimatedLpCollateralOut: bigint;
+  estimatedFinalLpPayout: bigint;
   revealedWinningShares: bigint | null;
   canRevealPositions: boolean;
 }
@@ -131,6 +144,7 @@ export interface OracleProfile {
   stakeFormatted: string;
   disputeExposure: string;
   activeAssignments: number;
+  minimumStakeAmount: bigint;
   minimumStakeFormatted: string;
   proposalLocks: number;
 }

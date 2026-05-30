@@ -37,7 +37,7 @@ export function formatTokenAmount(value: bigint, decimals: number, symbol: strin
 }
 
 /**
- * Formats an ISO timestamp as a concise UTC date-time string.
+ * Formats an ISO timestamp in the user's local timezone.
  * @param value The ISO date string.
  * @returns The formatted date string.
  */
@@ -45,7 +45,6 @@ export function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
     timeStyle: 'short',
-    timeZone: 'UTC',
   }).format(new Date(value));
 }
 

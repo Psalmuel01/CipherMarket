@@ -8,9 +8,11 @@ import { useAccount, useChainId, usePublicClient, useReadContracts, useWalletCli
 import { ensureCofheConnected } from '@/lib/cofheClient';
 import { withFreshSelfPermit } from '@/lib/cofhePermits';
 import { getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { isZeroCtHash, normalizeCtHash } from '@/lib/fheHandles';
 
 export interface UsePrivatePositionsResult {
   data: bigint[];
+  hasPosition: boolean;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
@@ -56,11 +58,7 @@ export default function usePrivatePositions(
 
   const handleKeys = useMemo(() => {
     if (!handlesQuery.data) return [];
-    return handlesQuery.data.map((r) =>
-      r?.status === 'success' && typeof r.result === 'bigint'
-        ? r.result.toString()
-        : '0',
-    );
+    return handlesQuery.data.map((r) => (r?.status === 'success' ? normalizeCtHash(r.result) : '0'));
   }, [handlesQuery.data]);
 
   const revealedQuery = useQuery({
@@ -92,11 +90,9 @@ export default function usePrivatePositions(
               outcomeIndexes.map(async (outcomeIndex) => {
                 const result = handlesQuery.data?.[outcomeIndex];
                 const handle =
-                  result?.status === 'success' && typeof result.result === 'bigint'
-                    ? result.result
-                    : 0n;
+                  result?.status === 'success' ? normalizeCtHash(result.result) : normalizeCtHash(null);
 
-                if (handle === 0n) {
+                if (isZeroCtHash(handle)) {
                   return 0n;
                 }
 
@@ -121,8 +117,19 @@ export default function usePrivatePositions(
     staleTime: 30_000,
   });
 
+  const hasPosition = useMemo(() => {
+    if (!handlesQuery.data || handlesQuery.data.length === 0) {
+      return false;
+    }
+
+    return handlesQuery.data.some(
+      (result) => result?.status === 'success' && !isZeroCtHash(result.result),
+    );
+  }, [handlesQuery.data]);
+
   return {
     data: revealedQuery.data ?? outcomeIndexes.map(() => 0n),
+    hasPosition,
     isLoading: handlesQuery.isLoading || revealedQuery.isLoading,
     isError: Boolean(handlesQuery.error || revealedQuery.error),
     error: (handlesQuery.error || revealedQuery.error) as Error | null,

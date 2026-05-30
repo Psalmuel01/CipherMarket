@@ -37,7 +37,7 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
               <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
                 {market.category}
               </span>
-              <PrivacyBadge state="sealed" size="sm" showTooltip={false} />
+              {/* <PrivacyBadge state="sealed" size="sm" showTooltip={false} /> */}
               <LifecycleBadge status={market.status} />
               {market.outcomeCount > 4 ? (
                 <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-white/35">

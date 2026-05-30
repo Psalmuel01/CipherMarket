@@ -7,6 +7,7 @@ import StepIndicator, { Step } from '@/components/ui/StepIndicator';
 import SecureComputeCard from '@/components/ui/SecureComputeCard';
 import type { TransactionLifecycleState } from '@/hooks/useTransactionLifecycle';
 import Button from '@/components/ui/Button';
+import type { TransactionStage } from '@/hooks/useTransactionLifecycle';
 
 export interface TransactionFlowProps {
   state: TransactionLifecycleState;
@@ -18,6 +19,43 @@ export interface TransactionFlowProps {
   children?: React.ReactNode; // For the initial input state
 }
 
+function getCurrentStepIndex(stage: TransactionStage, steps: Step[]): number {
+  const preferredStepId = (() => {
+    if (stage === 'idle') return 'input';
+    if (stage === 'preparing' || stage === 'encrypting') return 'prepare';
+    if (stage === 'approving') return 'approval';
+    if (stage === 'awaiting_wallet' || stage === 'confirming' || stage === 'settling') {
+      return 'confirm';
+    }
+    if (stage === 'success') return 'success';
+    return null;
+  })();
+
+  if (!preferredStepId) {
+    return Math.min(stateFallbackIndex(stage), steps.length - 1);
+  }
+
+  const index = steps.findIndex((step) => step.id === preferredStepId);
+
+  if (index >= 0) {
+    return index;
+  }
+
+  if (preferredStepId === 'approval') {
+    return Math.max(0, steps.findIndex((step) => step.id === 'prepare'));
+  }
+
+  return Math.min(stateFallbackIndex(stage), steps.length - 1);
+}
+
+function stateFallbackIndex(stage: TransactionStage): number {
+  if (stage === 'success') return 4;
+  if (stage === 'awaiting_wallet' || stage === 'confirming' || stage === 'settling') return 3;
+  if (stage === 'approving') return 2;
+  if (stage === 'preparing' || stage === 'encrypting') return 1;
+  return 0;
+}
+
 export default function TransactionFlow({
   state,
   steps,
@@ -27,7 +65,8 @@ export default function TransactionFlow({
   onRetry,
   children,
 }: TransactionFlowProps): JSX.Element {
-  const { stage, info, txHash, error, stepIndex } = state;
+  const { stage, info, txHash, error } = state;
+  const currentStepIndex = getCurrentStepIndex(stage, steps);
 
   const isIdle = stage === 'idle';
   const isSuccess = stage === 'success';
@@ -39,7 +78,7 @@ export default function TransactionFlow({
       {/* Stepper */}
       <StepIndicator
         steps={steps}
-        currentStepIndex={stepIndex}
+        currentStepIndex={currentStepIndex}
         variant="expanded"
         className="px-2"
       />

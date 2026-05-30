@@ -90,6 +90,15 @@ NEXT_PUBLIC_SEPOLIA_PREDICTION_MARKET=...
 NEXT_PUBLIC_SEPOLIA_USDC_ADDRESS=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
 ```
 
+Optional Supabase values for market discussions:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Run [`supabase/market_comments.sql`](/Users/sam/Desktop/Fhenix/CipherMarket/supabase/market_comments.sql) in Supabase before enabling those values.
+
 If you are deploying contracts and want USDC whitelisted during deployment:
 
 ```bash

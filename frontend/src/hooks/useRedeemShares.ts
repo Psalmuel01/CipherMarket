@@ -3,19 +3,22 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { formatUnits } from 'viem';
-import { useAccount, useChainId, usePublicClient, useWriteContract } from 'wagmi';
+import { useAccount, useChainId, usePublicClient, useWriteContract, useWalletClient } from 'wagmi';
+import { useCofheContext } from '@cofhe/react';
+import { ensureCofheConnected } from '@/lib/cofheClient';
+import { getFreshSelfPermit } from '@/lib/cofhePermits';
 import {
-  COFHE_TASK_MANAGER_ABI,
-  COFHE_TASK_MANAGER_ADDRESS,
   formatContractError,
   getContractAddresses,
   PREDICTION_MARKET_ABI,
 } from '@/lib/contracts';
+import { isZeroCtHash, normalizeCtHash } from '@/lib/fheHandles';
 import { getBufferedContractGas, getBufferedGasFees } from '@/lib/gas';
 
 export interface RedeemSharesReceipt {
   txHash: string;
-  amount: string;
+  amount: bigint;
+  formattedAmount: string;
 }
 
 import useTransactionLifecycle from '@/hooks/useTransactionLifecycle';
@@ -24,6 +27,7 @@ import useProtocolRefresh from '@/hooks/useProtocolRefresh';
 import type { TransactionLifecycleState } from '@/hooks/useTransactionLifecycle';
 
 export interface UseRedeemSharesResult {
+  data: RedeemSharesReceipt | null;
   state: TransactionLifecycleState;
   isLoading: boolean;
   isError: boolean;
@@ -39,16 +43,17 @@ export interface UseRedeemSharesResult {
 }
 
 export default function useRedeemShares(): UseRedeemSharesResult {
-  const DECRYPT_ALLOW_GAS = 300_000n;
-  const DECRYPT_REQUEST_GAS = 1_000_000n;
   const REDEEM_SHARES_GAS = 1_400_000n;
   const chainId = useChainId();
   const { address } = useAccount();
   const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+  const { client } = useCofheContext();
   const { writeContractAsync } = useWriteContract();
   const lifecycle = useTransactionLifecycle();
   const { addTransaction, updateTransaction } = usePendingTransactions();
   const refreshProtocolData = useProtocolRefresh();
+  const [data, setData] = useState<RedeemSharesReceipt | null>(null);
 
   const redeemShares = async (
     marketId: number,
@@ -74,6 +79,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         throw new Error('Connect your wallet before redeeming shares.');
       }
 
+      setData(null);
       lifecycle.reset();
       lifecycle.setStage('preparing');
 
@@ -105,76 +111,54 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         throw new Error('The finalized winning outcome is not available yet.');
       }
 
-      const encryptedWinningHandle = (await publicClient.readContract({
+      const encryptedWinningHandle = normalizeCtHash(await publicClient.readContract({
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'getEncryptedUserPositionHandle',
         args: [BigInt(marketId), address, finalOutcomeIndex],
-      })) as bigint;
+      }));
 
-      if (encryptedWinningHandle === 0n) {
+      if (isZeroCtHash(encryptedWinningHandle)) {
         throw new Error('This wallet has no encrypted winning position to redeem.');
       }
 
-      const requestGasFees = await getBufferedGasFees(publicClient);
-      const allowGas = await getBufferedContractGas(
-        publicClient,
-        {
-          account: address,
-          address: COFHE_TASK_MANAGER_ADDRESS,
-          abi: COFHE_TASK_MANAGER_ABI,
-          functionName: 'allowForDecryption',
-          args: [encryptedWinningHandle],
-        },
-        DECRYPT_ALLOW_GAS,
+      await ensureCofheConnected(client, publicClient, walletClient);
+
+      // 1. Get permit
+      lifecycle.setStage('awaiting_wallet');
+      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
+
+      const permit = await getFreshSelfPermit(
+        client,
+        chainId,
+        address,
+        'CipherMarket redeem shares',
       );
-      const allowHash = await writeContractAsync({
-        address: COFHE_TASK_MANAGER_ADDRESS,
-        abi: COFHE_TASK_MANAGER_ABI,
-        functionName: 'allowForDecryption',
-        args: [encryptedWinningHandle],
-        gas: allowGas,
-        ...requestGasFees,
-      });
-      const allowReceipt = await publicClient.waitForTransactionReceipt({ hash: allowHash });
-      if (allowReceipt.status !== 'success') {
-        throw new Error('The decrypt permission transaction reverted before completion.');
-      }
 
-      const requestGas = await getBufferedContractGas(
-        publicClient,
-        {
-          account: address,
-          address: predictionMarketAddress,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'requestRedeemPositionDecrypt',
-          args: [BigInt(marketId)],
-        },
-        DECRYPT_REQUEST_GAS,
-      );
-      const requestHash = await writeContractAsync({
-        address: predictionMarketAddress,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'requestRedeemPositionDecrypt',
-        args: [BigInt(marketId)],
-        gas: requestGas,
-        ...requestGasFees,
-      });
-
-      lifecycle.setTxHash(requestHash);
-      lifecycle.setStage('encrypting');
-      updateTransaction(pendingTxId, { stage: 'confirming', txHash: requestHash });
-
-      const requestReceipt = await publicClient.waitForTransactionReceipt({ hash: requestHash });
-      if (requestReceipt.status !== 'success') {
-        throw new Error('The redeem-position decrypt request reverted after submission.');
-      }
-
-      // 2. Wait for Coprocessor (12s)
+      // 2. Perform FHE Decrypt via Coprocessor
       lifecycle.setStage('confirming');
-      await new Promise((resolve) => window.setTimeout(resolve, 12_000));
+      updateTransaction(pendingTxId, { stage: 'confirming' });
 
-      // 3. Redeem Transaction
+      const decryptionResult = await client
+        .decryptForTx(encryptedWinningHandle)
+        .setAccount(address)
+        .setChainId(chainId)
+        .withPermit(permit)
+        .execute();
+
+      const decryptedBalance = BigInt(decryptionResult.decryptedValue);
+      const signature = decryptionResult.signature;
+
+      if (decryptedBalance === 0n) {
+        throw new Error('This wallet has no winning shares to redeem.');
+      }
+
+      const redeemedAmount = formatUnits(decryptedBalance, decimals);
+      if (pendingTxId) {
+        updateTransaction(pendingTxId, { amount: redeemedAmount });
+      }
+
+      // 3. Submit Redeem Transaction
       lifecycle.setStage('awaiting_wallet');
       updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
 
@@ -186,7 +170,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
           address: predictionMarketAddress,
           abi: PREDICTION_MARKET_ABI,
           functionName: 'redeemShares',
-          args: [BigInt(marketId)],
+          args: [BigInt(marketId), decryptedBalance, signature],
         },
         REDEEM_SHARES_GAS,
       );
@@ -194,7 +178,7 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         address: predictionMarketAddress,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'redeemShares',
-        args: [BigInt(marketId)],
+        args: [BigInt(marketId), decryptedBalance, signature],
         gas: redeemGas,
         ...redeemGasFees,
       });
@@ -212,9 +196,14 @@ export default function useRedeemShares(): UseRedeemSharesResult {
       updateTransaction(pendingTxId, { stage: 'settling' });
       await refreshProtocolData();
 
+      setData({
+        txHash: hash,
+        amount: decryptedBalance,
+        formattedAmount: redeemedAmount,
+      });
       lifecycle.setStage('success');
       updateTransaction(pendingTxId, { stage: 'success' });
-      toast.success(`Redeemed ${formatUnits(amount, decimals)} ${symbol}.`);
+      toast.success(`Redeemed ${redeemedAmount} ${symbol}.`);
     } catch (caughtError) {
       console.error('CipherMarket redeem shares failed:', caughtError);
       const nextError =
@@ -230,12 +219,18 @@ export default function useRedeemShares(): UseRedeemSharesResult {
     }
   };
 
+  const reset = (): void => {
+    setData(null);
+    lifecycle.reset();
+  };
+
   return {
+    data,
     state: lifecycle.state,
     isLoading: lifecycle.isLoading,
     isError: lifecycle.isError,
     error: lifecycle.state.error,
     redeemShares,
-    reset: lifecycle.reset,
+    reset,
   };
 }

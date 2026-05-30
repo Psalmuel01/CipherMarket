@@ -18,7 +18,6 @@ import {
   Info,
   Calendar,
   Layers,
-  Coins,
   Cpu,
   Fingerprint
 } from 'lucide-react';
@@ -201,7 +200,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="mt-20 rounded-[32px] p-20 text-center space-y-10 max-w-2xl mx-auto border border-primary/20 bg-[#050505] shadow-2xl"
+        className="mt-20 rounded-[32px] p-20 text-center space-y-20 max-w-2xl mx-auto border border-primary/20 bg-[#050505] shadow-2xl"
       >
         <div className="flex justify-center">
           <div className="relative">
@@ -223,7 +222,7 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
           </Button>
           <Link href="/dashboard">
             <Button className="gap-3 shadow-2xl">
-              Launch Application
+              View Markets
               <ChevronRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -489,17 +488,19 @@ export default function CreateMarketForm({ className }: CreateMarketFormProps): 
 
                   <div className="space-y-3">
                     <label className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/40 px-2">Settlement Asset</label>
-                    <div className="relative group">
-                      <Coins className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-white/20 group-focus-within:text-primary transition-colors" />
+                    <div className="relative">
                       <select
-                        className="appearance-none h-14 w-full rounded-xl border border-white/10 bg-white/[0.01] pl-16 pr-8 text-sm font-bold text-white outline-none focus:border-primary/50"
+                        className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
                         onChange={(e) => handleCollateralChange(e.target.value as Address)}
                         value={collateralToken}
                       >
                         {collateralOptions.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
+                          <option key={option.value} className="bg-background" value={option.value}>{option.label}</option>
                         ))}
                       </select>
+                      <div className="pointer-events-none text-xs absolute inset-y-0 right-3 flex items-center text-white/40">
+                        ▼
+                      </div>
                     </div>
                   </div>
 

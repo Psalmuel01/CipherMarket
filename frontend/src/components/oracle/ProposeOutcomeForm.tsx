@@ -72,7 +72,7 @@ export default function ProposeOutcomeForm({ className, isOracleRegistered }: Pr
           <label className="px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Market
           </label>
-          <div className='relative'>
+          <div className="relative">
             <select
               className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
               onChange={(event) => {
@@ -81,11 +81,11 @@ export default function ProposeOutcomeForm({ className, isOracleRegistered }: Pr
               }}
               value={marketId}
             >
-              <option value="">Select a market</option>
+              <option className="bg-background" value="">Select a market</option>
               {markets
                 .filter((market) => market.status === 'EXPIRED')
                 .map((market) => (
-                  <option key={market.marketId} value={String(market.marketId)}>
+                  <option key={market.marketId} className="bg-background" value={String(market.marketId)}>
                     #{market.marketId} · {market.title}
                   </option>
                 ))}
@@ -100,7 +100,7 @@ export default function ProposeOutcomeForm({ className, isOracleRegistered }: Pr
           <label className="px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Proposed Outcome
           </label>
-          <div className='relative'>
+          <div className="relative">
             <select
               className="appearance-none h-12 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 text-sm font-bold text-foreground outline-none transition-all focus:border-primary/50 focus:ring-4 focus:ring-primary/10"
               onChange={(event) => setOutcomeIndex(event.target.value)}

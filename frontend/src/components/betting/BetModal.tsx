@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { zeroAddress } from 'viem';
 import {
   ArrowUpDown,
   Sparkles,
@@ -48,12 +49,17 @@ export default function BetModal({
   side,
   userShares,
 }: BetModalProps): JSX.Element {
-  const [amount, setAmount] = useState<string>('0.1');
+  // Set default value dynamically based on collateral type
+  const defaultAmount = collateralSymbol === 'USDC' ? '1' : '0.01';
+  const minimumAmount = collateralSymbol === 'USDC' ? 1 : 0.01;
+
+  const [amount, setAmount] = useState<string>(defaultAmount);
   const buyHook = useBuyShares();
   const sellHook = useSellShares();
 
   const activeHook = side === 'BUY' ? buyHook : sellHook;
   const { state, buyShares, sellShares, reset } = (side === 'BUY' ? buyHook : sellHook) as any;
+  const isNativeCollateral = collateralToken.toLowerCase() === zeroAddress;
 
   const quote = useMarketQuote({
     marketId,
@@ -79,6 +85,15 @@ export default function BetModal({
     }
   })();
 
+  const isBelowMinimum = (() => {
+    try {
+      const parsed = parseFloat(amount || '0');
+      return parsed > 0 && parsed < minimumAmount;
+    } catch {
+      return false;
+    }
+  })();
+
   const handleSetMax = (): void => {
     if (side === 'SELL' && userShares != null) {
       const formatted = formatAmount(userShares, collateralDecimals);
@@ -88,7 +103,7 @@ export default function BetModal({
 
   const handleClose = (): void => {
     reset();
-    setAmount('0.1');
+    setAmount(defaultAmount);
     onClose();
   };
 
@@ -125,7 +140,9 @@ export default function BetModal({
   const steps = [
     { id: 'input', label: 'Draft', description: 'Enter trade details' },
     { id: 'prepare', label: 'Prepare', description: 'Encrypting inputs' },
-    { id: 'approval', label: 'Approve', description: 'Token allowance' },
+    ...(side === 'BUY' && !isNativeCollateral
+      ? [{ id: 'approval', label: 'Approve', description: 'Token allowance' }]
+      : []),
     { id: 'confirm', label: 'Execute', description: 'Confirm in wallet' },
     { id: 'success', label: 'Complete', description: 'Trade settled' },
   ];
@@ -136,7 +153,7 @@ export default function BetModal({
       open={open}
       title={side === 'BUY' ? 'Buy Shares' : 'Sell Shares'}
       description={state.stage === 'idle' ? "Secure computation ensures your resulting position remains private." : ""}
-      size="md"
+      size="lg"
     >
       <TransactionFlow
         state={state}
@@ -208,7 +225,7 @@ export default function BetModal({
                 )}
                 onChange={(e) => setAmount(e.target.value)}
                 value={amount}
-                placeholder="0.00"
+                placeholder={defaultAmount}
                 autoFocus
               />
               <div className="absolute right-8 top-1/2 -translate-y-1/2 font-mono text-lg text-white/10 select-none">
@@ -225,6 +242,16 @@ export default function BetModal({
                   className="text-[11px] text-red-400 px-4 font-bold uppercase tracking-widest"
                 >
                   Insufficient Balance
+                </motion.p>
+              )}
+              {isBelowMinimum && (
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="text-[11px] text-amber-400 px-4 font-medium tracking-wide"
+                >
+                  Value is less than minimum value required ({minimumAmount} {collateralSymbol})
                 </motion.p>
               )}
             </AnimatePresence>
@@ -309,7 +336,7 @@ export default function BetModal({
             </Button>
             <Button
               className="flex-[2] gap-3"
-              disabled={!quote.data || exceedsMax || state.stage !== 'idle'}
+              disabled={!quote.data || exceedsMax || isBelowMinimum || state.stage !== 'idle'}
               onClick={handleSubmit}
             >
               <Sparkles className="h-4 w-4" />
