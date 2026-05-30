@@ -26,6 +26,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@ciphermarket/sdk": [
+        "../packages/sdk/src/index.ts"
       ]
     }
   },

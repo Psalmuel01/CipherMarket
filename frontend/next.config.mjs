@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@cofhe/sdk', '@cofhe/react', 'geist'],
+  transpilePackages: ['@ciphermarket/sdk', '@cofhe/sdk', '@cofhe/react', 'geist'],
   webpack: (config, { isServer }) => {
     config.experiments = {
       ...config.experiments,
@@ -31,4 +31,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-

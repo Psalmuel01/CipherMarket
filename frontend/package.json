@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ciphermarket/sdk": "workspace:*",
     "@cofhe/abi": "0.5.2",
     "@cofhe/react": "^0.5.2",
     "@cofhe/sdk": "^0.5.2",
