@@ -1,8 +1,8 @@
 import type { Abi } from 'viem';
 import { erc20Abi } from 'viem';
-import OracleRegistryArtifact from './abi/OracleRegistry.json';
-import PredictionMarketArtifact from './abi/PredictionMarket.json';
-import ReineiraDisputeEscrowAdapterArtifact from './abi/ReineiraDisputeEscrowAdapter.json';
+import OracleRegistryArtifact from './abi/OracleRegistry.json' with { type: 'json' };
+import PredictionMarketArtifact from './abi/PredictionMarket.json' with { type: 'json' };
+import ReineiraDisputeEscrowAdapterArtifact from './abi/ReineiraDisputeEscrowAdapter.json' with { type: 'json' };
 
 export const ORACLE_REGISTRY_ABI = OracleRegistryArtifact.abi as Abi;
 export const PREDICTION_MARKET_ABI = PredictionMarketArtifact.abi as Abi;

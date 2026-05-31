@@ -1,6 +1,6 @@
 import type { Hex, PublicClient, WalletClient, Address } from 'viem';
 import type { Permit } from '@cofhe/sdk/permits';
-import type { CofheClientLike } from './types';
+import type { CofheClientLike } from './types.js';
 
 export const ZERO_CT_HASH =
   '0x0000000000000000000000000000000000000000000000000000000000000000' as const;

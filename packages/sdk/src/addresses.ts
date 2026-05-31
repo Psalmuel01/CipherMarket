@@ -1,5 +1,5 @@
 import type { Address } from 'viem';
-import type { ChainContractAddresses, CollateralMetadata } from './types';
+import type { ChainContractAddresses, CollateralMetadata } from './types.js';
 
 export const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
 export const NATIVE_ETH_ADDRESS = '0x0000000000000000000000000000000000000000' as const;

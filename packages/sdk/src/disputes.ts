@@ -1,11 +1,11 @@
 import type { Address, Hex } from 'viem';
 import { parseEventLogs, zeroAddress } from 'viem';
 import { Encryptable, assertCorrectEncryptedItemInput } from '@cofhe/sdk';
-import { ERC20_ABI, PREDICTION_MARKET_ABI, REINEIRA_DISPUTE_ESCROW_ADAPTER_ABI } from './abi';
-import { ensureCofheConnected } from './cofhe';
-import { getBufferedGasFees } from './gas';
-import { requirePredictionMarketAddress } from './addresses';
-import type { CipherMarketClientConfig } from './types';
+import { ERC20_ABI, PREDICTION_MARKET_ABI, REINEIRA_DISPUTE_ESCROW_ADAPTER_ABI } from './abi.js';
+import { ensureCofheConnected } from './cofhe.js';
+import { getBufferedGasFees } from './gas.js';
+import { requirePredictionMarketAddress } from './addresses.js';
+import type { CipherMarketClientConfig } from './types.js';
 
 const REINEIRA_ESCROW_ABI = [
   {

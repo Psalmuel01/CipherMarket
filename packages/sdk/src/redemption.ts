@@ -1,9 +1,9 @@
 import type { Hex } from 'viem';
-import { PREDICTION_MARKET_ABI } from './abi';
-import { decryptForTx, ensureCofheConnected, isZeroCtHash, normalizeCtHash } from './cofhe';
-import { getBufferedContractGas, getBufferedGasFees } from './gas';
-import { requirePredictionMarketAddress } from './addresses';
-import type { CipherMarketClientConfig } from './types';
+import { PREDICTION_MARKET_ABI } from './abi.js';
+import { decryptForTx, ensureCofheConnected, isZeroCtHash, normalizeCtHash } from './cofhe.js';
+import { getBufferedContractGas, getBufferedGasFees } from './gas.js';
+import { requirePredictionMarketAddress } from './addresses.js';
+import type { CipherMarketClientConfig } from './types.js';
 
 export interface RedeemWinningSharesParams {
   marketId: number | bigint;

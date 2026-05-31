@@ -1,14 +1,14 @@
 import type { Address, PublicClient } from 'viem';
-import { PREDICTION_MARKET_ABI } from './abi';
-import { getCollateralMetadata, MARKET_STATE_LABELS, MARKET_TYPE_LABELS } from './addresses';
-import { computeProbabilitiesFromReserves } from './marketMath';
+import { PREDICTION_MARKET_ABI } from './abi.js';
+import { getCollateralMetadata, MARKET_STATE_LABELS, MARKET_TYPE_LABELS } from './addresses.js';
+import { computeProbabilitiesFromReserves } from './marketMath.js';
 import type {
   ChainContractAddresses,
   MarketOutcome,
   MarketSummary,
   PoolSnapshot,
   PredictionMarketView,
-} from './types';
+} from './types.js';
 
 export function mapMarketOutcomes(
   labels: string[],

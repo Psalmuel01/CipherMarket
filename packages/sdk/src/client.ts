@@ -1,11 +1,11 @@
-import { requirePredictionMarketAddress } from './addresses';
-import { listMarkets, getMarket, getPoolReserves } from './markets';
-import { quoteTrade } from './quotes';
-import { buyShares, sellShares } from './trading';
-import { revealPositions, getInvestedAmounts, getRealizedPortfolio, getRedeemable } from './portfolio';
-import { redeemWinningShares } from './redemption';
-import { openDirectDispute, openReineiraDispute } from './disputes';
-import type { CipherMarketClientConfig } from './types';
+import { requirePredictionMarketAddress } from './addresses.js';
+import { listMarkets, getMarket, getPoolReserves } from './markets.js';
+import { quoteTrade } from './quotes.js';
+import { buyShares, sellShares } from './trading.js';
+import { revealPositions, getInvestedAmounts, getRealizedPortfolio, getRedeemable } from './portfolio.js';
+import { redeemWinningShares } from './redemption.js';
+import { openDirectDispute, openReineiraDispute } from './disputes.js';
+import type { CipherMarketClientConfig } from './types.js';
 
 export function createCipherMarketClient(config: CipherMarketClientConfig) {
   const predictionMarketAddress = () => requirePredictionMarketAddress(config.addresses);

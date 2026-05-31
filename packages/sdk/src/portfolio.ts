@@ -1,9 +1,9 @@
 import type { Address } from 'viem';
 import { FheTypes } from '@cofhe/sdk';
-import { PREDICTION_MARKET_ABI } from './abi';
-import { ensureCofheConnected, isZeroCtHash, normalizeCtHash, withFreshSelfPermit } from './cofhe';
-import { requirePredictionMarketAddress } from './addresses';
-import type { CipherMarketClientConfig, MarketSummary } from './types';
+import { PREDICTION_MARKET_ABI } from './abi.js';
+import { ensureCofheConnected, isZeroCtHash, normalizeCtHash, withFreshSelfPermit } from './cofhe.js';
+import { requirePredictionMarketAddress } from './addresses.js';
+import type { CipherMarketClientConfig, MarketSummary } from './types.js';
 
 export interface RevealedPortfolioPosition {
   marketId: number;

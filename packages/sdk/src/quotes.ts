@@ -1,6 +1,6 @@
 import type { Address, PublicClient } from 'viem';
-import { PREDICTION_MARKET_ABI } from './abi';
-import type { QuotePreview } from './types';
+import { PREDICTION_MARKET_ABI } from './abi.js';
+import type { QuotePreview } from './types.js';
 
 export function normalizeQuoteResult(
   result: readonly [bigint, bigint, bigint, readonly bigint[]],
