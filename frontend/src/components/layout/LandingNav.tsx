@@ -20,7 +20,8 @@ export default function LandingNav() {
 
   const navItems = [
     { label: 'Markets', href: '/dashboard' },
-    { label: 'Documentation', href: '/docs' },
+    { label: 'Docs', href: '/docs' },
+    { label: 'SDK', href: '/docs/sdk' },
   ];
 
   return (
