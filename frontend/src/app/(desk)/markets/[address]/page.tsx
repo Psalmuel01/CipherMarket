@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { parseUnits } from 'viem';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import {
@@ -95,6 +96,7 @@ function DecryptingLoader(): JSX.Element {
 }
 
 function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Element {
+  const searchParams = useSearchParams();
   const chainId = useChainId();
   const { address } = useAccount();
   const addresses = getContractAddresses(chainId);
@@ -122,6 +124,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const disputeEscrowMutation = useDisputeEscrow();
   const escalateMarketMutation = useEscalateMarket();
   const [disputeEscrowMode, setDisputeEscrowMode] = useState<boolean>(false);
+  const deepLinkAppliedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (data?.collateralSymbol === 'USDC') {
@@ -246,6 +249,38 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     selectedDisputeOutcome?.outcomeIndex,
     selectedOutcomeId,
   ]);
+
+  useEffect(() => {
+    if (!data || enrichedOutcomes.length === 0 || deepLinkAppliedRef.current) {
+      return;
+    }
+
+    const action = searchParams.get('action');
+    const outcomeParam = searchParams.get('outcome');
+    const outcomeIndex = outcomeParam === null ? null : Number(outcomeParam);
+    const linkedOutcome = Number.isInteger(outcomeIndex)
+      ? enrichedOutcomes.find((outcome) => outcome.outcomeIndex === outcomeIndex)
+      : null;
+    const fallbackOutcome = linkedOutcome ?? enrichedOutcomes[0] ?? null;
+
+    if (fallbackOutcome) {
+      setSelectedOutcomeId(fallbackOutcome.id);
+    }
+
+    if (action === 'buy' && data.status === 'ACTIVE') {
+      setTradeSide('BUY');
+      setModalOpen(Boolean(fallbackOutcome));
+    } else if (action === 'sell' && data.status === 'ACTIVE') {
+      setTradeSide('SELL');
+      setPortfolioVisible(true);
+      setModalOpen(Boolean(fallbackOutcome));
+    } else if (action === 'redeem' && data.status === 'FINALIZED') {
+      setPortfolioVisible(true);
+      setRedeemModalOpen(true);
+    }
+
+    deepLinkAppliedRef.current = true;
+  }, [data, enrichedOutcomes, searchParams]);
 
   const handleRedeem = (): void => {
     setRedeemModalOpen(true);
