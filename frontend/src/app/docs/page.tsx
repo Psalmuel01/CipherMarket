@@ -39,6 +39,11 @@ const DOC_GROUPS: DocGroup[] = [
         body: 'Your cumulative position is encrypted on-chain using FHE. Nobody reading contract storage can determine whether you hold shares, how many you hold, or which outcome you chose. Trade events on-chain do not reveal size, direction, or outcome.',
         note: 'Pool-level data — reserves, total liquidity, probabilities, and lifecycle state — remains public. This is a deliberate tradeoff that keeps quotes honest and FPMM mechanics intact.',
       },
+      {
+        tag: 'Social',
+        title: 'Market discussions',
+        body: 'Markets include Supabase-backed discussion and lightweight reactions so traders can reason about sources, outcomes, and disputes inside the product. These social features are app-level data and do not affect the on-chain market state.',
+      },
     ],
   },
   {
@@ -52,13 +57,18 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Selling',
         title: 'How to sell shares',
-        body: 'Selling requires a secure balance check. Reveal your position locally first, then the app authorizes the encrypted handle for decryption, requests a CoFHE decrypt task, waits for the coprocessor result, and finally submits the sell transaction against the current pool state.',
+        body: 'Selling requires a secure balance check. The app authorizes the encrypted handle through CoFHE, requests a decrypt-for-transaction result, and submits the sell transaction with a verifiable signature. The contract verifies that result before reducing the encrypted balance.',
         note: 'If a market expires between your decrypt request and your sell transaction, the sell will be rejected. Your shares are not lost — they go through the normal redemption path after resolution.',
       },
       {
         tag: 'Quotes',
         title: 'Understanding the quote panel',
         body: 'The quote panel shows: estimated shares out, average price per share, fee amount, and post-trade probabilities. Quotes are based on the current pool state and may shift slightly between estimate and execution. Set a slippage tolerance before confirming.',
+      },
+      {
+        tag: 'Accounting',
+        title: 'Invested amount vs share value',
+        body: 'The app tracks how much collateral you contributed per outcome, not just the current face value of your shares. If you buy 5 USDC of an outcome and later hold 20 winning shares, the portfolio can show that you invested 5 USDC and now have 20 USDC claimable. If you sell shares, the invested amount is reduced proportionally.',
       },
     ],
   },
@@ -96,6 +106,12 @@ const DOC_GROUPS: DocGroup[] = [
         title: 'Disputing a result',
         body: 'Anyone can dispute a proposed outcome by staking collateral against an explicit counter-outcome during the resolution window. A dispute activates committee voting. If the committee resolves against the original proposal, the disputer can reclaim their stake. If the committee upholds the proposal, the dispute stake is forfeited and split across protocol-defined reward paths.',
         note: 'Disputing has a real cost if you are wrong. Review the oracle source carefully before challenging.',
+      },
+      {
+        tag: 'Reineira',
+        title: 'Confidential dispute escrow',
+        body: 'USDC dispute bonds can be routed through Reineira escrow. Users start with regular USDC, Reineira wraps it into encrypted cUSDC internally, and settlement unwraps back into USDC before the adapter refunds the disputer or forwards the stake to the market.',
+        note: 'ETH markets use the direct custody dispute path because the Reineira escrow integration is designed around USDC/cUSDC.',
       },
       {
         tag: 'Finalization',
@@ -136,13 +152,38 @@ const DOC_GROUPS: DocGroup[] = [
       {
         tag: 'Claiming',
         title: 'Redeeming winning shares',
-        body: 'After finalization, reveal your values on the market page, then start the redemption flow. Like selling, redemption authorizes the encrypted winning-position handle, requests a CoFHE decrypt task, waits for the verified result, and submits the claim transaction.',
+        body: 'After finalization, reveal your values on the market page, then start the redemption flow. Like selling, redemption authorizes the encrypted winning-position handle, requests a CoFHE decrypt-for-transaction result, and submits the claim transaction with a signature the contract verifies.',
         note: 'If values are hidden, the redeem button stays disabled because the app cannot safely confirm that this wallet has winning shares.',
+      },
+      {
+        tag: 'History',
+        title: 'Settled portfolio history',
+        body: 'The portfolio separates claimable winning shares, redeemed payout, non-winning shares, remaining invested amount, and net after cost. This avoids the misleading case where a user redeemed a winning position but still holds losing shares from the same finalized market.',
       },
       {
         tag: 'Timing',
         title: 'When to expect delays',
         body: 'Secure computation adds latency to any flow that touches your private balance: selling, redeeming, and viewing your portfolio. When the interface shows a verification or decryption state, it is waiting for the FHE coprocessor to confirm your balance. This typically resolves within a few seconds to a minute depending on network conditions.',
+      },
+    ],
+  },
+  {
+    label: 'Analytics',
+    sections: [
+      {
+        tag: 'Liquidity',
+        title: 'Sealed liquidity',
+        body: 'Sealed liquidity is a current TVL snapshot: the collateral still locked across markets. It changes when collateral enters or exits through trades, redemption, LP claims, or protocol accounting.',
+      },
+      {
+        tag: 'Volume',
+        title: 'Aggregate volume',
+        body: 'Aggregate volume is cumulative trade flow. It increases on buys and sells and does not decrease when collateral leaves. Liquidity and volume can match early in a market, but they are different metrics and should diverge over time.',
+      },
+      {
+        tag: 'Currencies',
+        title: 'Mixed collateral totals',
+        body: 'Because markets can use ETH or USDC, dashboard totals are grouped by collateral instead of being forced into one unit. Compact values such as 15 USDC · 1 ETH keep the stats readable without hiding currency differences.',
       },
     ],
   },
@@ -158,18 +199,18 @@ export default function DocsPage() {
     <div className="relative z-10 font-sans mx-auto max-w-[80%] px-8 lg:px-16 ">
 
       {/* ── HERO ── */}
-      {/* <header className="relative z-10 border-b border-white/[0.07] bg-white/[0.01]">
-        <div className="py-20 lg:py-24">
+      <header className="relative z-10 border-b border-white/[0.07] bg-white/[0.01]">
+        <div className="py-14 lg:pt-20">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
-            <div className="max-w-[640px]">
-              <div className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.25em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-4 py-2 mb-8">
+            <div className="mt-5 max-w-[640px">
+              {/* <div className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.25em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-4 py-2 mb-8">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#e8533a]" />
                 Documentation · v1.0
-              </div>
-              <h1 className="text-[48px] lg:text-[64px] leading-[0.95] tracking-[-0.04em] mb-6">
+              </div> */}
+              <h1 className="text-[38px] lg:text-[48px] leading-[0.95] tracking-[-0.04em] mb-6">
                 <span className="font-serif italic text-[#e8e4df]">How it</span>
-                <br />
-                <span className="font-sans font-light text-white/35">works.</span>
+                {/* <br /> */}
+                <span className="ml-5 font-sans font-light text-white/35">works.</span>
               </h1>
               <p className="text-[16px] leading-[1.85] text-white/45 font-light">
                 CipherMarket is designed to behave like a standard prediction market at the pool level
@@ -193,7 +234,7 @@ export default function DocsPage() {
             </div>
           </div>
         </div>
-      </header> */}
+      </header>
 
       {/* ── BODY ── */}
       <div className="relative z-10 mx-auto py-12 lg:py-16">
@@ -218,6 +259,17 @@ export default function DocsPage() {
                   </nav>
                 </div>
               ))}
+              <div>
+                <p className="font-mono font-semibold text-sm uppercase tracking-[0.2em] text-white/20 mb-4">Developers</p>
+                <nav className="flex flex-col gap-2">
+                  <Link
+                    href="/docs/sdk"
+                    className="text-[13px] text-white/40 font-medium hover:text-white/80 transition-colors py-1"
+                  >
+                    SDK
+                  </Link>
+                </nav>
+              </div>
             </div>
           </aside>
 

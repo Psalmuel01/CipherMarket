@@ -140,7 +140,7 @@ export default function LandingPage(): JSX.Element {
             >
               <Link href="/dashboard">
                 <Button size="lg" className="h-16 px-10 gap-4 group/btn">
-                  Open Markets
+                  Explore Markets
                   <ArrowRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
                 </Button>
               </Link>

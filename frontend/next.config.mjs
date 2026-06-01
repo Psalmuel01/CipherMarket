@@ -1,8 +1,18 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@cofhe/sdk', '@cofhe/react', 'geist'],
   webpack: (config, { isServer }) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@ciphermarket/sdk$': path.resolve(__dirname, '../packages/sdk/dist/index.js'),
+    };
+
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,
@@ -31,4 +41,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-

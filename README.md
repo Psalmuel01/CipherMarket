@@ -1,42 +1,92 @@
 # CipherMarket
 
-CipherMarket is a privacy-first prediction market built for Ethereum Sepolia.
+CipherMarket is a privacy-first prediction market protocol on Arbitrum Sepolia. It combines an FPMM share market, CoFHE-encrypted user positions, oracle-driven resolution, Reineira dispute escrow, and a TypeScript protocol SDK.
 
-The product combines a share-based market engine, oracle-driven resolution, and an FHE-backed user experience so traders can participate through a cleaner, more confidential market interface.
+At the pool level, markets stay transparent enough for honest quotes: reserves, probabilities, liquidity, volume, and lifecycle state are public. At the user level, positions are encrypted so a wallet's outcome exposure is not visible from contract storage.
 
-## Overview
+## Workspaces
 
-CipherMarket is organized as a pnpm monorepo with two workspaces:
+CipherMarket is a pnpm monorepo:
 
-- `contracts` — Solidity contracts, Hardhat config, deployment scripts, and tests
-- `frontend` — Next.js 14 application, wallet integration, trading flows, and product UI
+- `contracts` — Solidity contracts, Hardhat config, deployment scripts, tests, and generated artifacts
+- `frontend` — Next.js app, wallet flows, trading UI, oracle dashboard, portfolio, and docs
+- `packages/sdk` — framework-agnostic `@ciphermarket/sdk` package for protocol integrations
 
-## Product Surfaces
+## Current Product Surface
 
-The frontend currently includes:
-
-- landing page
-- market dashboard
-- market detail and trading view
-- create market flow
-- oracle dashboard
-- positions page
+- Market dashboard with mixed ETH/USDC liquidity and volume stats
+- Market detail pages with FPMM quotes, buy/sell flows, LP actions, resolution status, and redemption
+- Private position reveal through CoFHE `decryptForView`
+- Sell and redeem flows using CoFHE `decryptForTx` signatures verified on-chain
+- Per-outcome total invested tracking with sell-side cost-basis reduction
+- Settled portfolio history with claimable shares, redeemed payout, remaining invested, and net after cost
+- Oracle registry, proposal, dispute, voting, escalation, and finalization flows
+- Reineira dispute escrow for confidential USDC dispute bonds
+- Supabase-backed market comments/likes for discussion
+- Protocol SDK for app, bot, and partner integrations
 
 ## Smart Contracts
 
-Current core contracts:
-
 - `OracleRegistry.sol`
-  Handles oracle registration, stake management, proposal locks, and slashing
+  Handles oracle registration, ETH stake accounting, proposal locks, and slashing.
 
 - `PredictionMarket.sol`
-  Singleton market manager that supports:
-  - binary and categorical markets
-  - seeded liquidity initialization
-  - ETH or whitelisted ERC20 collateral
-  - FPMM-based pricing
-  - optimistic oracle proposal and disputes
-  - encrypted user balance handling
+  Singleton market manager with binary/categorical markets, ETH or whitelisted ERC20 collateral, FPMM quotes, encrypted user balances, oracle resolution, disputes, LP accounting, trade volume, invested-basis tracking, and realized redemption history.
+
+- `ReineiraDisputeEscrowAdapter.sol`
+  Bridges PredictionMarket disputes into Reineira escrow. Users fund with USDC, Reineira operates with encrypted cUSDC internally, and settlement unwraps back to USDC before forwarding/refunding.
+
+## Protocol SDK
+
+The local SDK package is `@ciphermarket/sdk` in `packages/sdk`. It is usable inside this workspace today and publish-ready, but it has not been published to npm yet.
+
+It exports:
+
+- `createCipherMarketClient(...)`
+- ABI exports and chain/address helpers
+- market list/get/pool helpers
+- buy/sell quote normalization
+- buy/sell/redeem transaction helpers
+- CoFHE handle, permit, `decryptForView`, and `decryptForTx` helpers
+- portfolio reveal, invested amount, realized payout, and redeemable helpers
+- direct and Reineira dispute helpers
+- formatting and probability math utilities
+
+Example:
+
+```ts
+import { createCipherMarketClient } from '@ciphermarket/sdk';
+
+const client = createCipherMarketClient({
+  chainId,
+  publicClient,
+  walletClient,
+  cofheClient,
+  account,
+  addresses,
+});
+
+const markets = await client.markets.list();
+const quote = await client.quotes.buy({
+  marketId: 1,
+  outcomeIndex: 0,
+  amount: 5_000_000n,
+});
+```
+
+See the in-app SDK guide at `/docs/sdk`.
+
+## Telegram Bot Roadmap
+
+The next planned package is a read/alerts Telegram bot powered by the SDK:
+
+- `/markets` to browse active markets
+- `/market <id>` for market details and odds
+- `/watch <id>` for expiry/resolution alerts
+- `/redeemable <address>` for claimable winning shares
+- deep links back into the web app for buy/sell/redeem actions
+
+Direct in-Telegram trading is intentionally out of scope for v1 because wallet signing and CoFHE permit flows should remain explicit and user-controlled.
 
 ## Tech Stack
 
@@ -45,7 +95,8 @@ Current core contracts:
 - Solidity `0.8.25`
 - Hardhat `2.22.19`
 - `@fhenixprotocol/cofhe-contracts`
-- `cofhe-hardhat-plugin`
+- OpenZeppelin
+- ethers v6
 
 ### Frontend
 
@@ -55,14 +106,55 @@ Current core contracts:
 - Tailwind CSS
 - wagmi
 - viem
-- Zustand
 - React Query
+- Zustand
 - `@cofhe/sdk`
 - `@cofhe/react`
 - Framer Motion
 - Sonner
 
-## Getting Started
+### SDK
+
+- TypeScript
+- ESM package output
+- viem peer dependency
+- `@cofhe/sdk` peer dependency
+- Vitest unit tests
+
+## Environment
+
+Frontend environment values live in `frontend/.env.local`.
+
+Required Arbitrum Sepolia values:
+
+```bash
+NEXT_PUBLIC_ARBITRUM_SEPOLIA_ORACLE_REGISTRY=...
+NEXT_PUBLIC_ARBITRUM_SEPOLIA_PREDICTION_MARKET=...
+NEXT_PUBLIC_ARBITRUM_SEPOLIA_REINEIRA_DISPUTE_ESCROW_ADAPTER=...
+NEXT_PUBLIC_ARBITRUM_SEPOLIA_USDC_ADDRESS=...
+NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL=...
+```
+
+Optional Supabase values for market comments and likes:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Contracts environment values live in `contracts/.env`.
+
+Common deployment values:
+
+```bash
+ARBITRUM_SEPOLIA_RPC_URL=...
+PRIVATE_KEY=...
+ARBISCAN_API_KEY=...
+USDC_ADDRESS=...
+REINEIRA_ESCROW_ADDRESS=...
+```
+
+## Development
 
 Install dependencies:
 
@@ -76,74 +168,24 @@ Run the frontend:
 pnpm dev:frontend
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
-## Environment
-
-Frontend environment values live in [`frontend/.env.local`](/Users/sam/Desktop/Fhenix/CipherMarket/frontend/.env.local).
-
-Required Sepolia values:
-
-```bash
-NEXT_PUBLIC_SEPOLIA_ORACLE_REGISTRY=...
-NEXT_PUBLIC_SEPOLIA_PREDICTION_MARKET=...
-NEXT_PUBLIC_SEPOLIA_USDC_ADDRESS=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
-```
-
-Optional Supabase values for market discussions:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-```
-
-Run [`supabase/market_comments.sql`](/Users/sam/Desktop/Fhenix/CipherMarket/supabase/market_comments.sql) in Supabase before enabling those values.
-
-If you are deploying contracts and want USDC whitelisted during deployment:
-
-```bash
-SEPOLIA_USDC_ADDRESS=0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238
-```
-
-## Development Commands
-
-Run frontend linting:
+Run common checks:
 
 ```bash
 pnpm lint
-```
-
-Run all tests:
-
-```bash
 pnpm test
-```
-
-Run contract tests only:
-
-```bash
-pnpm test:contracts
-```
-
-Build the workspaces:
-
-```bash
 pnpm build
 ```
 
-Frontend-only checks:
+Focused checks:
 
 ```bash
-pnpm --filter frontend lint
-pnpm --filter frontend test
-NEXT_IGNORE_INCORRECT_LOCKFILE=1 pnpm --filter frontend build
-```
-
-Contracts-only checks:
-
-```bash
+pnpm --filter @ciphermarket/sdk test
+pnpm --filter @ciphermarket/sdk typecheck
+pnpm --filter @ciphermarket/sdk build
 pnpm --filter contracts compile
 pnpm --filter contracts test
+pnpm --filter frontend lint
+pnpm --filter frontend build
 ```
 
 ## Deployment
@@ -152,15 +194,16 @@ Deploy from the contracts workspace:
 
 ```bash
 cd contracts
-npx hardhat run scripts/deploy.ts --network sepolia
+npx hardhat run scripts/deploy.ts --network arbitrum-sepolia
 ```
 
-The deployment flow:
+After deployment:
 
-- deploys `OracleRegistry`
-- deploys `PredictionMarket`
-- wires the registry to the market contract
-- optionally whitelists Sepolia USDC when `SEPOLIA_USDC_ADDRESS` is set
+- update `contracts/deployed-addresses.json`
+- update `frontend/.env.local`
+- ensure the Reineira adapter address is allowed on `PredictionMarket`
+- copy or regenerate frontend/SDK ABIs from current artifacts
+- restart the frontend dev server
 
 ## Repository Layout
 
@@ -170,23 +213,23 @@ ciphermarket/
 │   ├── contracts/
 │   ├── scripts/
 │   ├── test/
-│   ├── hardhat.config.ts
 │   └── package.json
 ├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── lib/
-│   │   ├── store/
-│   │   └── types/
+│   ├── src/app/
+│   ├── src/components/
+│   ├── src/hooks/
+│   ├── src/lib/
 │   └── package.json
+├── packages/
+│   └── sdk/
+│       ├── src/
+│       ├── test/
+│       └── package.json
+├── supabase/
 ├── pnpm-workspace.yaml
 └── README.md
 ```
 
-## Notes
+## Current SDK Status
 
-- Solidity is pinned to `0.8.25` for compatibility with the current CoFHE stack.
-- ABI files are kept in `frontend/src/lib/abi/` so the frontend stays aligned with deployed contracts.
-- Sepolia is the primary target network for this phase of the project.
+The SDK is ready for local consumers in this monorepo. A third party can integrate today by using the package source or a git/workspace dependency, but normal `npm install @ciphermarket/sdk` requires publishing the package first.

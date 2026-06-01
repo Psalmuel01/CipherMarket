@@ -2,8 +2,8 @@
 
 import { useMemo } from 'react';
 import { parseUnits } from 'viem';
-import { useChainId, useReadContract } from 'wagmi';
-import { getContractAddresses, PREDICTION_MARKET_ABI } from '@/lib/contracts';
+import { useQuery } from '@tanstack/react-query';
+import useCipherMarketClient from '@/hooks/useCipherMarketClient';
 import type { QuotePreview } from '@/types/market';
 
 export interface UseMarketQuoteParams {
@@ -28,9 +28,7 @@ export default function useMarketQuote({
   outcomeIndex,
   side,
 }: UseMarketQuoteParams): UseMarketQuoteResult {
-  const chainId = useChainId();
-  const addresses = getContractAddresses(chainId);
-  const predictionMarketAddress = addresses?.predictionMarket ?? undefined;
+  const cipherMarket = useCipherMarketClient();
 
   const parsedAmount = useMemo(() => {
     try {
@@ -40,13 +38,17 @@ export default function useMarketQuote({
     }
   }, [amount, decimals]);
 
-  const query = useReadContract({
-    address: predictionMarketAddress,
-    abi: PREDICTION_MARKET_ABI,
-    functionName: side === 'BUY' ? 'quoteBuy' : 'quoteSell',
-    args: parsedAmount > 0n ? [BigInt(marketId), outcomeIndex, parsedAmount] : undefined,
-    query: {
-      enabled: Boolean(predictionMarketAddress) && parsedAmount > 0n,
+  const query = useQuery({
+    queryKey: ['market-quote', marketId, outcomeIndex, side, parsedAmount.toString()],
+    enabled: Boolean(cipherMarket) && parsedAmount > 0n,
+    queryFn: async () => {
+      if (!cipherMarket) {
+        throw new Error('CipherMarket client is not available.');
+      }
+
+      return side === 'BUY'
+        ? cipherMarket.quotes.buy({ marketId, outcomeIndex, amount: parsedAmount })
+        : cipherMarket.quotes.sell({ marketId, outcomeIndex, amount: parsedAmount });
     },
   });
 
@@ -55,33 +57,8 @@ export default function useMarketQuote({
       return null;
     }
 
-    const result = query.data as [bigint, bigint, bigint, bigint[]];
-    const collateralAmount = side === 'BUY' ? parsedAmount : result[0];
-    const sharesAmount = side === 'BUY' ? result[0] : parsedAmount;
-    const averagePrice = result[2];
-    const referencePrice =
-      side === 'BUY'
-        ? (result[3][outcomeIndex] ?? 0n)
-        : (result[3][outcomeIndex] ?? averagePrice);
-    const slippageBps =
-      referencePrice > 0n
-        ? Number(
-            ((averagePrice > referencePrice ? averagePrice - referencePrice : referencePrice - averagePrice) *
-              10_000n) / referencePrice,
-          )
-        : 0;
-
-    return {
-      outcomeIndex,
-      side,
-      collateralAmount,
-      sharesAmount,
-      feeAmount: result[1],
-      averagePrice,
-      slippageBps,
-      postTradeProbabilities: result[3],
-    } satisfies QuotePreview;
-  }, [outcomeIndex, parsedAmount, query.data, side]);
+    return query.data satisfies QuotePreview;
+  }, [parsedAmount, query.data]);
 
   return {
     data,

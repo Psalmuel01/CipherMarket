@@ -3,17 +3,9 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { formatUnits } from 'viem';
-import { useAccount, useChainId, usePublicClient, useWriteContract, useWalletClient } from 'wagmi';
-import { useCofheContext } from '@cofhe/react';
-import { ensureCofheConnected } from '@/lib/cofheClient';
-import { getFreshSelfPermit } from '@/lib/cofhePermits';
-import {
-  formatContractError,
-  getContractAddresses,
-  PREDICTION_MARKET_ABI,
-} from '@/lib/contracts';
-import { isZeroCtHash, normalizeCtHash } from '@/lib/fheHandles';
-import { getBufferedContractGas, getBufferedGasFees } from '@/lib/gas';
+import { usePublicClient } from 'wagmi';
+import { formatContractError } from '@/lib/contracts';
+import useCipherMarketClient from '@/hooks/useCipherMarketClient';
 
 export interface RedeemSharesReceipt {
   txHash: string;
@@ -43,13 +35,8 @@ export interface UseRedeemSharesResult {
 }
 
 export default function useRedeemShares(): UseRedeemSharesResult {
-  const REDEEM_SHARES_GAS = 1_400_000n;
-  const chainId = useChainId();
-  const { address } = useAccount();
   const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient();
-  const { client } = useCofheContext();
-  const { writeContractAsync } = useWriteContract();
+  const cipherMarket = useCipherMarketClient();
   const lifecycle = useTransactionLifecycle();
   const { addTransaction, updateTransaction } = usePendingTransactions();
   const refreshProtocolData = useProtocolRefresh();
@@ -64,19 +51,16 @@ export default function useRedeemShares(): UseRedeemSharesResult {
   ): Promise<void> => {
     let pendingTxId: string | null = null;
     try {
-      const addresses = getContractAddresses(chainId);
-      const predictionMarketAddress = addresses?.predictionMarket;
-
-      if (!predictionMarketAddress) {
-        throw new Error('PredictionMarket is not configured for the current chain.');
-      }
-
       if (!publicClient) {
         throw new Error('Public client is not available.');
       }
 
-      if (!address) {
-        throw new Error('Connect your wallet before redeeming shares.');
+      if (!cipherMarket) {
+        throw new Error('CipherMarket client is not available.');
+      }
+
+      if (finalOutcomeIndex === null || finalOutcomeIndex === undefined) {
+        throw new Error('The finalized winning outcome is not available yet.');
       }
 
       setData(null);
@@ -92,102 +76,24 @@ export default function useRedeemShares(): UseRedeemSharesResult {
         collateralSymbol: symbol,
       });
 
-      // 1. Request Decrypt
-      lifecycle.setStage('awaiting_wallet');
-      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
-
-      const hasRedeemed = await publicClient.readContract({
-        address: predictionMarketAddress,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'hasRedeemed',
-        args: [BigInt(marketId), address],
-      });
-
-      if (hasRedeemed) {
-        throw new Error('This wallet has already redeemed its winning shares for this market.');
-      }
-
-      if (finalOutcomeIndex === null || finalOutcomeIndex === undefined) {
-        throw new Error('The finalized winning outcome is not available yet.');
-      }
-
-      const encryptedWinningHandle = normalizeCtHash(await publicClient.readContract({
-        address: predictionMarketAddress,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'getEncryptedUserPositionHandle',
-        args: [BigInt(marketId), address, finalOutcomeIndex],
-      }));
-
-      if (isZeroCtHash(encryptedWinningHandle)) {
-        throw new Error('This wallet has no encrypted winning position to redeem.');
-      }
-
-      await ensureCofheConnected(client, publicClient, walletClient);
-
-      // 1. Get permit
-      lifecycle.setStage('awaiting_wallet');
-      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
-
-      const permit = await getFreshSelfPermit(
-        client,
-        chainId,
-        address,
-        'CipherMarket redeem shares',
-      );
-
-      // 2. Perform FHE Decrypt via Coprocessor
       lifecycle.setStage('confirming');
       updateTransaction(pendingTxId, { stage: 'confirming' });
 
-      const decryptionResult = await client
-        .decryptForTx(encryptedWinningHandle)
-        .setAccount(address)
-        .setChainId(chainId)
-        .withPermit(permit)
-        .execute();
+      const result = await cipherMarket.redemption.redeemWinningShares({
+        marketId,
+        finalOutcomeIndex,
+      });
 
-      const decryptedBalance = BigInt(decryptionResult.decryptedValue);
-      const signature = decryptionResult.signature;
-
-      if (decryptedBalance === 0n) {
-        throw new Error('This wallet has no winning shares to redeem.');
-      }
-
-      const redeemedAmount = formatUnits(decryptedBalance, decimals);
+      const redeemedAmount = formatUnits(result.amount, decimals);
       if (pendingTxId) {
         updateTransaction(pendingTxId, { amount: redeemedAmount });
       }
 
-      // 3. Submit Redeem Transaction
-      lifecycle.setStage('awaiting_wallet');
-      updateTransaction(pendingTxId, { stage: 'awaiting_wallet' });
-
-      const redeemGasFees = await getBufferedGasFees(publicClient);
-      const redeemGas = await getBufferedContractGas(
-        publicClient,
-        {
-          account: address,
-          address: predictionMarketAddress,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'redeemShares',
-          args: [BigInt(marketId), decryptedBalance, signature],
-        },
-        REDEEM_SHARES_GAS,
-      );
-      const hash = await writeContractAsync({
-        address: predictionMarketAddress,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'redeemShares',
-        args: [BigInt(marketId), decryptedBalance, signature],
-        gas: redeemGas,
-        ...redeemGasFees,
-      });
-
-      lifecycle.setTxHash(hash);
+      lifecycle.setTxHash(result.hash);
       lifecycle.setStage('confirming');
-      updateTransaction(pendingTxId, { stage: 'confirming', txHash: hash });
+      updateTransaction(pendingTxId, { stage: 'confirming', txHash: result.hash });
 
-      const redeemReceipt = await publicClient.waitForTransactionReceipt({ hash });
+      const redeemReceipt = await publicClient.waitForTransactionReceipt({ hash: result.hash });
       if (redeemReceipt.status !== 'success') {
         throw new Error('The redeem transaction reverted before completion.');
       }
@@ -197,8 +103,8 @@ export default function useRedeemShares(): UseRedeemSharesResult {
       await refreshProtocolData();
 
       setData({
-        txHash: hash,
-        amount: decryptedBalance,
+        txHash: result.hash,
+        amount: result.amount,
         formattedAmount: redeemedAmount,
       });
       lifecycle.setStage('success');

@@ -6,6 +6,8 @@
   "scripts": {
     "lint": "pnpm --filter frontend lint",
     "test": "pnpm -r test",
+    "test:sdk": "pnpm --filter @ciphermarket/sdk test",
+    "build:sdk": "pnpm --filter @ciphermarket/sdk build",
     "build": "pnpm -r build",
     "dev:frontend": "pnpm --filter frontend dev",
     "test:contracts": "pnpm --filter contracts test",
