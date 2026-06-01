@@ -11,6 +11,7 @@ CipherMarket is a pnpm monorepo:
 - `contracts` — Solidity contracts, Hardhat config, deployment scripts, tests, and generated artifacts
 - `frontend` — Next.js app, wallet flows, trading UI, oracle dashboard, portfolio, and docs
 - `packages/sdk` — framework-agnostic `@ciphermarket/sdk` package for protocol integrations
+- `packages/telegram-bot` — read/alerts Telegram bot powered by the SDK
 
 ## Current Product Surface
 
@@ -24,6 +25,7 @@ CipherMarket is a pnpm monorepo:
 - Reineira dispute escrow for confidential USDC dispute bonds
 - Supabase-backed market comments/likes for discussion
 - Protocol SDK for app, bot, and partner integrations
+- Telegram bot for market discovery, quotes, watch alerts, and web app deep links
 
 ## Smart Contracts
 
@@ -76,17 +78,19 @@ const quote = await client.quotes.buy({
 
 See the in-app SDK guide at `/docs/sdk`.
 
-## Telegram Bot Roadmap
+## Telegram Bot
 
-The next planned package is a read/alerts Telegram bot powered by the SDK:
+`packages/telegram-bot` contains CipherMarket Signal Bot, a read/alerts Telegram bot powered by the SDK.
 
 - `/markets` to browse active markets
 - `/market <id>` for market details and odds
+- `/quote <id> <YES|NO|index> <amount>` for buy quote previews
 - `/watch <id>` for expiry/resolution alerts
+- `/watchlist` and `/unwatch <id>` for subscription management
 - `/redeemable <address>` for claimable winning shares
 - deep links back into the web app for buy/sell/redeem actions
 
-Direct in-Telegram trading is intentionally out of scope for v1 because wallet signing and CoFHE permit flows should remain explicit and user-controlled.
+Direct in-Telegram trading is intentionally out of scope for v1 because wallet signing and CoFHE permit flows should remain explicit and user-controlled. Signed actions open the web app with deep links such as `/markets/1?action=buy&outcome=0`.
 
 ## Tech Stack
 
@@ -121,6 +125,15 @@ Direct in-Telegram trading is intentionally out of scope for v1 because wallet s
 - `@cofhe/sdk` peer dependency
 - Vitest unit tests
 
+### Telegram Bot
+
+- Node.js
+- TypeScript
+- grammy
+- viem
+- `@ciphermarket/sdk`
+- Supabase REST API for watch subscriptions
+
 ## Environment
 
 Frontend environment values live in `frontend/.env.local`.
@@ -140,6 +153,21 @@ Optional Supabase values for market comments and likes:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Telegram bot environment values live in `packages/telegram-bot/.env`:
+
+```bash
+TELEGRAM_BOT_TOKEN=...
+ARBITRUM_SEPOLIA_RPC_URL=...
+NEXT_PUBLIC_APP_URL=...
+PREDICTION_MARKET_ADDRESS=...
+ORACLE_REGISTRY_ADDRESS=...
+REINEIRA_DISPUTE_ESCROW_ADAPTER_ADDRESS=...
+USDC_ADDRESS=...
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+ALERT_POLL_INTERVAL_MS=60000
 ```
 
 Contracts environment values live in `contracts/.env`.
@@ -182,6 +210,8 @@ Focused checks:
 pnpm --filter @ciphermarket/sdk test
 pnpm --filter @ciphermarket/sdk typecheck
 pnpm --filter @ciphermarket/sdk build
+pnpm --filter telegram-bot test
+pnpm --filter telegram-bot build
 pnpm --filter contracts compile
 pnpm --filter contracts test
 pnpm --filter frontend lint
@@ -205,6 +235,13 @@ After deployment:
 - copy or regenerate frontend/SDK ABIs from current artifacts
 - restart the frontend dev server
 
+For Telegram bot setup:
+
+- run `supabase/telegram_watch_subscriptions.sql`
+- fill `packages/telegram-bot/.env`
+- configure BotFather name, description, about text, and command menu
+- start with `pnpm --filter telegram-bot dev`
+
 ## Repository Layout
 
 ```text
@@ -221,9 +258,12 @@ ciphermarket/
 │   ├── src/lib/
 │   └── package.json
 ├── packages/
-│   └── sdk/
+│   ├── sdk/
+│   │   ├── src/
+│   │   ├── test/
+│   │   └── package.json
+│   └── telegram-bot/
 │       ├── src/
-│       ├── test/
 │       └── package.json
 ├── supabase/
 ├── pnpm-workspace.yaml
