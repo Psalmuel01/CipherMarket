@@ -70,6 +70,14 @@ await client.disputes.openWithReineira({
   collateralToken: usdc,
 });`;
 
+const TELEGRAM_EXAMPLE = `const markets = await client.markets.list();
+const topMarkets = markets
+  .sort((a, b) => Number(b.tradeVolume - a.tradeVolume))
+  .slice(0, 5);
+
+// Telegram bot v1 opens web app links for signed actions.
+const buyLink = \`https://app.ciphermarket.xyz/markets/\${topMarkets[0].marketId}?action=buy&outcome=0\`;`;
+
 function CodeBlock({ code }: { code: string }) {
   return (
     <pre className="overflow-x-auto rounded-2xl border border-white/[0.08] bg-black/30 p-5 text-[12px] leading-6 text-white/60">
@@ -123,7 +131,7 @@ export default function SdkDocsPage() {
             <Link href="/docs" className="mb-4 text-white/45 hover:text-[#e8533a]">
               Market docs
             </Link>
-            {['Install', 'Client', 'Markets', 'Quotes', 'Trading', 'Portfolio', 'Redeem', 'Disputes', 'Notes'].map((item) => (
+            {['Install', 'Client', 'Markets', 'Quotes', 'Trading', 'Portfolio', 'Redeem', 'Disputes', 'Telegram', 'Notes'].map((item) => (
               <a key={item} href={`#${item.toLowerCase()}`} className="hover:text-[#e8533a]">
                 {item}
               </a>
@@ -194,6 +202,15 @@ export default function SdkDocsPage() {
               encrypted USDC escrow, then the adapter registers the dispute against the market.
             </p>
             <CodeBlock code={DISPUTE_EXAMPLE} />
+          </Section>
+
+          <Section eyebrow="Telegram" title="Build read and alerts integrations">
+            <p>
+              The first Telegram bot package uses the SDK for market discovery, quote previews,
+              watch alerts, and finalized-market checks. Wallet-signed actions open the web app
+              through deep links because the bot does not custody private keys.
+            </p>
+            <CodeBlock code={TELEGRAM_EXAMPLE} />
           </Section>
 
           <Section eyebrow="Notes" title="Current integration status">

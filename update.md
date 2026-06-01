@@ -2,7 +2,7 @@
 
 ## Summary
 
-CipherMarket has evolved from a private prediction market frontend into a fuller protocol stack: encrypted trading, oracle resolution, dispute escrow, portfolio accounting, discussion features, and a framework-agnostic TypeScript SDK.
+CipherMarket has evolved from a private prediction market frontend into a fuller protocol stack: encrypted trading, oracle resolution, dispute escrow, portfolio accounting, discussion features, a framework-agnostic TypeScript SDK, and a Telegram bot integration.
 
 ## Major Updates
 
@@ -35,6 +35,7 @@ CipherMarket has evolved from a private prediction market frontend into a fuller
   - Aggregate Volume is cumulative buy/sell trade flow.
   - Mixed collateral totals render compactly by currency, such as `15 USDC · 1 ETH`.
 - Removed the obsolete local `cofhe-lite` Hardhat shim so contracts compile without a missing local plugin file.
+- Added Telegram deep links so market URLs can pre-open buy, sell, or redeem flows from external integrations.
 
 ## Protocol SDK
 
@@ -55,9 +56,24 @@ The SDK is framework-agnostic and exports:
 
 The frontend now consumes the SDK for core protocol flows while keeping React Query, UI state, toasts, and pending transaction UX in the app layer.
 
+## Telegram Bot V1
+
+Added `packages/telegram-bot` as a read/alerts/deep-link bot powered by `@ciphermarket/sdk`.
+
+The bot supports:
+
+- `/markets` for market discovery
+- `/market <id>` for market details, odds, liquidity, volume, and app buttons
+- `/quote <id> <YES|NO|index> <amount>` for buy quote previews
+- `/watch <id>`, `/unwatch <id>`, and `/watchlist` for lifecycle alerts
+- `/redeemable <wallet>` for finalized markets to check in the app
+- `/status` for network, market count, and watch storage status
+
+The bot stores watch subscriptions in Supabase through `telegram_watch_subscriptions` and falls back to memory if Supabase is not configured. It does not custody wallets or sign transactions; buy, sell, redeem, and future create-market flows open the web app through deep links.
+
 ## Integration Status
 
-The SDK can be used by local workspace consumers today. External teams can integrate by using a git/workspace dependency until the package is published to npm.
+The SDK can be used by local workspace consumers today and by the Telegram bot package. External teams can integrate by using a git/workspace dependency or the published package version.
 
 Next publish step:
 
@@ -76,23 +92,16 @@ Recent checks completed successfully:
 pnpm --filter @ciphermarket/sdk test
 pnpm --filter @ciphermarket/sdk typecheck
 pnpm --filter @ciphermarket/sdk build
+pnpm --filter telegram-bot test
+pnpm --filter telegram-bot build
 pnpm --filter frontend lint
 pnpm --filter frontend build
 pnpm --filter contracts compile
+pnpm run build
 ```
 
 The frontend build still shows the known Next lockfile/SWC registry warning and existing webpack chunk warnings, but the build completes.
 
 ## Next Planned Update
 
-Build a Telegram bot powered by `@ciphermarket/sdk`.
-
-Planned v1:
-
-- browse active markets
-- inspect market odds and status
-- watch markets for expiry/resolution alerts
-- check redeemable positions for a wallet
-- deep-link back to the web app for buy/sell/redeem
-
-Direct Telegram trading is intentionally deferred until wallet signing and CoFHE permit UX can be handled safely.
+Extend the SDK with market creation and oracle/resolution write helpers, then use those surfaces for a later Telegram Mini App or richer wallet-connected bot flow.

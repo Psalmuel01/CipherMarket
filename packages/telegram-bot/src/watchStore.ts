@@ -82,17 +82,19 @@ export class SupabaseWatchStore implements WatchStore {
       throw new Error(`Supabase request failed: ${response.status} ${await response.text()}`);
     }
 
-    if (response.status === 204) {
+    const text = await response.text();
+
+    if (response.status === 204 || text.length === 0) {
       return undefined as T;
     }
 
-    return response.json() as Promise<T>;
+    return JSON.parse(text) as T;
   }
 
   async add(input: Omit<WatchSubscription, 'last_status' | 'last_notified_at'> & { last_status?: string | null }): Promise<void> {
     await this.request('telegram_watch_subscriptions?on_conflict=telegram_user_id,chat_id,market_id', {
       method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates' },
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify({
         telegram_user_id: input.telegram_user_id,
         chat_id: input.chat_id,

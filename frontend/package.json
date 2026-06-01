@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "NEXT_IGNORE_INCORRECT_LOCKFILE=1 next dev",
-    "build": "next build",
+    "build": "pnpm --dir ../packages/sdk build && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run"
