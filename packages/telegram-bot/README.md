@@ -26,6 +26,7 @@ unwatch - Stop watching a market
 watchlist - List watched markets
 redeemable - Show finalized markets to check
 status - Bot health
+info - Project summary and roadmap
 ```
 
 ## Setup
@@ -63,9 +64,10 @@ pnpm --filter telegram-bot dev
 - `/unwatch` opens watched-market buttons; `/unwatch <id>` removes a watch.
 - `/watchlist` lists watched markets.
 - `/redeemable <wallet>` lists finalized markets that should be checked in the app.
+- `/info` summarizes the project and what is coming next.
 - `/status` confirms RPC, market count, and watch storage mode.
 
-Categorical markets render one buy button per outcome, so markets with more than two outcomes are supported in the Telegram UX.
+Categorical markets render compact action buttons for every outcome. Finalized markets hide buy, sell, and quote actions and show redemption/open/watch actions instead.
 
 ## Deployment Notes
 

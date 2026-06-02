@@ -4,6 +4,17 @@ CipherMarket is a privacy-first prediction market protocol on Arbitrum Sepolia. 
 
 At the pool level, markets stay transparent enough for honest quotes: reserves, probabilities, liquidity, volume, and lifecycle state are public. At the user level, positions are encrypted so a wallet's outcome exposure is not visible from contract storage.
 
+**Demo Video**: [here](https://youtu.be/sjcozIWF184)
+
+## Quick Links
+
+| Resource | Link |
+|-----------|------|
+| Demo Video | https://youtu.be/sjcozIWF184 |
+| Telegram Bot | https://t.me/ciphermarket_bot |
+| SDK | https://www.npmjs.com/package/@ciphermarket/sdk |
+| X (Twitter) | https://x.com/cipher_market |
+
 ## Workspaces
 
 CipherMarket is a pnpm monorepo:
@@ -40,7 +51,7 @@ CipherMarket is a pnpm monorepo:
 
 ## Protocol SDK
 
-The local SDK package is `@ciphermarket/sdk` in `packages/sdk`. It is usable inside this workspace today and publish-ready, but it has not been published to npm yet.
+The local SDK package is `@ciphermarket/sdk` in `packages/sdk`. It is usable inside this workspace today and published [here](https://www.npmjs.com/package/@ciphermarket/sdk)
 
 It exports:
 
@@ -269,7 +280,3 @@ ciphermarket/
 ├── pnpm-workspace.yaml
 └── README.md
 ```
-
-## Current SDK Status
-
-The SDK is ready for local consumers in this monorepo. A third party can integrate today by using the package source or a git/workspace dependency, but normal `npm install @ciphermarket/sdk` requires publishing the package first.
