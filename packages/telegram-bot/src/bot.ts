@@ -22,9 +22,53 @@ const HELP_TEXT = `<b>CipherMarket Signal Bot</b>
 /unwatch &lt;id&gt; - stop notifications
 /watchlist - list watched markets
 /redeemable &lt;wallet&gt; - show finalized markets to check
+/info - project summary and bot roadmap
 /status - bot health
 
 Signed actions open the CipherMarket app. The bot never holds private keys.`;
+
+// const INFO_TEXT = `<b>About CipherMarket</b>
+
+// CipherMarket is a privacy-preserving prediction market on Arbitrum Sepolia. Market odds, liquidity, and resolution state are public, while user positions are encrypted with CoFHE.
+
+// This bot currently supports market discovery, quote previews, lifecycle alerts, and app deep links.
+
+// Coming soon: richer portfolio alerts, create-market helpers, oracle/resolution actions, and a Telegram Mini App for wallet-connected flows.`;
+
+const INFO_TEXT = `<b>🔮 About CipherMarket</b>
+
+CipherMarket is a privacy-preserving prediction market protocol built on Arbitrum Sepolia.
+
+Unlike traditional prediction markets where every position is publicly visible, CipherMarket uses CoFHE to keep user balances, positions, and portfolio data encrypted while preserving transparent market operation. Market odds, liquidity, volume, and resolution status remain publicly verifiable, while individual trading activity stays private.
+
+<b>Key Features</b>
+• Private trading powered by CoFHE
+• Decentralized oracle-based market resolution
+• Dispute and escalation mechanisms
+• Portfolio tracking with encrypted balances
+• Market discussions and community engagement
+• Open SDK for third-party integrations
+
+<b>What This Bot Can Do</b>
+• Discover active and resolved markets
+• View market details, odds, liquidity, and volume
+• Preview buy and sell quotes
+• Track markets with lifecycle alerts
+• Check redeemable positions
+• Open trading actions directly in the web app
+
+<b>Current Status</b>
+This bot is read-only and does not custody wallets or sign transactions. Trading, redeeming, and other wallet actions are completed securely through the CipherMarket web application.
+
+<b>Coming Soon</b>
+• Portfolio and position alerts
+• Create-market helpers
+• Oracle and resolution workflows
+• Richer notification subscriptions
+• Telegram Mini App with wallet-connected experiences
+
+🌐 <a href="https://cipher-market-fhe.vercel.app/">Open CipherMarket</a>
+🐦 <a href="https://x.com/ciphermarket">Follow CipherMarket on X</a>`;
 
 async function findMarket(client: ProtocolClient, marketId: number) {
   const markets = await client.markets.list();
@@ -45,7 +89,7 @@ function marketsKeyboard(
 ): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   markets.slice(0, 12).forEach((market) => {
-    keyboard.text(`#${market.marketId} ${shortLabel(market.title, 28)}`, `${mode}:${market.marketId}`).row();
+    keyboard.text(`#${market.marketId} ${shortLabel(market.title, 18)}`, `${mode}:${market.marketId}`).row();
   });
   return keyboard;
 }
@@ -53,7 +97,7 @@ function marketsKeyboard(
 function quoteOutcomeKeyboard(marketId: number, outcomes: Awaited<ReturnType<ProtocolClient['markets']['list']>>[number]['outcomes']): InlineKeyboard {
   const keyboard = new InlineKeyboard();
   outcomes.forEach((outcome, index) => {
-    keyboard.text(shortLabel(outcome.label, 22), `quote_outcome:${marketId}:${outcome.outcomeIndex}`);
+    keyboard.text(`#${outcome.outcomeIndex} ${shortLabel(outcome.label, 14)}`, `quote_outcome:${marketId}:${outcome.outcomeIndex}`);
     if (index % 2 === 1) keyboard.row();
   });
   return keyboard;
@@ -61,22 +105,27 @@ function quoteOutcomeKeyboard(marketId: number, outcomes: Awaited<ReturnType<Pro
 
 function marketKeyboard(
   appUrl: string,
-  marketId: number,
-  outcomes: Awaited<ReturnType<ProtocolClient['markets']['list']>>[number]['outcomes'],
+  market: Awaited<ReturnType<ProtocolClient['markets']['list']>>[number],
 ): InlineKeyboard {
   const keyboard = new InlineKeyboard();
-  keyboard.url('Open App', marketLink(appUrl, marketId));
+  keyboard.url('Open', marketLink(appUrl, market.marketId));
   keyboard.row();
-  outcomes.forEach((outcome, index) => {
-    keyboard.url(`Buy ${shortLabel(outcome.label, 14)}`, marketLink(appUrl, marketId, { action: 'buy', outcomeIndex: outcome.outcomeIndex }));
-    if (index % 2 === 1) keyboard.row();
-  });
-  keyboard.row();
-  keyboard.text('Watch', `watch:${marketId}`);
-  keyboard.text('Quote', `quote:${marketId}`);
-  keyboard.row();
-  keyboard.url('Sell', marketLink(appUrl, marketId, { action: 'sell' }));
-  keyboard.url('Redeem', marketLink(appUrl, marketId, { action: 'redeem' }));
+
+  if (market.status === 'ACTIVE') {
+    market.outcomes.forEach((outcome, index) => {
+      keyboard.url(`Buy #${outcome.outcomeIndex}`, marketLink(appUrl, market.marketId, { action: 'buy', outcomeIndex: outcome.outcomeIndex }));
+      if (index % 3 === 2) keyboard.row();
+    });
+    keyboard.row();
+    keyboard.text('Quote', `quote:${market.marketId}`);
+    keyboard.url('Sell', marketLink(appUrl, market.marketId, { action: 'sell' }));
+    keyboard.row();
+  } else if (market.status === 'FINALIZED') {
+    keyboard.url('Redeem', marketLink(appUrl, market.marketId, { action: 'redeem' }));
+    keyboard.row();
+  }
+
+  keyboard.text('Watch', `watch:${market.marketId}`);
   return keyboard;
 }
 
@@ -118,6 +167,10 @@ export function createCipherMarketBot(config: BotConfig): {
     await ctx.reply(HELP_TEXT, { parse_mode: 'HTML' });
   });
 
+  bot.command('info', async (ctx) => {
+    await ctx.reply(INFO_TEXT, { parse_mode: 'HTML' });
+  });
+
   bot.command('status', async (ctx) => {
     const markets = await client.markets.list();
     await ctx.reply(
@@ -144,7 +197,7 @@ export function createCipherMarketBot(config: BotConfig): {
     const market = await findMarket(client, marketId);
     await ctx.reply(marketDetailMessage(market), {
       parse_mode: 'HTML',
-      reply_markup: marketKeyboard(config.appUrl, market.marketId, market.outcomes),
+      reply_markup: marketKeyboard(config.appUrl, market),
     });
   });
 
@@ -157,6 +210,12 @@ export function createCipherMarketBot(config: BotConfig): {
 
     const marketId = parseMarketId(idArg);
     const market = await findMarket(client, marketId);
+    if (market.status !== 'ACTIVE') {
+      await ctx.reply(`Market #${market.marketId} is ${market.status}. Quotes are only available for active markets.`, {
+        reply_markup: marketKeyboard(config.appUrl, market),
+      });
+      return;
+    }
 
     if (!outcomeArg) {
       await ctx.reply(`Choose an outcome for #${market.marketId}:`, {
@@ -290,7 +349,7 @@ export function createCipherMarketBot(config: BotConfig): {
     await ctx.answerCallbackQuery();
     await ctx.reply(marketDetailMessage(market), {
       parse_mode: 'HTML',
-      reply_markup: marketKeyboard(config.appUrl, market.marketId, market.outcomes),
+      reply_markup: marketKeyboard(config.appUrl, market),
     });
   });
 
@@ -327,6 +386,13 @@ export function createCipherMarketBot(config: BotConfig): {
   bot.callbackQuery(/^quote:(\d+)$/, async (ctx) => {
     const marketId = parseMarketId(ctx.match[1]);
     const market = await findMarket(client, marketId);
+    if (market.status !== 'ACTIVE') {
+      await ctx.answerCallbackQuery({ text: 'Quotes only work for active markets.' });
+      await ctx.reply(`Market #${market.marketId} is ${market.status}.`, {
+        reply_markup: marketKeyboard(config.appUrl, market),
+      });
+      return;
+    }
     await ctx.answerCallbackQuery();
     await ctx.reply(`Choose an outcome for #${market.marketId}:`, {
       reply_markup: quoteOutcomeKeyboard(market.marketId, market.outcomes),
