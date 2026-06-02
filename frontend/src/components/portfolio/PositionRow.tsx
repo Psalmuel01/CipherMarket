@@ -50,11 +50,11 @@ export default function PositionRow({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03 }}
-      className="grid grid-cols-1 gap-3 px-6 lg:px-8 py-4 transition-colors hover:bg-white/[0.015] md:grid-cols-[2.5fr,1fr,1fr,0.8fr,0.8fr,auto] md:items-center md:gap-4 border-b border-white/[0.04] last:border-b-0"
+      className="grid grid-cols-1 gap-4 border-b border-white/[0.04] px-4 py-5 transition-colors last:border-b-0 hover:bg-white/[0.015] md:grid-cols-[minmax(0,2.5fr),1fr,1fr,0.8fr,0.8fr,auto] md:items-center md:gap-4 lg:px-8"
     >
       {/* Market */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-primary">
             #{marketId}
           </span>
@@ -65,7 +65,7 @@ export default function PositionRow({
           )}
         </div>
         {isGroupHead ? (
-          <h3 className="text-[14px] font-semibold text-[#e8e4df] leading-snug line-clamp-1">
+          <h3 className="line-clamp-2 text-[14px] font-semibold leading-snug text-[#e8e4df] md:line-clamp-1">
             {marketTitle}
           </h3>
         ) : (
@@ -111,9 +111,9 @@ export default function PositionRow({
       </div>
 
       {/* Action */}
-      <div className="flex justify-end">
+      <div className="flex justify-stretch md:justify-end">
         <Link href={`/markets/${marketId}`}>
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="w-full gap-1.5 md:w-auto">
             View <ArrowRight className="h-3 w-3" />
           </Button>
         </Link>

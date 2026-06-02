@@ -19,7 +19,7 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
 
   return (
     <motion.article
-      className="group relative flex flex-col overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all duration-500 hover:-translate-y-1 hover:border-white/15 hover:bg-white/[0.04] active:scale-[0.99]"
+      className="group relative flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all duration-500 hover:-translate-y-1 hover:border-white/15 hover:bg-white/[0.04] active:scale-[0.99] sm:rounded-[28px] sm:p-6"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
@@ -31,8 +31,8 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
     >
       <div className="relative z-10 flex h-full flex-col space-y-7">
         {/* Header */}
-        <div className="flex items-start justify-between gap-6">
-          <div className="space-y-3">
+        <div className="flex items-start justify-between gap-4 sm:gap-6">
+          <div className="min-w-0 space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
                 {market.category}
@@ -103,7 +103,7 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-6 border-y border-white/10 py-5">
+        <div className="grid grid-cols-1 gap-4 border-y border-white/10 py-5 min-[380px]:grid-cols-2 sm:gap-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-[0.2em] text-white/40">
               <TrendingUp className="h-3 w-3" />
@@ -117,8 +117,8 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
               )}
             </p>
           </div>
-          <div className="space-y-1 text-right">
-            <div className="flex items-center justify-end gap-2 text-[9px] font-mono uppercase tracking-[0.2em] text-white/40">
+          <div className="space-y-1 min-[380px]:text-right">
+            <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-[0.2em] text-white/40 min-[380px]:justify-end">
               <Calendar className="h-3 w-3" />
               <span>Expires</span>
             </div>
@@ -129,13 +129,13 @@ export default function MarketCard({ index, market }: MarketCardProps): JSX.Elem
         </div>
 
         {/* Footer Action */}
-        <div className="mt-auto flex items-center justify-between">
+        <div className="mt-auto flex flex-col gap-4 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
           <div className="flex items-center gap-2 text-[9px] text-white/30 font-mono tracking-[0.2em] uppercase">
             <Fingerprint className="h-3.5 w-3.5 text-primary/60" />
             <span>FHE Sealed</span>
           </div>
           <Link
-            className="group/btn relative inline-flex h-12 items-center gap-3 rounded-2xl bg-[#080a0f] border border-primary/30 px-6 text-[12px] font-bold text-white transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)] overflow-hidden"
+            className="group/btn relative inline-flex h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl border border-primary/30 bg-[#080a0f] px-5 text-[12px] font-bold text-white shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)] transition-all hover:scale-105 active:scale-95 min-[380px]:w-auto sm:px-6"
             href={`/markets/${market.marketId}`}
           >
             <div className="absolute inset-0 bg-primary/5 -translate-x-full group-hover/btn:translate-x-0 transition-transform duration-500" />

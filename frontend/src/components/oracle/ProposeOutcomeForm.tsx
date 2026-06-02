@@ -33,7 +33,7 @@ export default function ProposeOutcomeForm({ className, isOracleRegistered }: Pr
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={clsx("glass-card rounded-3xl p-8 text-center space-y-3", className)}
+        className={clsx("glass-card space-y-3 rounded-3xl p-5 text-center sm:p-8", className)}
       >
         <div className="flex justify-center">
           <div className="rounded-full bg-primary/20 p-4 text-primary">
@@ -56,7 +56,7 @@ export default function ProposeOutcomeForm({ className, isOracleRegistered }: Pr
   }
 
   return (
-    <div className={clsx("glass-card rounded-3xl p-8 space-y-8", className)}>
+    <div className={clsx("glass-card space-y-8 rounded-3xl p-5 sm:p-8", className)}>
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <Gavel className="h-5 w-5 text-primary" />

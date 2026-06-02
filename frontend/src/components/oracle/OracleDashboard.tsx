@@ -155,11 +155,11 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
         });
 
     return (
-        <section className={clsx("space-y-8 mt-20", className)}>
-            <div className="grid gap-8 xl:grid-cols-[1fr,400px]">
-                <div className="space-y-8">
+        <section className={clsx("mt-20 space-y-8", className)}>
+            <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr),400px]">
+                <div className="min-w-0 space-y-8">
                     {/* Main Registry Card */}
-                    <div className="relative overflow-hidden rounded-[32px] border border-white/8 bg-white/[0.025] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.45)] md:p-8 space-y-8">
+                    <div className="relative space-y-8 overflow-hidden rounded-[24px] border border-white/8 bg-white/[0.025] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.45)] sm:rounded-[32px] sm:p-6 md:p-8">
                         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 h-1">
                             <div className="grid h-full grid-cols-4">
@@ -176,7 +176,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                                     {data?.isRegistered ? 'Oracle Node Active' : 'Oracle Seat Available'}
                                 </div>
                                 <div className="max-w-2xl space-y-3">
-                                    <h1 className="text-4xl font-semibold leading-[1.02] tracking-tight text-white md:text-5xl">
+                                    <h1 className="text-[clamp(2rem,9vw,3rem)] font-semibold leading-[1.02] tracking-tight text-white md:text-5xl">
                                         Oracle Governance.
                                     </h1>
                                     <p className="text-sm leading-7 text-white/45">
@@ -187,7 +187,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                             <div className="relative z-10 pt-2 shrink-0">
                                 <Button
                                     variant="primary"
-                                    className="gap-2"
+                                    className="w-full gap-2 sm:w-auto"
                                     disabled={isRegisterLoading}
                                     onClick={() => {
                                         setStakeAmount(formatEther(amountNeeded > 0n ? amountNeeded : DEFAULT_ORACLE_STAKE));
@@ -253,8 +253,8 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                         ) : null}
                     </div>
 
-                    <div className="glass-card rounded-3xl p-8 space-y-6">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <div className="glass-card space-y-6 rounded-3xl p-5 sm:p-8">
+                        <div className="flex flex-col gap-3 border-b border-white/5 pb-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
                                 <ShieldCheck className="h-5 w-5 text-primary" />
                                 <h3 className="text-sm font-black uppercase tracking-widest">Oracle Activity</h3>
@@ -277,11 +277,11 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                                     href={`/markets/${item.market.marketId}`}
                                 >
                                     <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div className="space-y-1">
+                                        <div className="min-w-0 space-y-1">
                                             <p className="text-sm font-bold text-foreground">
                                                 Market #{item.market.marketId} · {item.label}
                                             </p>
-                                            <p className="text-xs text-muted-foreground">{item.market.title}</p>
+                                            <p className="break-words text-xs text-muted-foreground">{item.market.title}</p>
                                             <p className="text-[11px] leading-relaxed text-muted-foreground/80">
                                                 {item.description}
                                             </p>
@@ -329,8 +329,8 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                     </div>
 
                     {/* Pending Resolutions Section Mock */}
-                    <div className="glass-card rounded-3xl p-8 space-y-6">
-                        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <div className="glass-card space-y-6 rounded-3xl p-5 sm:p-8">
+                        <div className="flex flex-col gap-3 border-b border-white/5 pb-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
                                 <Activity className="h-5 w-5 text-primary" />
                                 <h3 className="text-sm font-black uppercase tracking-widest">Awaiting Resolution</h3>
@@ -351,12 +351,12 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                             {pendingMarkets.map((market) => (
                                 <div
                                     key={market.marketId}
-                                    className="group flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.01] p-4 transition-all hover:bg-white/[0.03]"
+                                    className="group flex flex-col gap-4 rounded-2xl border border-white/5 bg-white/[0.01] p-4 transition-all hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
                                 >
-                                    <div className="space-y-1">
+                                    <div className="min-w-0 space-y-1">
                                         <p className="text-sm font-bold text-foreground">Market #{market.marketId}</p>
                                         <p className="text-xs text-muted-foreground">{market.title}</p>
-                                        <p className="text-[11px] text-muted-foreground/80">{market.oracleSource}</p>
+                                        <p className="break-all text-[11px] text-muted-foreground/80">{market.oracleSource}</p>
                                     </div>
                                     <Link href={`/markets/${market.marketId}`}>
                                         <Button variant="outline" size="sm" className="gap-2">
@@ -378,7 +378,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                     </div>
                 </div>
 
-                <aside>
+                <aside className="min-w-0">
                     <ProposeOutcomeForm isOracleRegistered={data?.isRegistered} />
                 </aside>
             </div>

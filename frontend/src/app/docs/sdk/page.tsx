@@ -80,7 +80,7 @@ const buyLink = \`https://app.ciphermarket.xyz/markets/\${topMarkets[0].marketId
 
 function CodeBlock({ code }: { code: string }) {
   return (
-    <pre className="overflow-x-auto rounded-2xl border border-white/[0.08] bg-black/30 p-5 text-[12px] leading-6 text-white/60">
+    <pre className="max-w-full overflow-x-auto rounded-2xl border border-white/[0.08] bg-black/30 p-4 text-[12px] leading-6 text-white/60 sm:p-5">
       <code>{code}</code>
     </pre>
   );
@@ -106,18 +106,18 @@ function Section({
 
 export default function SdkDocsPage() {
   return (
-    <div className="relative z-10 mx-auto max-w-[82%] px-8 py-16 font-sans lg:px-16">
+    <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 py-24 font-sans sm:px-6 lg:px-16">
       <div className="mb-14 flex flex-col gap-6 border-b border-white/[0.07] pb-10 lg:flex-row lg:items-end lg:justify-between">
         <div className="">
           {/* <Link href="/docs" className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/30 hover:text-white/60">
             Back to docs
           </Link> */}
-          <h1 className="mt-10 text-[28px] leading-[0.95] tracking-[-0.04em] text-[#e8e4df] lg:text-[48px]">
+          <h1 className="mt-10 text-[clamp(2rem,9vw,3rem)] leading-[0.95] tracking-tight text-[#e8e4df] lg:text-[48px]">
             <span className="font-serif italic">CipherMarket</span>
             {/* <br /> */}
-            <span className="ml-5 font-light text-white/35">SDK</span>
+            <span className="ml-3 font-light text-white/35 sm:ml-5">SDK</span>
           </h1>
-          <p className="mt-6 max-w-[680p text-base leading-[1.85] text-white/45">
+          <p className="mt-6 max-w-[680px] text-base leading-[1.85] text-white/45">
             Use `@ciphermarket/sdk` to integrate markets, quotes, encrypted portfolio reveal, trading, redemption, and disputes.
           </p>
         </div>
@@ -139,7 +139,7 @@ export default function SdkDocsPage() {
           </nav>
         </aside>
 
-        <main className="space-y-20">
+        <main className="min-w-0 space-y-16 lg:space-y-20">
           <Section eyebrow="Install" title="Add the package">
             <p>
               Inside this monorepo the SDK is consumed as a workspace package. After publishing,

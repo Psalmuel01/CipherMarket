@@ -42,7 +42,7 @@ export default function OutcomeSelector({
             onClick={() => !disabled && onSelect(outcome.id)}
             disabled={disabled}
             className={clsx(
-              'rounded-2xl border-2 px-6 py-5 text-left transition-all duration-300',
+              'min-h-24 rounded-2xl border-2 px-4 py-5 text-left transition-all duration-300 sm:px-6',
               disabled
                 ? 'cursor-not-allowed opacity-50 border-white/5 bg-white/[0.02]'
                 : isSelected
@@ -59,8 +59,8 @@ export default function OutcomeSelector({
             }
             type="button"
           >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
+            <div className="flex flex-col gap-4 min-[380px]:flex-row min-[380px]:items-start min-[380px]:justify-between">
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div
                   className={clsx(
                     'flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all',
@@ -78,10 +78,10 @@ export default function OutcomeSelector({
                 >
                   {isSelected ? <CheckCircle2 className="h-4 w-4" /> : null}
                 </div>
-                <div className="space-y-1">
+                <div className="min-w-0 space-y-1">
                   <span
                     className={clsx(
-                      'block text-base font-semibold tracking-tight',
+                      'block truncate text-base font-semibold tracking-tight',
                       isSelected ? 'text-foreground' : 'text-muted-foreground',
                     )}
                   >
@@ -92,11 +92,11 @@ export default function OutcomeSelector({
                   </span>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="min-[380px]:text-right">
                 <p className="font-mono text-sm" style={{ color: isSelected ? color.text : undefined }}>
                   {formatOutcomePercent(outcome.probability)}%
                 </p>
-                <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                <p className="mt-1 font-mono text-[11px] text-muted-foreground break-words">
                   Reserve {formatTokenAmount(outcome.reserve, collateralDecimals, collateralSymbol)}
                 </p>
               </div>

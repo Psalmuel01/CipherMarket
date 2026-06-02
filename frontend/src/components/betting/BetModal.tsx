@@ -167,21 +167,21 @@ export default function BetModal({
         onClose={handleClose}
         onRetry={handleSubmit}
       >
-        <div className="space-y-8 py-2">
+        <div className="space-y-6 py-2 sm:space-y-8">
           {/* Market Context Header */}
-          <div className="relative overflow-hidden rounded-[32px] border border-white/5 bg-white/[0.01] p-6 space-y-3">
-            <div className="absolute top-0 right-0 p-4">
+          <div className="relative space-y-3 overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.01] p-5 sm:rounded-[32px] sm:p-6">
+            <div className="static mb-2 flex justify-start sm:absolute sm:right-0 sm:top-0 sm:m-0 sm:p-4">
               <PrivacyBadge state="sealed" size="sm" />
             </div>
 
             <div className="space-y-1">
               <p className="font-mono text-[9px] uppercase tracking-[0.25em] text-white/20">Selected Position</p>
-              <h3 className="text-3xl font-serif italic text-white tracking-tight">
+              <h3 className="break-words text-2xl font-serif italic tracking-tight text-white sm:text-3xl">
                 {outcome.label}
               </h3>
             </div>
 
-            <div className="flex items-center gap-6 pt-4 border-t border-white/5">
+            <div className="flex flex-wrap items-center gap-5 border-t border-white/5 pt-4 sm:gap-6">
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-[9px] font-mono uppercase tracking-widest text-white/20">
                   <TrendingUp className="h-3 w-3" /> Implied
@@ -200,7 +200,7 @@ export default function BetModal({
           {/* Input Section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between px-2">
-              <label className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/20">
+              <label className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/20 sm:tracking-[0.3em]">
                 {side === 'BUY' ? `Deposit (${collateralSymbol})` : 'Shares to sell'}
               </label>
               {side === 'SELL' && maxSharesFormatted && (
@@ -218,7 +218,7 @@ export default function BetModal({
               <div className="absolute -inset-0.5 bg-primary/20 rounded-[24px] blur opacity-0 group-focus-within:opacity-30 transition-opacity" />
               <input
                 className={clsx(
-                  "relative h-20 w-full rounded-[24px] border bg-[#0d1017] px-8 font-mono text-3xl font-bold text-white outline-none transition-all",
+                  "relative h-16 w-full rounded-[20px] border bg-[#0d1017] px-4 pr-24 font-mono text-2xl font-bold text-white outline-none transition-all sm:h-20 sm:rounded-[24px] sm:px-8 sm:pr-32 sm:text-3xl",
                   exceedsMax
                     ? "border-red-500/50 focus:border-red-500"
                     : "border-white/5 focus:border-primary/50"
@@ -228,7 +228,7 @@ export default function BetModal({
                 placeholder={defaultAmount}
                 autoFocus
               />
-              <div className="absolute right-8 top-1/2 -translate-y-1/2 font-mono text-lg text-white/10 select-none">
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 select-none font-mono text-sm text-white/15 sm:right-8 sm:text-lg">
                 {side === 'BUY' ? collateralSymbol : 'SHARES'}
               </div>
             </div>
@@ -258,8 +258,8 @@ export default function BetModal({
           </div>
 
           {/* Quote Section */}
-          <div className="rounded-[32px] border border-white/5 bg-white/[0.01] p-8 space-y-6">
-            <div className="flex items-center justify-between">
+          <div className="space-y-6 rounded-[24px] border border-white/5 bg-white/[0.01] p-5 sm:rounded-[32px] sm:p-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <ArrowUpDown className="h-4 w-4 text-primary" />
                 <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/20">Execution Intelligence</p>
@@ -325,7 +325,7 @@ export default function BetModal({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-4 pt-4">
+          <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:items-center sm:gap-4">
             <Button
               className="flex-1"
               variant="secondary"

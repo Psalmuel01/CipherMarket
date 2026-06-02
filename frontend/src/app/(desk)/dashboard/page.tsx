@@ -9,7 +9,7 @@ const heroSwatches = [0, 1, 2, 3].map((index) => getOutcomeColor(index));
 
 export default function DashboardPage(): JSX.Element {
   return (
-    <div className="mt-20 space-y-10 pb-16 pt-8">
+    <div className="mt-20 space-y-8 pb-24 pt-6 sm:space-y-10 sm:pb-16 sm:pt-8">
       {/* <header className="relative overflow-hidden rounded-[32px] border border-white/8 bg-white/[0.025] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.45)] md:p-8">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 h-1">
@@ -82,8 +82,8 @@ export default function DashboardPage(): JSX.Element {
 
       <MarketStatsGrid />
 
-      <div className="grid gap-10 xl:grid-cols-">
-        <main id="markets">
+      <div className="grid gap-10">
+        <main id="markets" className="min-w-0">
           <MarketList
             description="Institutional-grade liquidity pools with encrypted individual books."
             heading="Featured Markets"
