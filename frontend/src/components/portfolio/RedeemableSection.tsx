@@ -69,7 +69,7 @@ export default function RedeemableSection({
               key={market.marketId}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="relative overflow-hidden rounded-[28px] border border-emerald-500/20 bg-emerald-500/[0.025] p-6 flex flex-col justify-between space-y-3 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-emerald-500/[0.04]"
+              className="relative flex flex-col justify-between space-y-3 overflow-hidden rounded-[24px] border border-emerald-500/20 bg-emerald-500/[0.025] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-emerald-500/[0.04] sm:rounded-[28px] sm:p-6"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">

@@ -111,7 +111,7 @@ function PortfolioDesk(): JSX.Element {
   }, [markets, privatePortfolio.data, privatePortfolio.realized]);
 
   return (
-    <div className="pt-8 pb-16 mt-20">
+    <div className="mt-20 pb-24 pt-6 sm:pb-16 sm:pt-8">
       {/* Header */}
       <header className="mb-8">
         {/* <div className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.25em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-4 py-2 mb-6">
@@ -184,7 +184,7 @@ function PortfolioDesk(): JSX.Element {
           </div>
 
           {!isPortfolioVisible ? (
-            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-10 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
+            <div className="relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-6 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)] sm:rounded-[28px] sm:p-10">
               <p className="text-sm text-white/25 font-light">
                 Reveal your portfolio to see your encrypted positions.
               </p>
@@ -196,7 +196,7 @@ function PortfolioDesk(): JSX.Element {
               <ContentSkeleton variant="position-row" />
             </div>
           ) : openPositions.length === 0 ? (
-            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-10 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)] space-y-3">
+            <div className="relative space-y-3 overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-6 text-center shadow-[0_24px_70px_rgba(0,0,0,0.34)] sm:rounded-[28px] sm:p-10">
               <p className="text-sm text-white/30 font-light">
                 No positions found for this wallet.
               </p>
@@ -208,7 +208,7 @@ function PortfolioDesk(): JSX.Element {
               </Link>
             </div>
           ) : (
-            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] shadow-[0_24px_70px_rgba(0,0,0,0.34)]">
+            <div className="relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] shadow-[0_24px_70px_rgba(0,0,0,0.34)] sm:rounded-[28px]">
               {/* Table header */}
               <div className="hidden md:grid md:grid-cols-[2.5fr,1fr,1fr,0.8fr,0.8fr,auto] gap-4 px-6 lg:px-8 py-3 border-b border-white/5 bg-white/[0.02]">
                 {['Market', 'Outcome', 'Shares', 'Est. Value', 'Status', 'Action'].map((col) => (
@@ -280,7 +280,7 @@ function PortfolioDesk(): JSX.Element {
                 return (
                   <div
                     key={item.market.marketId}
-                    className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.34)]"
+                    className="relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] sm:rounded-[28px] sm:p-6"
                   >
                     <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/30">
                       Resolved to {item.winningOutcomeLabel}
@@ -352,7 +352,7 @@ function PortfolioDesk(): JSX.Element {
                 text: 'Winning shares can be redeemed after finalization through the market detail page.',
               },
             ].map((item, i) => (
-              <div key={i} className="glass-card interactive-glow rounded-[24px] p-6 flex flex-col gap-4">
+              <div key={i} className="glass-card interactive-glow flex flex-col gap-4 rounded-[24px] p-5 sm:p-6">
                 <item.icon className="h-5 w-5 text-[#e8533a]" />
                 <p className="text-[13px] leading-relaxed text-white/40 font-light">
                   {item.text}

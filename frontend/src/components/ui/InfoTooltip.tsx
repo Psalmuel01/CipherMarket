@@ -28,7 +28,7 @@ export default function InfoTooltip({
         type="button"
         className={clsx(
           'inline-flex items-center justify-center rounded-full text-white/20 transition-colors hover:text-primary/60 focus:outline-none',
-          size === 'sm' ? 'h-4 w-4' : 'h-5 w-5',
+          size === 'sm' ? 'h-8 w-8' : 'h-9 w-9',
         )}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
@@ -45,7 +45,7 @@ export default function InfoTooltip({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-56 z-50"
+            className="absolute bottom-full left-0 z-50 mb-2.5 w-56 max-w-[calc(100vw-2rem)] lg:left-1/2 lg:-translate-x-1/2"
           >
             <div className="rounded-xl border border-white/10 bg-[#0d1017]/95 backdrop-blur-xl p-3.5 shadow-2xl space-y-2">
               <p className="text-[11px] font-semibold text-[#e8e4df]">{title}</p>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 export default function LandingFooter() {
   return (
     <footer className="relative z-10 border-t border-white/[0.07] py-6 bg-[#000000]">
-      <div className="mx-auto max-w-[80%] px-8 lg:px-16 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="mx-auto flex w-full max-w-[1400px] flex-col items-center justify-between gap-4 px-4 text-center sm:flex-row sm:px-6 sm:text-left lg:px-16">
         <div className="flex items-center gap-3">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
             <rect width="28" height="28" rx="8" fill="rgba(199,80,72,0.12)" />

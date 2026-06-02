@@ -28,7 +28,7 @@ export default function RevealFlow({
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-primary/[0.02] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)]"
+        className="relative overflow-hidden rounded-[24px] border border-primary/30 bg-primary/[0.02] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] sm:rounded-[28px] sm:p-8"
       >
         <div className="flex flex-col items-center text-center space-y-5">
           <ProgressRing stage="decrypting" size={56} />
@@ -43,7 +43,7 @@ export default function RevealFlow({
           </div>
 
           {/* Stage indicators */}
-          <div className="flex items-center gap-6 text-[9px] font-mono uppercase tracking-[0.15em]">
+          <div className="flex flex-wrap items-center justify-center gap-3 text-[9px] font-mono uppercase tracking-[0.15em] sm:gap-6">
             <span className="text-primary flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               Creating permit
@@ -69,7 +69,7 @@ export default function RevealFlow({
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-[28px] border border-red-500/30 bg-red-500/[0.02] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)]"
+        className="relative overflow-hidden rounded-[24px] border border-red-500/30 bg-red-500/[0.02] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] sm:rounded-[28px] sm:p-8"
       >
         <div className="flex flex-col items-center text-center space-y-3">
           <div className="w-12 h-12 rounded-full bg-red-500/15 border border-red-500/25 flex items-center justify-center">
@@ -95,7 +95,7 @@ export default function RevealFlow({
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04]"
+        className="relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04] sm:rounded-[28px] sm:p-8"
       >
         <div className="flex flex-col items-center text-center space-y-5">
           <motion.div
@@ -113,7 +113,7 @@ export default function RevealFlow({
               Reveal locally to decrypt your current holdings. A self-permit is created client-side — nothing public is added to the chain.
             </p>
           </div>
-          <Button onClick={onToggle} className="gap-2">
+          <Button onClick={onToggle} className="w-full gap-2 sm:w-auto">
             <Eye className="h-4 w-4" />
             Reveal portfolio
           </Button>
@@ -124,7 +124,7 @@ export default function RevealFlow({
 
   // Revealed state — option to hide
   return (
-    <div className="flex items-center justify-end">
+    <div className="flex items-center justify-stretch sm:justify-end">
       <Button variant="outline" size="sm" onClick={onToggle} className="gap-2">
         <EyeOff className="h-4 w-4" />
         Hide values

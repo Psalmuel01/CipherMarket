@@ -53,20 +53,20 @@ export default function MarketList({ description, heading }: MarketListProps): J
   }, [filteredMarkets, sortKey]);
 
   return (
-    <section className="space-y-8">
+    <section className="min-w-0 space-y-8">
       {/* Header & Main Actions */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
+      <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 space-y-1">
           <h2 className="text-2xl font-semibold text-[#e8e4df] tracking-tight">
             {heading}
           </h2>
-          <p className="text-sm text-white/35 max-w-xl leading-relaxed">
+          <p className="max-w-xl text-sm leading-relaxed text-white/35">
             {description}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative group">
+        <div className="flex min-w-0 flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <div className="relative group w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/20 transition-colors group-focus-within:text-primary" />
             <input
               type="text"
@@ -76,7 +76,7 @@ export default function MarketList({ description, heading }: MarketListProps): J
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="sm" className="h-10 gap-2">
+          <Button variant="outline" size="sm" className="h-11 w-full gap-2 sm:h-10 sm:w-auto">
             <Filter className="h-4 w-4" />
             Advanced
           </Button>
@@ -84,8 +84,8 @@ export default function MarketList({ description, heading }: MarketListProps): J
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 py-2">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+      <div className="flex min-w-0 flex-col gap-4 py-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-2 scrollbar-hide lg:pb-0">
           {availableStatuses.map((status) => (
             <button
               key={status}
@@ -102,15 +102,15 @@ export default function MarketList({ description, heading }: MarketListProps): J
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">Sort</span>
-          <div className="flex gap-1.5 p-1 rounded-xl bg-white/[0.02] border border-white/5">
+          <div className="flex max-w-full gap-1.5 overflow-x-auto rounded-xl border border-white/5 bg-white/[0.02] p-1 scrollbar-hide">
             {(['newest', 'liquidity', 'expiry', 'outcomes'] as SortKey[]).map((key) => (
               <button
                 key={key}
                 onClick={() => setSortKey(key)}
                 className={clsx(
-                  'px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all',
+                  'min-h-9 shrink-0 rounded-lg px-3 py-1 text-[9px] font-bold uppercase tracking-widest transition-all',
                   sortKey === key
                     ? 'bg-white/5 text-white shadow-sm'
                     : 'text-white/20 hover:text-white/40'
@@ -125,7 +125,7 @@ export default function MarketList({ description, heading }: MarketListProps): J
 
       {/* Grid */}
       {isLoading ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <ContentSkeleton key={i} variant="market-card" />
           ))}
@@ -152,7 +152,7 @@ export default function MarketList({ description, heading }: MarketListProps): J
           </Button>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {sortedMarkets.map((market, index) => (
             <MarketCard key={market.marketId} index={index} market={market} />
           ))}

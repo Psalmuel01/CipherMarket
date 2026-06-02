@@ -40,14 +40,14 @@ export default function Modal({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#05070b]/70 px-4"
+          className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-[#05070b]/70 px-3 py-3 sm:items-center sm:px-4 sm:py-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         >
           <motion.div
-            className={`w-full ${maxWidthClass} rounded-2xl border border-line bg-panel p-6 shadow-panel backdrop-blur-[12px]`}
+            className={`max-h-[calc(100dvh-1.5rem)] w-full ${maxWidthClass} overflow-y-auto rounded-2xl border border-line bg-panel p-4 shadow-panel backdrop-blur-[12px] sm:max-h-[calc(100dvh-3rem)] sm:p-6`}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
@@ -60,7 +60,7 @@ export default function Modal({
               </div>
               <button
                 aria-label="Close modal"
-                className="rounded-md border border-white/25 bg-white/[0.07] px-2.5 py-1 text-xs font-semibold text-white/75 shadow-sm transition-colors hover:border-white/40 hover:bg-white/[0.12] hover:text-white"
+                className="min-h-11 rounded-md border border-white/25 bg-white/[0.07] px-3 text-xs font-semibold text-white/75 shadow-sm transition-colors hover:border-white/40 hover:bg-white/[0.12] hover:text-white"
                 onClick={onClose}
                 type="button"
               >

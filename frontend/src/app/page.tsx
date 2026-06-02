@@ -90,32 +90,32 @@ function TerminalMockup(): JSX.Element {
 
 export default function LandingPage(): JSX.Element {
   return (
-    <div className="relative max-w-[1400px] px-8 lg:px-16 mx-auto space-y-56 py-28 bg-black">
+    <div className="relative mx-auto w-full max-w-[1400px] space-y-28 bg-black px-4 py-24 sm:px-6 lg:space-y-44 lg:px-16 lg:py-28">
       {/* ── HERO SECTION ── */}
-      <section className="relative min-h-[90vh] flex flex-col justify-center overflow-hidden">
+      <section className="relative flex min-h-[82vh] flex-col justify-center overflow-hidden lg:min-h-[90vh]">
         {/* <div className="pointer-events-none absolute inset-x-0 top-8 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" /> */}
         <div className="pointer-events-none absolute -right-24 top-24 h-72 w-72 rounded-full border border-primary/15" />
         <div className="pointer-events-none absolute -left-16 bottom-20 h-56 w-56 rounded-full border border-sky-300/10" />
-        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-24 items-center">
+        <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-24">
 
-          <div className="space-y-16">
+          <div className="space-y-10 sm:space-y-14 lg:space-y-16">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3"
+              className="flex min-w-0 items-center gap-3"
             >
               <div className="h-px w-10 bg-primary/40" />
-              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.5em] text-primary/80">
+              <span className="min-w-0 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-primary/80 sm:tracking-[0.5em]">
                 confidential prediction market
               </span>
             </motion.div>
 
-            <div className="space-y-10">
+            <div className="space-y-7 sm:space-y-10">
               <motion.h1
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.8 }}
-                className="text-[72px] lg:text-[96px] xl:text-[116px] leading-[0.84] tracking-tighter font-serif italic text-white"
+                className="text-[clamp(3.25rem,16vw,4.75rem)] font-serif italic leading-[0.9] tracking-tight text-white sm:text-[72px] lg:text-[96px] xl:text-[116px]"
               >
                 Trade<br />
                 <span className="font-sans font-light not-italic text-white/10">The Future.</span>
@@ -125,7 +125,7 @@ export default function LandingPage(): JSX.Element {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.8 }}
-                className="text-lg lg:text-xl text-white/40 font-light leading-relaxed max-w-xl"
+                className="max-w-xl text-base font-light leading-relaxed text-white/40 sm:text-lg lg:text-xl"
               >
                 Public odds, private positions. CipherMarket uses <span className="text-white/80">CoFHE encryption</span> so markets stay readable
                 while your individual book stays sealed.
@@ -136,22 +136,22 @@ export default function LandingPage(): JSX.Element {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.8 }}
-              className="flex flex-wrap gap-8"
+              className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-8"
             >
               <Link href="/dashboard">
-                <Button size="lg" className="h-16 px-10 gap-4 group/btn">
+                <Button size="lg" className="h-14 w-full gap-4 px-6 group/btn sm:h-16 sm:w-auto sm:px-10">
                   Explore Markets
                   <ArrowRight className="w-5 h-5 transition-transform group-hover/btn:translate-x-1" />
                 </Button>
               </Link>
               <Link href="#protocol">
-                <Button variant="outline" size="lg" className="h-16 px-10">
+                <Button variant="outline" size="lg" className="h-14 w-full px-6 sm:h-16 sm:w-auto sm:px-10">
                   How it works
                 </Button>
               </Link>
             </motion.div>
 
-            <div className="grid gap-3 sm:grid-cols-3 pt-14 border-t border-white/10">
+            <div className="grid gap-3 border-t border-white/10 pt-8 sm:grid-cols-3 sm:pt-14">
               {[
                 { label: 'Position Privacy', value: 'FHE' },
                 { label: 'Resolution Window', value: '5m' },
@@ -159,7 +159,7 @@ export default function LandingPage(): JSX.Element {
               ].map((stat) => (
                 <div key={stat.label} className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
                   <p className="text-3xl font-serif italic text-white/90">{stat.value}</p>
-                  <p className="mt-2 text-[9px] font-mono uppercase tracking-[0.3em] text-white/28">{stat.label}</p>
+                  <p className="mt-2 text-[9px] font-mono uppercase tracking-[0.18em] text-white/28 sm:tracking-[0.3em]">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -223,19 +223,19 @@ export default function LandingPage(): JSX.Element {
       </section>
 
       {/* ── SECURITY ARCHITECTURE ── */}
-      <section id="protocol" className="space-y-20 py-2">
+      <section id="protocol" className="space-y-12 py-2 lg:space-y-20">
         <div className="max-w-3xl space-y-6">
-          <p className="font-mono text-[11px] uppercase tracking-[0.5em] text-primary font-bold">Security Architecture</p>
-          <h2 className="text-5xl lg:text-7xl font-serif italic text-white leading-tight">
-            Privacy as a first-class<br />
+          <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-primary font-bold sm:tracking-[0.5em]">Security Architecture</p>
+          <h2 className="text-[clamp(2.5rem,10vw,3.75rem)] font-serif italic leading-tight text-white lg:text-7xl">
+            Privacy as a first-class{' '}
             <span className="font-sans font-light text-white/10 not-italic">on-chain primitive.</span>
           </h2>
-          <p className="text-xl text-white/40 font-light max-w-xl leading-relaxed">
+          <p className="max-w-xl text-base font-light leading-relaxed text-white/40 sm:text-xl">
             CipherMarket leverages Fhenix FHE Coprocessors to enable encrypted state transitions without ever revealing individual balances.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-8">
           {[
             {
               title: 'Client-Side Encryption',
@@ -264,7 +264,7 @@ export default function LandingPage(): JSX.Element {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="p-10 rounded-2xl border border-white/5 bg-white/[0.01] space-y-8 group hover:border-primary/40 transition-all duration-300"
+              className="space-y-6 rounded-2xl border border-white/5 bg-white/[0.01] p-6 transition-all duration-300 group hover:border-primary/40 sm:p-8 lg:p-10"
             >
               <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-white/[0.03] border border-white/5 group-hover:text-primary transition-colors">
                 <item.icon className="h-7 w-7" />
@@ -279,14 +279,14 @@ export default function LandingPage(): JSX.Element {
       </section>
 
       {/* ── USE CASES ── */}
-      <section className="py-2 grid lg:grid-cols-2 gap-32 items-center border-t border-white/10 pt-40">
-        <div className="space-y-16">
+      <section className="grid items-center gap-12 border-t border-white/10 py-2 pt-20 lg:grid-cols-2 lg:gap-32 lg:pt-40">
+        <div className="space-y-10 lg:space-y-16">
           <div className="space-y-8">
-            <h2 className="text-5xl lg:text-6xl font-serif italic text-white leading-tight">
-              Markets that demand<br />
+            <h2 className="text-[clamp(2.5rem,10vw,3.75rem)] font-serif italic leading-tight text-white lg:text-6xl">
+              Markets that demand{' '}
               <span className="font-sans font-light text-white/10 not-italic">total confidentiality.</span>
             </h2>
-            <p className="text-xl text-white/40 font-light max-w-xl leading-relaxed">
+            <p className="max-w-xl text-base font-light leading-relaxed text-white/40 sm:text-xl">
               From institutional hedging to high-alpha political analysis, CipherMarket is built for participants who cannot afford to leak conviction.
             </p>
           </div>
@@ -297,7 +297,7 @@ export default function LandingPage(): JSX.Element {
               { label: 'Global Macro Analysis', icon: Globe, detail: 'Place directional bets on macro-economic shifts with total position security.' },
               { label: 'Corporate Intelligence', icon: Search, detail: 'Analyze industry outcomes while maintaining strategic strategic privacy.' }
             ].map((useCase) => (
-              <div key={useCase.label} className="flex gap-8 p-8 rounded-2xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] transition-all group">
+              <div key={useCase.label} className="flex flex-col gap-5 rounded-2xl border border-white/5 bg-white/[0.01] p-6 transition-all hover:bg-white/[0.02] group sm:flex-row sm:gap-8 sm:p-8">
                 <div className="shrink-0 w-14 h-14 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center group-hover:text-primary transition-colors">
                   <useCase.icon className="h-6 w-6" />
                 </div>
@@ -311,10 +311,10 @@ export default function LandingPage(): JSX.Element {
         </div>
 
         <div className="relative">
-          <div className="relative rounded-[40px] p-12 border border-white/10 bg-black overflow-hidden shadow-2xl space-y-12">
-            <div className="flex items-center justify-between px-2">
+          <div className="relative space-y-8 overflow-hidden rounded-[28px] border border-white/10 bg-black p-5 shadow-2xl sm:p-8 lg:space-y-12 lg:rounded-[40px] lg:p-12">
+            <div className="flex flex-col gap-4 px-0 sm:flex-row sm:items-center sm:justify-between sm:px-2">
               <div className="space-y-2">
-                <p className="text-[11px] font-mono text-white/30 uppercase tracking-[0.4em]">Active Intelligence Feed</p>
+                <p className="text-[11px] font-mono text-white/30 uppercase tracking-[0.18em] sm:tracking-[0.4em]">Active Intelligence Feed</p>
                 <h4 className="text-2xl font-bold text-white italic font-serif tracking-tight">Market Skew Analysis</h4>
               </div>
               <div className="flex -space-x-2">
@@ -329,7 +329,7 @@ export default function LandingPage(): JSX.Element {
                 { label: 'BTC ETF Net Flows', vol: '$1.8M', skew: 72 }
               ].map((item) => (
                 <div key={item.label} className="space-y-3">
-                  <div className="flex justify-between items-end">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <p className="text-base font-bold text-white/60">{item.label}</p>
                     <p className="text-[12px] font-mono text-white/30">{item.vol} Volume</p>
                   </div>
@@ -341,7 +341,7 @@ export default function LandingPage(): JSX.Element {
             </div>
 
             <div className="pt-8 flex justify-center">
-              <Link href="/dashboard" className="text-[11px] font-mono text-primary uppercase tracking-[0.5em] font-bold hover:text-white transition-colors flex items-center gap-3">
+              <Link href="/dashboard" className="flex items-center gap-3 text-[11px] font-mono font-bold uppercase tracking-[0.2em] text-primary transition-colors hover:text-white sm:tracking-[0.5em]">
                 View Full Feed <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
@@ -351,20 +351,20 @@ export default function LandingPage(): JSX.Element {
 
       {/* ── FINAL CTA ── */}
       <section className="py-2">
-        <div className="rounded-[64px] p-32 lg:p-16 text-center space-y-16 relative overflow-hidden border border-white/10 bg-black shadow-2xl">
+        <div className="relative space-y-10 overflow-hidden rounded-[32px] border border-white/10 bg-black p-6 text-center shadow-2xl sm:p-12 lg:space-y-16 lg:rounded-[64px] lg:p-16">
           <div className="relative space-y-8">
-            <h2 className="text-4xl lg:text-6xl font-serif italic text-white tracking-tight leading-[0.85]">
+            <h2 className="text-[clamp(2.35rem,11vw,3.75rem)] font-serif italic leading-[0.95] tracking-tight text-white lg:text-6xl">
               The future of finance<br />
               <span className="font-sans font-light not-italic text-white/5">is dark.</span>
             </h2>
-            <p className="text-xl text-white/40 max-w-2xl mx-auto font-light leading-relaxed">
+            <p className="mx-auto max-w-2xl text-base font-light leading-relaxed text-white/40 sm:text-xl">
               Join the institutional-grade prediction infrastructure built for the next era of decentralized finance.
             </p>
           </div>
 
           <div className="relative flex justify-center gap-8">
             <Link href="/dashboard">
-              <Button size="md" className="h-16 px-12 gap-4">
+              <Button size="md" className="h-14 w-full gap-4 px-6 sm:h-16 sm:w-auto sm:px-12">
                 Open Markets
                 <ArrowRight className="h-6 w-6" />
               </Button>

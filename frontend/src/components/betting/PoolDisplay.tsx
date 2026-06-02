@@ -11,8 +11,8 @@ export interface PoolDisplayProps {
 
 export default function PoolDisplay({ pools, className }: PoolDisplayProps): JSX.Element {
   return (
-    <div className={clsx('glass-card rounded-3xl p-8 space-y-6', className)}>
-      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+    <div className={clsx('glass-card space-y-6 rounded-3xl p-5 sm:p-8', className)}>
+      <div className="flex flex-col gap-3 border-b border-white/5 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Activity className="h-5 w-5 text-primary" />
           <h3 className="text-sm font-black uppercase tracking-widest text-foreground">Market Depth</h3>
@@ -29,12 +29,12 @@ export default function PoolDisplay({ pools, className }: PoolDisplayProps): JSX
 
           return (
             <div key={pool.outcomeId} className="space-y-3">
-              <div className="flex items-end justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                     Outcome
                   </p>
-                  <p className="flex items-center gap-2 text-lg font-black text-foreground">
+                  <p className="flex min-w-0 items-center gap-2 text-lg font-black text-foreground">
                     <span
                       className="h-2.5 w-2.5 rounded-full"
                       style={{
@@ -42,10 +42,10 @@ export default function PoolDisplay({ pools, className }: PoolDisplayProps): JSX
                         boxShadow: `0 0 14px ${color.shadow}`,
                       }}
                     />
-                    {pool.label}
+                    <span className="truncate">{pool.label}</span>
                   </p>
                 </div>
-                <div className="space-y-1 text-right">
+                <div className="space-y-1 sm:text-right">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                     Reserve
                   </p>
