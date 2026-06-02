@@ -32,7 +32,7 @@ export default function FloatingNav() {
           animate={{ y: 0, x: '-50%', opacity: 1 }}
           exit={{ y: 100, x: '-50%', opacity: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-          className="fixed bottom-8 left-1/2 z-50 flex items-center gap-1 rounded-2xl border border-white/[0.08] bg-[#0d1017]/80 p-1.5 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+          className="fixed bottom-3 left-1/2 z-50 flex max-w-[calc(100vw-1rem)] items-center gap-1 overflow-x-auto rounded-2xl border border-white/[0.08] bg-[#0d1017]/90 p-1.5 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] scrollbar-hide sm:bottom-8"
         >
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -43,7 +43,7 @@ export default function FloatingNav() {
                 key={item.href}
                 href={item.href}
                 className={clsx(
-                  'group relative flex h-11 items-center gap-2 rounded-[14px] px-4 transition-all duration-300',
+                  'group relative flex h-11 shrink-0 items-center gap-2 rounded-[14px] px-3 transition-all duration-300 sm:px-4',
                   isActive ? 'text-white' : 'text-white/40 hover:text-white/70',
                 )}
               >
@@ -62,7 +62,7 @@ export default function FloatingNav() {
                   )}
                 />
                 
-                <span className="relative z-10 text-[13px] font-medium tracking-tight">
+                <span className="relative z-10 hidden text-[13px] font-medium tracking-tight min-[380px]:inline">
                   {item.label}
                 </span>
 

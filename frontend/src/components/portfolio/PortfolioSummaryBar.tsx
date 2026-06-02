@@ -33,7 +33,7 @@ function StatCard({ icon: Icon, label, value, subtitle, highlight, tooltip, inde
   return (
     <div
       className={clsx(
-        'group relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:-translate-y-0.5 hover:bg-white/[0.04]',
+        'group relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:-translate-y-0.5 hover:bg-white/[0.04] sm:rounded-[28px] sm:p-6',
         highlight && 'border-primary/30 shadow-[0_0_40px_rgba(var(--primary),0.2)]',
       )}
     >
@@ -90,9 +90,9 @@ export default function PortfolioSummaryBar({
     <div className="space-y-3">
       {/* Privacy status bar */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <PrivacyBadge state={privacyState} size="md" />
-          <p className="text-xs text-white/30">
+          <p className="text-xs leading-relaxed text-white/30">
             {privacyState === 'sealed'
               ? 'Values are hidden. Reveal locally to see your positions.'
               : privacyState === 'revealed'

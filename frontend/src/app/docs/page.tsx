@@ -196,21 +196,21 @@ function toAnchor(label: string): string {
 
 export default function DocsPage() {
   return (
-    <div className="relative z-10 font-sans mx-auto max-w-[80%] px-8 lg:px-16 ">
+    <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 pt-24 font-sans sm:px-6 lg:px-16">
 
       {/* ── HERO ── */}
       <header className="relative z-10 border-b border-white/[0.07] bg-white/[0.01]">
         <div className="py-14 lg:pt-20">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
-            <div className="mt-5 max-w-[640px">
+          <div className="flex flex-col justify-between gap-10 lg:flex-row lg:items-end">
+            <div className="mt-5 max-w-[640px]">
               {/* <div className="inline-flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.25em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-4 py-2 mb-8">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#e8533a]" />
                 Documentation · v1.0
               </div> */}
-              <h1 className="text-[38px] lg:text-[48px] leading-[0.95] tracking-[-0.04em] mb-6">
+              <h1 className="mb-6 text-[clamp(2.35rem,10vw,3rem)] leading-[0.95] tracking-tight lg:text-[48px]">
                 <span className="font-serif italic text-[#e8e4df]">How it</span>
                 {/* <br /> */}
-                <span className="ml-5 font-sans font-light text-white/35">works.</span>
+                <span className="ml-3 font-sans font-light text-white/35 sm:ml-5">works.</span>
               </h1>
               <p className="text-[16px] leading-[1.85] text-white/45 font-light">
                 CipherMarket is designed to behave like a standard prediction market at the pool level
@@ -219,7 +219,7 @@ export default function DocsPage() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 min-w-[200px]">
+            <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-white/5 bg-white/[0.015] p-4 lg:min-w-[200px] lg:border-0 lg:bg-transparent lg:p-0">
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/20 mb-1">On this page</p>
               {DOC_GROUPS.map((group) => (
                 <Link
@@ -238,7 +238,7 @@ export default function DocsPage() {
 
       {/* ── BODY ── */}
       <div className="relative z-10 mx-auto py-12 lg:py-16">
-        <div className="grid lg:grid-cols-[240px_1fr] gap-16 lg:gap-24 items-start">
+        <div className="grid items-start gap-16 lg:grid-cols-[240px_1fr] lg:gap-24">
 
           {/* Sidebar Navigation */}
           <aside className="sticky top-32 hidden lg:block">
@@ -274,15 +274,15 @@ export default function DocsPage() {
           </aside>
 
           {/* Content */}
-          <div className="flex flex-col gap-24">
+          <div className="flex min-w-0 flex-col gap-16 lg:gap-24">
             {DOC_GROUPS.map((group) => (
               <section
                 key={group.label}
                 id={toAnchor(group.label)}
                 className="scroll-mt-32"
               >
-                <div className="flex items-center gap-4 mb-10">
-                  <h2 className="font-serif italic text-[32px] text-[#e8e4df] tracking-[-0.02em]">
+                <div className="mb-8 flex min-w-0 items-center gap-4 lg:mb-10">
+                  <h2 className="font-serif text-[28px] italic tracking-tight text-[#e8e4df] sm:text-[32px]">
                     {group.label}
                   </h2>
                   <div className="h-[1px] flex-1 bg-gradient-to-r from-white/[0.08] to-transparent" />
@@ -292,12 +292,12 @@ export default function DocsPage() {
                   {group.sections.map((section) => (
                     <article
                       key={section.title}
-                      className="group rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-8 hover:border-white/[0.12] hover:bg-white/[0.035] transition-all relative overflow-hidden"
+                      className="group relative overflow-hidden rounded-[24px] border border-white/[0.07] bg-white/[0.02] p-5 transition-all hover:border-white/[0.12] hover:bg-white/[0.035] sm:p-8"
                     >
                       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#e8533a]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
                       <div className="flex items-start justify-between mb-6">
-                        <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-3 py-1">
+                        <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#e8533a] bg-[#e8533a]/10 border border-[#e8533a]/20 rounded-full px-3 py-1 sm:tracking-[0.22em]">
                           {section.tag}
                         </span>
                       </div>
@@ -311,7 +311,7 @@ export default function DocsPage() {
                       </p>
 
                       {section.note && (
-                        <div className="mt-6 flex gap-3 p-4 rounded-xl bg-[#e8533a]/5 border border-[#e8533a]/10 text-[12px] leading-[1.6] text-[#e8533a]/80 font-mono">
+                        <div className="mt-6 flex gap-3 rounded-xl border border-[#e8533a]/10 bg-[#e8533a]/5 p-4 text-[12px] leading-[1.6] text-[#e8533a]/80 font-mono">
                           <span className="shrink-0">→</span>
                           <p>{section.note}</p>
                         </div>

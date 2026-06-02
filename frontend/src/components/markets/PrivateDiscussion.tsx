@@ -282,14 +282,14 @@ export default function PrivateDiscussion({ marketId }: PrivateDiscussionProps):
   const postDisabled = !draft.trim() || isPosting || !isConnected;
 
   return (
-    <section className="glass-card space-y-6 rounded-3xl p-8">
+    <section className="glass-card space-y-6 rounded-3xl p-5 sm:p-8">
       <div className="flex flex-col gap-4 border-b border-white/5 pb-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
             <MessageCircle className="h-5 w-5" />
           </div>
           {/* <div className="space-y-2"> */}
-            <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
+            <h3 className="font-mono text-sm uppercase tracking-[0.16em] text-foreground sm:tracking-[0.22em]">
               Private Discussion
             </h3>
             {/* <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -313,7 +313,7 @@ export default function PrivateDiscussion({ marketId }: PrivateDiscussionProps):
             <button
               key={mode}
               className={clsx(
-                'rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] transition-colors',
+                'min-h-9 rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] transition-colors',
                 sort === mode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
               )}
               onClick={() => setSort(mode)}
@@ -344,10 +344,10 @@ export default function PrivateDiscussion({ marketId }: PrivateDiscussionProps):
           }
           value={draft}
         />
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-[11px] text-muted-foreground">{draft.length}/360</span>
           <Button
-            className="gap-2"
+            className="w-full gap-2 sm:w-auto"
             disabled={postDisabled}
             onClick={() => void handleSubmit()}
             type="button"
@@ -413,7 +413,7 @@ export default function PrivateDiscussion({ marketId }: PrivateDiscussionProps):
                   {post.likes}
                 </button>
               </div>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{post.body}</p>
+              <p className="mt-3 break-words text-sm leading-6 text-muted-foreground">{post.body}</p>
               <div className="mt-4 flex items-center gap-3">
                 <button
                   className="inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-primary disabled:opacity-40"
@@ -464,10 +464,10 @@ export default function PrivateDiscussion({ marketId }: PrivateDiscussionProps):
                     placeholder={`Reply as ${authorHash}`}
                     value={replyDraft}
                   />
-                  <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-[11px] text-muted-foreground">{replyDraft.length}/360</span>
                     <Button
-                      className="gap-2"
+                      className="w-full gap-2 sm:w-auto"
                       disabled={!replyDraft.trim() || postingReplyId === post.id}
                       onClick={() => void handleSubmit(post.id)}
                       size="sm"
@@ -510,7 +510,7 @@ export default function PrivateDiscussion({ marketId }: PrivateDiscussionProps):
                           {reply.likes}
                         </button>
                       </div>
-                      <p className="mt-3 text-sm leading-6 text-muted-foreground">{reply.body}</p>
+                      <p className="mt-3 break-words text-sm leading-6 text-muted-foreground">{reply.body}</p>
                     </div>
                   ))}
                 </div>

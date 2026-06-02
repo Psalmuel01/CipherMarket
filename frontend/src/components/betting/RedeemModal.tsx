@@ -69,12 +69,12 @@ export default function RedeemModal({
         onRetry={handleRedeem}
       >
         <div className="space-y-6">
-          <div className="flex flex-col items-center text-center space-y-3 py-4">
+          <div className="flex flex-col items-center space-y-3 py-4 text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
               <Trophy className="h-8 w-8 text-primary" />
             </div>
             <div className="space-y-1">
-              <p className="text-2xl font-bold text-[#e8e4df]">
+              <p className="break-words text-xl font-bold text-[#e8e4df] sm:text-2xl">
                 {claimableAmountLabel}
               </p>
               <p className="text-xs text-white/40 uppercase tracking-widest font-mono">
@@ -83,7 +83,7 @@ export default function RedeemModal({
             </div>
           </div>
 
-          <div className="glass-card rounded-2xl p-5 border border-white/5 space-y-3">
+          <div className="glass-card space-y-3 rounded-2xl border border-white/5 p-5">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-primary" />
               <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/30">
@@ -97,7 +97,7 @@ export default function RedeemModal({
             </p>
           </div>
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center">
             <Button
               className="flex-1"
               variant="outline"

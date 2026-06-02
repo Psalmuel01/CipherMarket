@@ -698,7 +698,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               </p>
             </div>
           </div>
-          <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-">
+              <div className="grid gap-2 text-xs text-muted-foreground">
             <p>Dispute stake locked: {formatTokenAmount(data.disputeStakeTotal, collateralDecimals, data.collateralSymbol)}</p>
             <p>Oracle source: <a href={data.oracleSource} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{data.oracleSource}</a></p>
             <p>
@@ -834,7 +834,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
           </div>
 
           {hasConnectedPosition && hasRevealed ? (
-            <div className="gri gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {/* <div className="rounded-2xl border border-white/10 bg-black/5 p-4">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Resolution status</p>
                 <p className="mt-2 text-sm font-medium text-foreground">
@@ -858,7 +858,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   })();
 
   return (
-    <main className="space-y-10 px-4 py-8 lg:px-10">
+    <main className="space-y-8 py-8 sm:space-y-10">
       {isLoading ? (
         <div className="space-y-6">
           <Skeleton className="h-8 w-40 rounded-xl" />
@@ -875,7 +875,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
       {data ? (
         <>
-          <section className="max-w-5xl space-y-6 mt-20">
+          <section className="mt-20 max-w-5xl space-y-6">
             {/* <Link
               href="/dashboard"
               className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
@@ -896,7 +896,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                   Market #{data.marketId}
                 </span>
               </div>
-              <h2 className="max-w-4xl text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
+              <h2 className="max-w-4xl break-words text-[clamp(2rem,9vw,3rem)] font-semibold tracking-tight text-foreground md:text-5xl">
                 {data.title}
               </h2>
               <p className="max-w-3xl text-base leading-8 text-muted-foreground">
@@ -904,7 +904,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
                 <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                   Closes
@@ -944,8 +944,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
           {finalResolutionBanner}
 
-          <div className="grid gap-8 xl:grid-cols-[1fr,400px]">
-            <div className="space-y-8">
+          <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr),400px]">
+            <div className="min-w-0 space-y-8">
               <MarketAnalytics
                 outcomes={enrichedOutcomes}
                 totalLiquidity={data.totalLiquidity}
@@ -953,8 +953,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               />
               <PoolDisplay pools={data.pools} />
 
-              <div className="glass-card space-y-6 rounded-3xl p-8">
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <div className="glass-card space-y-6 rounded-3xl p-5 sm:p-8">
+                <div className="flex flex-col gap-3 border-b border-white/5 pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <ShieldCheck className="h-5 w-5 text-primary" />
                     <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
@@ -992,7 +992,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                           borderColor: color.border,
                         }}
                       >
-                        <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                        <p className="flex min-w-0 items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground sm:tracking-[0.22em]">
                           <span
                             className="h-2 w-2 rounded-full"
                             style={{
@@ -1000,7 +1000,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                               boxShadow: `0 0 12px ${color.shadow}`,
                             }}
                           />
-                          {outcome.label}
+                          <span className="truncate">{outcome.label}</span>
                         </p>
                         <p className="mt-2 font-mono text-xl text-foreground">
                           {!isPortfolioVisible
@@ -1047,15 +1047,15 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 </div>
               </div> */}
 
-              <div className="glass-card space-y-6 rounded-3xl p-8">
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <div className="glass-card space-y-6 rounded-3xl p-5 sm:p-8">
+                <div className="flex flex-col gap-3 border-b border-white/5 pb-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <ShieldCheck className="h-5 w-5 text-primary" />
                     <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
                       LP Position
                     </h3>
                   </div>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground sm:tracking-[0.18em]">
                     Non-transferable market shares
                   </span>
                 </div>
@@ -1081,7 +1081,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                     <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                       {data.status === 'FINALIZED' ? 'LP Claim Estimate' : 'Active Exit Estimate'}
                     </p>
-                    <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                    <div className="mt-2 flex min-w-0 flex-wrap items-baseline gap-2">
                       <span className="font-mono text-xl text-foreground">
                         {formatTokenAmount(
                           data.status === 'FINALIZED'
@@ -1100,7 +1100,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
 
                         return (
                           <span className={clsx(
-                            "text-xs font-mono font-bold rounded px-2 py-0.5",
+                            "break-words rounded px-2 py-0.5 font-mono text-xs font-bold",
                             lpNetGain > 0n
                               ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                               : lpNetGain < 0n
@@ -1205,16 +1205,16 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               </div>
             </div>
 
-            <aside className="space-y-6">
-              <div className="glass-card space-y-6 rounded-3xl p-8">
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <aside className="min-w-0 space-y-6">
+              <div className="glass-card space-y-6 rounded-3xl p-5 sm:p-8">
+                <div className="flex flex-col gap-3 border-b border-white/5 pb-4 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                   <div className="flex items-center gap-3">
                     <Activity className="h-5 w-5 text-primary" />
                     <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
                       Outcome Board
                     </h3>
                   </div>
-                  <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground sm:tracking-[0.18em]">
                     Pool prices are public
                   </span>
                 </div>
@@ -1228,8 +1228,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 />
               </div>
 
-              <div className="glass-card space-y-6 rounded-3xl p-8">
-                <div className="flex items-center justify-between">
+              <div className="glass-card space-y-6 rounded-3xl p-5 sm:p-8">
+                <div className="flex flex-col gap-3 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                   <div className="flex items-center gap-3">
                     <Sparkles className="h-5 w-5 text-primary" />
                     <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
@@ -1285,8 +1285,8 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
                 </Button>
               </div>
 
-              <div className="glass-card space-y-6 rounded-3xl p-8">
-                <div className="flex items-center justify-between">
+              <div className="glass-card space-y-6 rounded-3xl p-5 sm:p-8">
+                <div className="flex items-center justify-between gap-4">
                   <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">
                     Lifecycle
                   </h3>
@@ -1314,7 +1314,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
               </div>
 
               {data.status === 'FINALIZED' ? (
-                <div className="glass-card space-y-5 rounded-3xl p-8">
+                <div className="glass-card space-y-5 rounded-3xl p-5 sm:p-8">
                   <div className="flex items-center gap-3">
                     <Trophy className="h-5 w-5 text-primary" />
                     <h3 className="font-mono text-sm uppercase tracking-[0.22em] text-foreground">

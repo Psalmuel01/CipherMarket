@@ -73,7 +73,7 @@ export default function AllocationChart({
 
   if (!isRevealed) {
     return (
-      <div className={clsx('relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04]', className)}>
+      <div className={clsx('relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04] sm:rounded-[28px] sm:p-8', className)}>
         <div className="flex items-center gap-3 mb-6">
           <h3 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
             Allocation
@@ -95,7 +95,7 @@ export default function AllocationChart({
 
   if (segments.length === 0) {
     return (
-      <div className={clsx('relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04]', className)}>
+      <div className={clsx('relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04] sm:rounded-[28px] sm:p-8', className)}>
         <div className="flex items-center gap-3 mb-6">
           <h3 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
             Allocation
@@ -109,8 +109,8 @@ export default function AllocationChart({
   }
 
   return (
-    <div className={clsx('relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-8 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04]', className)}>
-      <div className="flex items-center gap-3 mb-6">
+    <div className={clsx('relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.34)] transition-all hover:bg-white/[0.04] sm:rounded-[28px] sm:p-8', className)}>
+      <div className="mb-6 flex flex-wrap items-center gap-3">
         <h3 className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#e8e4df]">
           Allocation
         </h3>
