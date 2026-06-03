@@ -10,6 +10,7 @@ interface IReineiraEscrow {
   function exists(uint256 escrowId) external view returns (bool);
   function getConditionResolver(uint256 escrowId) external view returns (address);
   function getResolverData(uint256 escrowId) external view returns (bytes memory);
+  function getPaidAmount(uint256 escrowId) external view returns (uint256);
   function redeem(uint256 escrowId) external;
   function redeemAndUnwrap(uint256 escrowId, address recipient) external;
 }
@@ -60,7 +61,6 @@ interface IPredictionMarketForReineira {
 
   function getMarket(uint256 marketId) external view returns (MarketView memory);
 
-  // Note: PredictionMarket contract has the same function signature
   function openDisputeFromAdapter(
     uint256 marketId,
     address disputer,
@@ -83,10 +83,12 @@ interface IConditionResolver {
 contract ReineiraDisputeEscrowAdapter is Ownable, ERC165, IConditionResolver {
   using SafeERC20 for IERC20;
 
+  uint8 private constant MARKET_STATE_RESOLUTION_OPEN = 2;
   uint8 private constant MARKET_STATE_FINALIZED = 4;
 
   struct DisputeEscrow {
     bool registered;
+    bool activated;
     bool settled;
     uint256 marketId;
     address disputer;
@@ -101,6 +103,11 @@ contract ReineiraDisputeEscrowAdapter is Ownable, ERC165, IConditionResolver {
     address indexed disputer,
     uint8 counterOutcome,
     uint256 stakeAmount
+  );
+  event EscrowActivated(
+    uint256 indexed marketId,
+    uint256 indexed escrowId,
+    address indexed disputer
   );
   event EscrowSettled(
     uint256 indexed marketId,
@@ -157,15 +164,16 @@ contract ReineiraDisputeEscrowAdapter is Ownable, ERC165, IConditionResolver {
     require(disputer != address(0), 'Bad disputer');
     require(token != address(0), 'Bad token');
     require(stakeAmount > 0, 'Bad stake');
-    require(marketEscrowId[marketId] == 0, 'Market escrow');
 
     IPredictionMarketForReineira.MarketView memory market = predictionMarket.getMarket(marketId);
     require(market.collateralToken == token, 'Bad collateral');
-
-    predictionMarket.openDisputeFromAdapter(marketId, disputer, counterOutcome, stakeAmount);
+    require(market.state == MARKET_STATE_RESOLUTION_OPEN, 'Not open');
+    require(!market.disputeOpened, 'Dispute open');
+    require(block.timestamp <= market.resolutionWindowEndsAt, 'Window closed');
 
     disputeEscrows[escrowId] = DisputeEscrow({
       registered: true,
+      activated: false,
       settled: false,
       marketId: marketId,
       disputer: disputer,
@@ -173,14 +181,39 @@ contract ReineiraDisputeEscrowAdapter is Ownable, ERC165, IConditionResolver {
       stakeAmount: stakeAmount,
       counterOutcome: counterOutcome
     });
-    marketEscrowId[marketId] = escrowId;
 
     emit EscrowRegistered(marketId, escrowId, disputer, counterOutcome, stakeAmount);
   }
 
+  function activateDispute(uint256 escrowId) external {
+    DisputeEscrow storage escrow = disputeEscrows[escrowId];
+    require(escrow.registered, 'No escrow');
+    require(!escrow.activated, 'Activated');
+    require(!escrow.settled, 'Settled');
+    require(marketEscrowId[escrow.marketId] == 0, 'Market escrow');
+
+    IPredictionMarketForReineira.MarketView memory market = predictionMarket.getMarket(escrow.marketId);
+    require(market.state == MARKET_STATE_RESOLUTION_OPEN, 'Not open');
+    require(!market.disputeOpened, 'Dispute open');
+    require(block.timestamp <= market.resolutionWindowEndsAt, 'Window closed');
+    require(reineiraEscrow.getPaidAmount(escrowId) >= escrow.stakeAmount, 'Not funded');
+
+    predictionMarket.openDisputeFromAdapter(
+      escrow.marketId,
+      escrow.disputer,
+      escrow.counterOutcome,
+      escrow.stakeAmount
+    );
+
+    escrow.activated = true;
+    marketEscrowId[escrow.marketId] = escrowId;
+
+    emit EscrowActivated(escrow.marketId, escrowId, escrow.disputer);
+  }
+
   function isConditionMet(uint256 escrowId) external view override returns (bool) {
     DisputeEscrow memory escrow = disputeEscrows[escrowId];
-    if (!escrow.registered || escrow.settled) {
+    if (!escrow.registered || !escrow.activated || escrow.settled) {
       return false;
     }
 
@@ -191,6 +224,7 @@ contract ReineiraDisputeEscrowAdapter is Ownable, ERC165, IConditionResolver {
   function settleEscrow(uint256 escrowId) external {
     DisputeEscrow storage escrow = disputeEscrows[escrowId];
     require(escrow.registered, 'No dispute');
+    require(escrow.activated, 'Not active');
     require(!escrow.settled, 'Settled');
 
     IPredictionMarketForReineira.MarketView memory market = predictionMarket.getMarket(escrow.marketId);

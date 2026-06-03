@@ -4,7 +4,7 @@ import { quoteTrade } from './quotes.js';
 import { buyShares, sellShares } from './trading.js';
 import { revealPositions, getInvestedAmounts, getRealizedPortfolio, getRedeemable } from './portfolio.js';
 import { redeemWinningShares } from './redemption.js';
-import { openDirectDispute, openReineiraDispute } from './disputes.js';
+import { openDirectDispute, openReineiraDispute, activateReineiraDispute, settleReineiraDispute, getReineiraDisputeStatus } from './disputes.js';
 import type { CipherMarketClientConfig } from './types.js';
 
 export function createCipherMarketClient(config: CipherMarketClientConfig) {
@@ -44,6 +44,11 @@ export function createCipherMarketClient(config: CipherMarketClientConfig) {
       openDirect: (params: Parameters<typeof openDirectDispute>[1]) => openDirectDispute(config, params),
       openWithReineira: (params: Parameters<typeof openReineiraDispute>[1]) =>
         openReineiraDispute(config, params),
+      activateReineira: (params: Parameters<typeof activateReineiraDispute>[1]) =>
+        activateReineiraDispute(config, params),
+      settleReineira: (params: Parameters<typeof settleReineiraDispute>[1]) =>
+        settleReineiraDispute(config, params),
+      getReineiraStatus: (marketId: number | bigint) => getReineiraDisputeStatus(config, marketId),
     },
   };
 }

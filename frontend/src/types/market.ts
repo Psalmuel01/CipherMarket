@@ -69,6 +69,11 @@ export interface MarketSummary {
   committeeResolved: boolean;
   committeeRewardPool: bigint;
   disputeStakeTotal: bigint;
+  marketDisputeAdapter?: Address | null;
+  reineiraEscrowId?: bigint | null;
+  reineiraEscrowSettled?: boolean;
+  reineiraNeedsActivation?: boolean;
+  reineiraNeedsSettlement?: boolean;
 }
 
 export interface MarketDetail extends MarketSummary {
@@ -111,6 +116,11 @@ export interface MarketDetail extends MarketSummary {
   estimatedFinalLpPayout: bigint;
   revealedWinningShares: bigint | null;
   canRevealPositions: boolean;
+  marketDisputeAdapter?: Address | null;
+  reineiraEscrowId?: bigint | null;
+  reineiraEscrowSettled?: boolean;
+  reineiraNeedsActivation?: boolean;
+  reineiraNeedsSettlement?: boolean;
 }
 
 export interface TradeDraft {

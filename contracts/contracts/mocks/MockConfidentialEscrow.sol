@@ -14,11 +14,13 @@ contract MockConfidentialEscrow {
 
   struct Escrow {
     bool exists;
+    bool funded;
     bool redeemed;
     address token;
     address recipient;
     address resolver;
     uint256 amount;
+    uint256 paidAmount;
     bytes resolverData;
   }
 
@@ -38,20 +40,30 @@ contract MockConfidentialEscrow {
     require(recipient != address(0), 'Recipient required');
     require(resolver != address(0), 'Resolver required');
 
-    IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-
-    // Invoke the resolver callback on the condition resolver standard
     IMockConditionResolver(resolver).onConditionSet(escrowId, resolverData);
 
     escrows[escrowId] = Escrow({
       exists: true,
+      funded: false,
       redeemed: false,
       token: token,
       recipient: recipient,
       resolver: resolver,
       amount: amount,
+      paidAmount: 0,
       resolverData: resolverData
     });
+  }
+
+  function fundEscrow(uint256 escrowId, uint256 amount) external {
+    Escrow storage escrow = escrows[escrowId];
+    require(escrow.exists, 'Escrow missing');
+    require(!escrow.redeemed, 'Escrow redeemed');
+    require(amount > 0, 'Amount required');
+
+    IERC20(escrow.token).safeTransferFrom(msg.sender, address(this), amount);
+    escrow.paidAmount += amount;
+    escrow.funded = escrow.paidAmount >= escrow.amount;
   }
 
   function exists(uint256 escrowId) external view returns (bool) {
@@ -66,6 +78,10 @@ contract MockConfidentialEscrow {
     return escrows[escrowId].resolverData;
   }
 
+  function getPaidAmount(uint256 escrowId) external view returns (uint256) {
+    return escrows[escrowId].paidAmount;
+  }
+
   function redeem(uint256 escrowId) external {
     Escrow storage escrow = escrows[escrowId];
     require(escrow.exists, 'Escrow missing');
@@ -73,6 +89,17 @@ contract MockConfidentialEscrow {
     require(IMockConditionResolver(escrow.resolver).isConditionMet(escrowId), 'Condition unmet');
 
     escrow.redeemed = true;
-    IERC20(escrow.token).safeTransfer(escrow.recipient, escrow.amount);
+    IERC20(escrow.token).safeTransfer(escrow.recipient, escrow.paidAmount);
+  }
+
+  function redeemAndUnwrap(uint256 escrowId, address recipient) external {
+    Escrow storage escrow = escrows[escrowId];
+    require(escrow.exists, 'Escrow missing');
+    require(!escrow.redeemed, 'Escrow redeemed');
+    require(recipient != address(0), 'Recipient required');
+    require(IMockConditionResolver(escrow.resolver).isConditionMet(escrowId), 'Condition unmet');
+
+    escrow.redeemed = true;
+    IERC20(escrow.token).safeTransfer(recipient, escrow.paidAmount);
   }
 }

@@ -63,12 +63,17 @@ const DISPUTE_EXAMPLE = `await client.disputes.openDirect({
   collateralToken: usdc,
 });
 
-await client.disputes.openWithReineira({
+const result = await client.disputes.openWithReineira({
   marketId: 1,
   counterOutcomeIndex: 1,
   stakeAmount: 10_000_000n,
   collateralToken: usdc,
-});`;
+});
+
+const status = await client.disputes.getReineiraStatus(1);
+if (status.needsSettlement) {
+  await client.disputes.settleReineira({ marketId: 1 });
+}`;
 
 const TELEGRAM_EXAMPLE = `const markets = await client.markets.list();
 const topMarkets = markets
@@ -198,8 +203,9 @@ export default function SdkDocsPage() {
 
           <Section eyebrow="Disputes" title="Open direct or Reineira disputes">
             <p>
-              Direct disputes stake collateral in `PredictionMarket`. Reineira disputes create and fund an
-              encrypted USDC escrow, then the adapter registers the dispute against the market.
+              Direct disputes stake collateral in `PredictionMarket`. Reineira disputes create an
+              encrypted USDC escrow, fund it, activate the market dispute, and later require
+              `settleReineira` after finalization to release USDC from the vault.
             </p>
             <CodeBlock code={DISPUTE_EXAMPLE} />
           </Section>

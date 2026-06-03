@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { ShieldCheck, Activity, Target, Zap, ChevronRight, Gavel, AlertTriangle, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -10,6 +11,7 @@ import ProposeOutcomeForm from '@/components/oracle/ProposeOutcomeForm';
 import clsx from 'clsx';
 import useRegisterOracle from '@/hooks/useRegisterOracle';
 import useMarkets from '@/hooks/useMarkets';
+import useCipherMarketClient from '@/hooks/useCipherMarketClient';
 import Link from 'next/link';
 import { formatEther, parseEther } from 'viem';
 import { useAccount } from 'wagmi';
@@ -35,6 +37,20 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
         isLoading: isRegisterLoading,
     } = useRegisterOracle();
     const { data: markets } = useMarkets();
+    const cipherMarket = useCipherMarketClient();
+    const userDisputeMarkets = markets.filter(
+        (market) => address && market.disputeOpenedBy?.toLowerCase() === address.toLowerCase(),
+    );
+    const reineiraStatusQueries = useQueries({
+        queries: userDisputeMarkets.map((market) => ({
+            queryKey: ['reineira-dispute-status', market.marketId],
+            queryFn: () => cipherMarket!.disputes.getReineiraStatus(market.marketId),
+            enabled: Boolean(cipherMarket),
+        })),
+    });
+    const reineiraStatusByMarketId = new Map(
+        userDisputeMarkets.map((market, index) => [market.marketId, reineiraStatusQueries[index]?.data]),
+    );
     const pendingMarkets = markets.filter(
         (market) =>
             market.status === 'EXPIRED' ||
@@ -124,8 +140,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
             };
         });
 
-    const disputeActivity = markets
-        .filter((market) => address && market.disputeOpenedBy?.toLowerCase() === address.toLowerCase())
+    const disputeActivity = userDisputeMarkets
         .map((market) => {
             const counterOutcome = market.disputeCounterOutcomeIndex !== null
                 ? market.outcomes[market.disputeCounterOutcomeIndex]?.label ?? `Outcome ${market.disputeCounterOutcomeIndex}`
@@ -133,6 +148,7 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
             const finalOutcome = market.finalOutcomeIndex !== null
                 ? market.outcomes[market.finalOutcomeIndex]?.label ?? `Outcome ${market.finalOutcomeIndex}`
                 : null;
+            const reineiraStatus = reineiraStatusByMarketId.get(market.marketId);
             const succeeded =
                 market.status === 'FINALIZED' &&
                 market.disputeRefundsEnabled &&
@@ -141,16 +157,39 @@ export default function OracleDashboard({ className }: OracleDashboardProps): JS
                 market.status === 'FINALIZED' &&
                 market.disputeOpened &&
                 !market.disputeRefundsEnabled;
+            const needsSettlement = reineiraStatus?.needsSettlement ?? false;
+            const settled = reineiraStatus?.escrowSettled ?? !needsSettlement;
+
+            let label = 'Dispute pending';
+            let description = `Counter-outcome: ${counterOutcome}.`;
+            let tone: 'success' | 'danger' | 'neutral' = 'neutral';
+
+            if (market.status === 'FINALIZED' && succeeded && needsSettlement) {
+                label = 'Dispute won — settle escrow to receive refund';
+                description = `Your counter-outcome ${counterOutcome} beat the proposal. Settle the Reineira escrow to release your refund.`;
+                tone = 'success';
+            } else if (market.status === 'FINALIZED' && failed && needsSettlement) {
+                label = 'Dispute lost — settle escrow to release rewards';
+                description = `Final outcome was ${finalOutcome}. Settle the Reineira escrow to route the dispute stake into oracle rewards and protocol fees.`;
+                tone = 'danger';
+            } else if (market.status === 'FINALIZED' && succeeded && settled) {
+                label = 'Dispute refunded';
+                description = `Your counter-outcome ${counterOutcome} beat the proposal. Dispute stake has been settled.`;
+                tone = 'success';
+            } else if (market.status === 'FINALIZED' && failed && settled) {
+                label = 'Dispute stake routed';
+                description = `Final outcome was ${finalOutcome}. The dispute stake funded rewards/protocol fees.`;
+                tone = 'danger';
+            } else if (reineiraStatus?.needsActivation) {
+                label = 'Dispute funded — activation pending';
+                description = `Counter-outcome: ${counterOutcome}. Complete Reineira escrow activation on the market page.`;
+            }
 
             return {
                 market,
-                label: succeeded ? 'Dispute refunded' : failed ? 'Dispute stake lost' : 'Dispute pending',
-                description: succeeded
-                    ? `Your counter-outcome ${counterOutcome} beat the proposal. Dispute stake is refundable.`
-                    : failed
-                        ? `Final outcome was ${finalOutcome}. The dispute stake funded rewards/protocol fees.`
-                        : `Counter-outcome: ${counterOutcome}.`,
-                tone: succeeded ? 'success' : failed ? 'danger' : 'neutral',
+                label,
+                description,
+                tone,
             };
         });
 

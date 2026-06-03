@@ -5,7 +5,10 @@ import { ERC20_ABI, PREDICTION_MARKET_ABI, REINEIRA_DISPUTE_ESCROW_ADAPTER_ABI }
 import { ensureCofheConnected } from './cofhe.js';
 import { getBufferedGasFees } from './gas.js';
 import { requirePredictionMarketAddress } from './addresses.js';
+import { getMarket } from './markets.js';
 import type { CipherMarketClientConfig } from './types.js';
+
+const MARKET_STATE_FINALIZED = 4;
 
 const REINEIRA_ESCROW_ABI = [
   {
@@ -102,6 +105,30 @@ export interface OpenDisputeParams {
   collateralToken: Address;
 }
 
+export interface ReineiraDisputeStatusInput {
+  marketState: number;
+  disputeOpened: boolean;
+  disputeRefundsEnabled: boolean;
+  marketDisputeAdapter: Address | null;
+  escrowId: bigint | null;
+  escrowRegistered: boolean;
+  escrowActivated: boolean;
+  escrowSettled: boolean;
+}
+
+export interface ReineiraDisputeStatus {
+  usesReineira: boolean;
+  adapterAddress: Address | null;
+  escrowId: bigint | null;
+  escrowRegistered: boolean;
+  escrowActivated: boolean;
+  escrowSettled: boolean;
+  needsActivation: boolean;
+  needsSettlement: boolean;
+  disputeRefundsEnabled: boolean | null;
+  marketState: number;
+}
+
 type ReineiraEncryptedInput = {
   ctHash: bigint;
   securityZone: number;
@@ -109,9 +136,64 @@ type ReineiraEncryptedInput = {
   signature: Hex;
 };
 
+const ACTIVATE_DISPUTE_SELECTOR = '0xd76c367c';
+
+const LEGACY_DISPUTE_ESCROW_ABI = [
+  {
+    type: 'function',
+    name: 'disputeEscrows',
+    stateMutability: 'view',
+    inputs: [{ name: 'escrowId', type: 'uint256' }],
+    outputs: [
+      { name: 'registered', type: 'bool' },
+      { name: 'settled', type: 'bool' },
+      { name: 'marketId', type: 'uint256' },
+      { name: 'disputer', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'stakeAmount', type: 'uint128' },
+      { name: 'counterOutcome', type: 'uint8' },
+    ],
+  },
+] as const;
+
 function toReineiraEncryptedInput(input: unknown): ReineiraEncryptedInput {
   assertCorrectEncryptedItemInput(input as Parameters<typeof assertCorrectEncryptedItemInput>[0]);
   return input as ReineiraEncryptedInput;
+}
+
+export function deriveReineiraDisputeStatus(input: ReineiraDisputeStatusInput): ReineiraDisputeStatus {
+  const adapterAddress =
+    input.marketDisputeAdapter && input.marketDisputeAdapter !== zeroAddress
+      ? input.marketDisputeAdapter
+      : null;
+  const usesReineira = Boolean(adapterAddress) || (input.escrowRegistered && input.escrowId !== null);
+
+  const needsActivation =
+    input.escrowRegistered &&
+    !input.escrowActivated &&
+    !input.escrowSettled &&
+    !input.disputeOpened;
+
+  const needsSettlement =
+    input.marketState === MARKET_STATE_FINALIZED &&
+    usesReineira &&
+    input.escrowId !== null &&
+    input.escrowRegistered &&
+    input.escrowActivated &&
+    !input.escrowSettled;
+
+  return {
+    usesReineira,
+    adapterAddress,
+    escrowId: input.escrowId,
+    escrowRegistered: input.escrowRegistered,
+    escrowActivated: input.escrowActivated,
+    escrowSettled: input.escrowSettled,
+    needsActivation,
+    needsSettlement,
+    disputeRefundsEnabled: input.disputeOpened ? input.disputeRefundsEnabled : null,
+    marketState: input.marketState,
+  };
 }
 
 async function writeContract(
@@ -130,6 +212,230 @@ async function writeContract(
   return (config.walletClient as unknown as {
     writeContract: (request: Record<string, unknown>) => Promise<Hex>;
   }).writeContract({ account, ...request });
+}
+
+type DisputeEscrowRecord = {
+  registered: boolean;
+  activated: boolean;
+  settled: boolean;
+  marketId: bigint;
+};
+
+async function adapterSupportsActivation(
+  config: CipherMarketClientConfig,
+  adapterAddress: Address,
+): Promise<boolean> {
+  const bytecode = await config.publicClient.getBytecode({ address: adapterAddress });
+  return bytecode?.includes(ACTIVATE_DISPUTE_SELECTOR.slice(2)) ?? false;
+}
+
+async function readDisputeEscrow(
+  config: CipherMarketClientConfig,
+  adapterAddress: Address,
+  escrowId: bigint,
+  disputeOpened: boolean,
+): Promise<DisputeEscrowRecord | null> {
+  const supportsActivation = await adapterSupportsActivation(config, adapterAddress);
+
+  if (supportsActivation) {
+    const record = await config.publicClient.readContract({
+      address: adapterAddress,
+      abi: REINEIRA_DISPUTE_ESCROW_ADAPTER_ABI,
+      functionName: 'disputeEscrows',
+      args: [escrowId],
+    }) as readonly [boolean, boolean, boolean, bigint, Address, Address, bigint, number];
+
+    if (!record[0]) {
+      return null;
+    }
+
+    return {
+      registered: record[0],
+      activated: record[1],
+      settled: record[2],
+      marketId: record[3],
+    };
+  }
+
+  const legacyRecord = await config.publicClient.readContract({
+    address: adapterAddress,
+    abi: LEGACY_DISPUTE_ESCROW_ABI,
+    functionName: 'disputeEscrows',
+    args: [escrowId],
+  }) as readonly [boolean, boolean, bigint, Address, Address, bigint, number];
+
+  if (!legacyRecord[0]) {
+    return null;
+  }
+
+  return {
+    registered: legacyRecord[0],
+    activated: disputeOpened,
+    settled: legacyRecord[1],
+    marketId: legacyRecord[2],
+  };
+}
+
+async function resolveEscrowIdForMarket(
+  config: CipherMarketClientConfig,
+  adapterAddress: Address,
+  marketId: bigint,
+  disputeOpened: boolean,
+): Promise<{ escrowId: bigint | null; record: DisputeEscrowRecord | null }> {
+  const mappedEscrowId = await config.publicClient.readContract({
+    address: adapterAddress,
+    abi: REINEIRA_DISPUTE_ESCROW_ADAPTER_ABI,
+    functionName: 'marketEscrowId',
+    args: [marketId],
+  }) as bigint;
+
+  if (mappedEscrowId > 0n) {
+    const record = await readDisputeEscrow(config, adapterAddress, mappedEscrowId, disputeOpened);
+    return { escrowId: mappedEscrowId, record };
+  }
+
+  if (disputeOpened) {
+    return { escrowId: null, record: null };
+  }
+
+  const supportsActivation = await adapterSupportsActivation(config, adapterAddress);
+  if (!supportsActivation) {
+    return { escrowId: null, record: null };
+  }
+
+  const logs = await config.publicClient.getLogs({
+    address: adapterAddress,
+    event: {
+      type: 'event',
+      name: 'EscrowRegistered',
+      inputs: [
+        { name: 'marketId', type: 'uint256', indexed: true },
+        { name: 'escrowId', type: 'uint256', indexed: true },
+        { name: 'disputer', type: 'address', indexed: true },
+        { name: 'counterOutcome', type: 'uint8', indexed: false },
+        { name: 'stakeAmount', type: 'uint256', indexed: false },
+      ],
+    },
+    args: { marketId },
+    fromBlock: 0n,
+    toBlock: 'latest',
+  });
+
+  for (const log of logs.reverse()) {
+    const escrowId = log.args.escrowId;
+    if (escrowId === undefined) {
+      continue;
+    }
+
+    const record = await readDisputeEscrow(config, adapterAddress, escrowId, disputeOpened);
+    if (record?.registered && !record.activated && !record.settled) {
+      return { escrowId, record };
+    }
+  }
+
+  return { escrowId: null, record: null };
+}
+
+export async function getReineiraDisputeStatus(
+  config: CipherMarketClientConfig,
+  marketId: number | bigint,
+): Promise<ReineiraDisputeStatus> {
+  const predictionMarketAddress = requirePredictionMarketAddress(config.addresses);
+  const marketIdBigInt = BigInt(marketId);
+
+  const [marketView, marketDisputeAdapter] = await Promise.all([
+    getMarket(config.publicClient, predictionMarketAddress, marketIdBigInt),
+    config.publicClient.readContract({
+      address: predictionMarketAddress,
+      abi: PREDICTION_MARKET_ABI,
+      functionName: 'marketDisputeAdapter',
+      args: [marketIdBigInt],
+    }) as Promise<Address>,
+  ]);
+
+  const adapterAddress =
+    marketDisputeAdapter && marketDisputeAdapter !== zeroAddress
+      ? marketDisputeAdapter
+      : config.addresses.reineiraDisputeEscrowAdapter;
+
+  if (!adapterAddress || adapterAddress === zeroAddress) {
+    return deriveReineiraDisputeStatus({
+      marketState: marketView.state,
+      disputeOpened: marketView.disputeOpened,
+      disputeRefundsEnabled: marketView.disputeRefundsEnabled,
+      marketDisputeAdapter: null,
+      escrowId: null,
+      escrowRegistered: false,
+      escrowActivated: false,
+      escrowSettled: false,
+    });
+  }
+
+  const { escrowId, record } = await resolveEscrowIdForMarket(
+    config,
+    adapterAddress,
+    marketIdBigInt,
+    marketView.disputeOpened,
+  );
+
+  return deriveReineiraDisputeStatus({
+    marketState: marketView.state,
+    disputeOpened: marketView.disputeOpened,
+    disputeRefundsEnabled: marketView.disputeRefundsEnabled,
+    marketDisputeAdapter:
+      marketDisputeAdapter && marketDisputeAdapter !== zeroAddress ? marketDisputeAdapter : null,
+    escrowId,
+    escrowRegistered: record?.registered ?? false,
+    escrowActivated: record?.activated ?? marketView.disputeOpened,
+    escrowSettled: record?.settled ?? false,
+  });
+}
+
+export async function activateReineiraDispute(
+  config: CipherMarketClientConfig,
+  params: { marketId: number | bigint; escrowId: bigint; adapterAddress?: Address },
+): Promise<Hex> {
+  const status = await getReineiraDisputeStatus(config, params.marketId);
+  const adapterAddress =
+    params.adapterAddress ??
+    status.adapterAddress ??
+    config.addresses.reineiraDisputeEscrowAdapter;
+
+  if (!adapterAddress || adapterAddress === zeroAddress) {
+    throw new Error('Reineira dispute escrow adapter is not configured for this market.');
+  }
+
+  return writeContract(config, {
+    address: adapterAddress,
+    abi: REINEIRA_DISPUTE_ESCROW_ADAPTER_ABI,
+    functionName: 'activateDispute',
+    args: [params.escrowId],
+    ...(config.getGasFees ? await config.getGasFees() : await getBufferedGasFees(config.publicClient)),
+  });
+}
+
+export async function settleReineiraDispute(
+  config: CipherMarketClientConfig,
+  params: { marketId: number | bigint },
+): Promise<Hex> {
+  const status = await getReineiraDisputeStatus(config, params.marketId);
+
+  if (!status.needsSettlement || status.escrowId === null) {
+    throw new Error('This market does not have a Reineira dispute escrow awaiting settlement.');
+  }
+
+  const adapterAddress = status.adapterAddress;
+  if (!adapterAddress || adapterAddress === zeroAddress) {
+    throw new Error('Reineira dispute escrow adapter could not be resolved for this market.');
+  }
+
+  return writeContract(config, {
+    address: adapterAddress,
+    abi: REINEIRA_DISPUTE_ESCROW_ADAPTER_ABI,
+    functionName: 'settleEscrow',
+    args: [status.escrowId],
+    ...(config.getGasFees ? await config.getGasFees() : await getBufferedGasFees(config.publicClient)),
+  });
 }
 
 export async function openDirectDispute(
@@ -181,7 +487,7 @@ export async function openDirectDispute(
 export async function openReineiraDispute(
   config: CipherMarketClientConfig,
   params: OpenDisputeParams,
-): Promise<{ createHash: Hex; fundHash: Hex; escrowId: bigint }> {
+): Promise<{ createHash: Hex; fundHash: Hex; activateHash: Hex; escrowId: bigint }> {
   const account = config.account ?? config.walletClient?.account?.address;
   if (!account) {
     throw new Error('Please connect your wallet first.');
@@ -290,13 +596,45 @@ export async function openReineiraDispute(
     .setChainId(config.chainId)
     .execute();
 
-  const fundHash = await writeContract(config, {
-    address: reineiraEscrowAddress,
-    abi: REINEIRA_ESCROW_ABI,
-    functionName: 'fund',
-    args: [escrowId, toReineiraEncryptedInput(encryptedPayment)],
-    ...(config.getGasFees ? await config.getGasFees() : await getBufferedGasFees(config.publicClient)),
-  });
+  let fundHash: Hex;
+  try {
+    fundHash = await writeContract(config, {
+      address: reineiraEscrowAddress,
+      abi: REINEIRA_ESCROW_ABI,
+      functionName: 'fund',
+      args: [escrowId, toReineiraEncryptedInput(encryptedPayment)],
+      ...(config.getGasFees ? await config.getGasFees() : await getBufferedGasFees(config.publicClient)),
+    });
+    const fundReceipt = await config.publicClient.waitForTransactionReceipt({ hash: fundHash });
+    if (fundReceipt.status !== 'success') {
+      throw new Error('Reineira escrow funding reverted on-chain.');
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Reineira escrow funding failed.';
+    throw new Error(
+      `${message} The market dispute was not opened. You can retry funding escrow ${escrowId.toString()} and then activate the dispute.`,
+    );
+  }
 
-  return { createHash, fundHash, escrowId };
+  let activateHash: Hex;
+  try {
+    activateHash = await activateReineiraDispute(config, {
+      marketId: params.marketId,
+      escrowId,
+      adapterAddress,
+    });
+    const activateReceipt = await config.publicClient.waitForTransactionReceipt({ hash: activateHash });
+    if (activateReceipt.status !== 'success') {
+      throw new Error('Reineira dispute activation reverted on-chain.');
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Reineira dispute activation failed.';
+    throw new Error(
+      `${message} Escrow ${escrowId.toString()} is funded but the market dispute is not active yet. Retry activation when ready.`,
+    );
+  }
+
+  return { createHash, fundHash, activateHash, escrowId };
 }

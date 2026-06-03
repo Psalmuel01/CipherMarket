@@ -3,7 +3,8 @@
   "oracleRegistry": "0xCae2F4c4492696Ffe1077643124219e138209c6b",
   "predictionMarketMath": "0x973C809CbacB0dEd934357F7DAbe9D07f0203581",
   "predictionMarket": "0xdFCBc7dB25CBaa190FAfEC891CE5F8601E6B7354",
-  "reineiraAdapter": "0xfFf5263B87c8fa4890D36551aAc43A77a3c9d2BB",
+  "reineiraAdapter": "0x50184238C14b19CAC02FdfA6Dd9861B7Ce0c0114",
   "reineiraEscrow": "0xC4333F84F5034D8691CB95f068def2e3B6DC60Fa",
-  "usdc": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+  "usdc": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+  "reineiraAdapterLegacy": "0xfFf5263B87c8fa4890D36551aAc43A77a3c9d2BB"
 }

@@ -446,7 +446,6 @@ describe('PredictionMarket Wave 3A', () => {
 
     const stakeAmount = 100_000n;
     const escrowId = 77n;
-    await usdc.connect(disputer).approve(await escrow.getAddress(), stakeAmount);
     await escrow.connect(disputer).createEscrow(
       escrowId,
       await usdc.getAddress(),
@@ -456,7 +455,11 @@ describe('PredictionMarket Wave 3A', () => {
       encodeEscrowResolverData(0, disputer.address, 1, stakeAmount, await usdc.getAddress()),
     );
 
-    // onConditionSet is called automatically by createEscrow, registering the dispute
+    const marketBeforeActivate = await predictionMarket.getMarket(0);
+    expect(marketBeforeActivate.disputeOpened).to.equal(false);
+    await usdc.connect(disputer).approve(await escrow.getAddress(), stakeAmount);
+    await escrow.connect(disputer).fundEscrow(escrowId, stakeAmount);
+    await adapter.activateDispute(escrowId);
     expect(await predictionMarket.marketDisputeAdapter(0)).to.equal(await adapter.getAddress());
 
     await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
@@ -510,7 +513,6 @@ describe('PredictionMarket Wave 3A', () => {
 
     const stakeAmount = 100_000n;
     const escrowId = 78n;
-    await usdc.connect(disputer).approve(await escrow.getAddress(), stakeAmount);
     await escrow.connect(disputer).createEscrow(
       escrowId,
       await usdc.getAddress(),
@@ -519,8 +521,9 @@ describe('PredictionMarket Wave 3A', () => {
       await adapter.getAddress(),
       encodeEscrowResolverData(0, disputer.address, 1, stakeAmount, await usdc.getAddress()),
     );
-
-    // onConditionSet is called automatically by createEscrow, registering the dispute
+    await usdc.connect(disputer).approve(await escrow.getAddress(), stakeAmount);
+    await escrow.connect(disputer).fundEscrow(escrowId, stakeAmount);
+    await adapter.activateDispute(escrowId);
     await predictionMarket.connect(proposerOracle).voteOnResolution(0, 0);
     await predictionMarket.connect(committeeOracle).voteOnResolution(0, 0);
     await moveTime(3601);

@@ -252,15 +252,36 @@ await cipherMarket.disputes.openDirect({
 Reineira escrow dispute:
 
 ```ts
-await cipherMarket.disputes.openWithReineira({
+const result = await cipherMarket.disputes.openWithReineira({
   marketId: 1,
   counterOutcomeIndex: 1,
   stakeAmount: 10_000_000n,
   collateralToken: usdcAddress,
 });
+
+console.log(result.escrowId, result.createHash, result.fundHash, result.activateHash);
 ```
 
-Reineira disputes are intended for USDC markets. Users fund with USDC, Reineira handles encrypted cUSDC internally, and the adapter unwraps back to USDC on settlement.
+After a market finalizes, settle the Reineira escrow so funds leave the vault and reach the disputer or oracle reward pool:
+
+```ts
+const status = await cipherMarket.disputes.getReineiraStatus(1);
+
+if (status.needsSettlement) {
+  await cipherMarket.disputes.settleReineira({ marketId: 1 });
+}
+```
+
+If funding succeeded but activation failed, retry activation explicitly:
+
+```ts
+await cipherMarket.disputes.activateReineira({
+  marketId: 1,
+  escrowId: result.escrowId,
+});
+```
+
+Reineira disputes are intended for USDC markets. Users fund with USDC, Reineira handles encrypted cUSDC internally, and the adapter unwraps back to USDC on settlement. Reineira refunds are delivered by `settleReineira`, not `claimDisputeRefund`.
 
 ## Error Handling
 
@@ -291,7 +312,7 @@ Common error categories:
 - slippage exceeded
 - CoFHE connection failed
 - CoFHE decryption failed
-- Reineira escrow creation or funding failed
+- Reineira escrow creation, funding, activation, or settlement failed
 
 ## Example: Telegram Bot
 

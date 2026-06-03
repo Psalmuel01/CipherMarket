@@ -36,6 +36,7 @@ import useAddLiquidity from '@/hooks/useAddLiquidity';
 import useClaimLpPayout from '@/hooks/useClaimLpPayout';
 import useDisputeOutcome from '@/hooks/useDisputeOutcome';
 import useDisputeEscrow from '@/hooks/useDisputeEscrow';
+import useReineiraDisputeStatus from '@/hooks/useReineiraDisputeStatus';
 import useEscalateMarket from '@/hooks/useEscalateMarket';
 import useFinalizeMarket from '@/hooks/useFinalizeMarket';
 import useMarketDetails from '@/hooks/useMarketDetails';
@@ -122,6 +123,11 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
   const claimLpPayoutMutation = useClaimLpPayout();
   const disputeOutcomeMutation = useDisputeOutcome();
   const disputeEscrowMutation = useDisputeEscrow();
+  const reineiraStatusQuery = useReineiraDisputeStatus(
+    data?.marketId ?? null,
+    Boolean(data && data.collateralSymbol === 'USDC'),
+  );
+  const reineiraStatus = reineiraStatusQuery.data;
   const escalateMarketMutation = useEscalateMarket();
   const [disputeEscrowMode, setDisputeEscrowMode] = useState<boolean>(false);
   const deepLinkAppliedRef = useRef<boolean>(false);
@@ -790,6 +796,75 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
     );
   })();
 
+  const reineiraEscrowBanner = (() => {
+    if (!data || !reineiraStatus) {
+      return null;
+    }
+
+    if (reineiraStatus.needsActivation && reineiraStatus.escrowId !== null) {
+      return (
+        <div className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.28em] text-amber-200/80">Reineira escrow pending</p>
+              <p className="text-sm text-foreground">
+                This dispute escrow is funded but not yet active on the market. Complete activation to open the dispute.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={disputeEscrowMutation.isLoading}
+              onClick={() =>
+                disputeEscrowMutation.activateReineiraEscrow(
+                  data.marketId,
+                  reineiraStatus.escrowId!,
+                  data.title,
+                )
+              }
+              type="button"
+            >
+              <Shield className="h-4 w-4" />
+              {disputeEscrowMutation.isLoading ? 'Activating...' : 'Complete dispute activation'}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (!reineiraStatus.needsSettlement) {
+      return null;
+    }
+
+    const refundEligible = reineiraStatus.disputeRefundsEnabled === true;
+
+    return (
+      <div className="rounded-3xl border border-primary/20 bg-primary/10 p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.28em] text-primary/80">Reineira escrow pending settlement</p>
+            <p className="text-sm text-foreground">
+              {refundEligible
+                ? 'USDC is still held in Reineira. Settle the escrow to release the dispute refund.'
+                : 'USDC is still held in Reineira. Settle the escrow to route the dispute stake into oracle rewards and protocol fees.'}
+            </p>
+          </div>
+          <Button
+            className="gap-2"
+            disabled={disputeEscrowMutation.isLoading}
+            onClick={() =>
+              disputeEscrowMutation.settleReineiraEscrow(data.marketId, data.title, refundEligible)
+            }
+            type="button"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            {disputeEscrowMutation.isLoading ? 'Settling...' : 'Settle dispute escrow'}
+          </Button>
+        </div>
+      </div>
+    );
+  })();
+
   const finalResolutionBanner = (() => {
     if (!data || data.status !== 'FINALIZED' || !finalOutcome) {
       return null;
@@ -942,6 +1017,7 @@ function MarketDetailDesk({ marketIdParam }: { marketIdParam: string }): JSX.Ele
             </div>
           </section>
 
+          {reineiraEscrowBanner}
           {finalResolutionBanner}
 
           <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr),400px]">
